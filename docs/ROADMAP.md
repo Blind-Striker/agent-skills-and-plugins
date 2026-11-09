@@ -12,7 +12,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 - The five current curation manifests pass through one common assembly and emit matching Claude
   Code Plugins, OpenCode Module Bundles, and native Codex Plugins plus both repository marketplaces.
-  Checkout Module versions are Process 0.14.3, General 0.17.0, Akka 0.4.1, Aspire 0.6.0, and
+  Checkout Module versions are Process 0.15.0, General 0.17.1, Akka 0.4.1, Aspire 0.6.0, and
   Coordination 0.1.12. Coordination is unreleased: it holds the new `coordinator` mode,
   `delegating-to-worker-models` and `verified-waves`, both moved out of Process, and the `harness` skill with its bundled .NET
   source ([ADR-0009](adr/0009-coordination-ships-in-its-own-module.md)); `harnesses` narrows
@@ -125,12 +125,15 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   and `aspire-init` declares its edge to the router. Description length is now checked in every
   harness tree, so `aspireify` and `aspire-orchestration` shorten their rendered descriptions
   instead of Codex truncating them.
-- `superpowers` is reviewed through v7.0.0 (`bb92a77`, released 2026-10-09) and `asd-ste100`
-  through `d48bfca`; wave W4 is done. `asd-ste100`'s later linter fixes flow unpatched, and its
-  own Claude plugin packaging (`.claude-plugin/`) is omitted. v7 rebuilt `brainstorming`, which first flowed pristine under
-  a description override; an autonomy audit since patched its body so a small change the request
-  already names is built without a second approval, and recon in the user's own project is done
-  rather than offered. The same audit removed routine stops from the finish, worktree, review-taking,
+- `superpowers` is reviewed through v7.0.2 (`22f0b46`) and `asd-ste100` through `d48bfca`;
+  wave W4 is done, and v7.0.2 landed in wave W-P. `asd-ste100`'s later linter fixes flow
+  unpatched, and its own Claude plugin packaging (`.claude-plugin/`) is omitted. v7 rebuilt
+  `brainstorming`, which flows pristine under a description override: v7.0.2 writes a short
+  design doc for a small change and sends every approved design doc to `writing-plans`, whose
+  patch sizes that work again, so a small change is built from its doc without a plan. v7.0.2 also
+  moved much of `subagent-driven-development` and `writing-skills` into reference files for
+  Claude Code's 20,000-character re-attach cut; `writing-skills` is now `both`, and `AGENTS.md`
+  makes its test process wait for the maintainer here. An autonomy audit removed routine stops from the finish, worktree, review-taking,
   TDD, debugging, triage, and executor skills; the reasons sit beside each item in
   [`curation/deniz-process.yaml`](../curation/deniz-process.yaml). The four
   items that share one review contract landed together: `executing-plans` is the autonomous inline
@@ -142,17 +145,21 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   The checkout now puts size/authority gates in `writing-plans`, both plan executors, and
   `using-git-worktrees`: ordinary work does not manufacture another ceremony, and already approved
   execution/workspace choices are preserved. Process weight is the agent's judgment, with one
-  question only when it is genuinely torn; work that arrives already sized (an explicit plan request,
-  an approved design) is not sized again; a resumed plan keeps the executor its ledger records; a
+  question only when it is genuinely torn; an explicit plan request is not sized again, while an
+  approved design from brainstorming is; a resumed plan keeps the executor its ledger records; a
   delegation request without a plan is plain delegation; and the default branch needs an earlier
   answer or a standing instruction before its first commit. The selected heavy SDD workflow retains
   per-task review and whole-suite checks. `ask-deniz` keeps its .NET, Aspire, and Akka maps in a
   reference file read only for .NET work, and `verified-waves` treats a sequential chain as
   not-small rather than solo by default. These authored contracts have structural regression tests, not new
   model-compliance measurements; intent remains beside the items in curation.
-- `mattpocock-skills` is reviewed through `49dd158` (2026-10-09), 46 commits past the v1.3.1 tag
-  with no later tag; wave W5 is done. Process adopts upstream's `GLOSSARY.md` name for the domain
-  glossary with no read of the old one, and this repository's own glossary moved with it.
+- `mattpocock-skills` is reviewed through `4ae2317` (v1.3.2 plus 3 commits); wave W5 is done, and
+  wave W-P took the rest. Process adopts upstream's `GLOSSARY.md` name for the domain glossary,
+  and this repository's own glossary moved with it; `setup-matt-pocock-skills` reads the old
+  `CONTEXT.md` name only to offer a `git mv` to the new one. Its taken skills that dispatch
+  subagents now start them with a fresh context window, as upstream does, and
+  `requesting-code-review` says the same; the superpowers dispatchers do not yet. Process takes
+  the in-progress `software-factory` as `manual`.
   `resolving-merge-conflicts` left with its upstream deletion, its `ask-deniz` route included.
   Process takes `implement-spec`, `retro`, and `pr` as `manual`; `pr`'s Summary guidance comes
   from HumanLayer's `show-me`, so `humanlayer/skills` is an attribution-only submodule whose
@@ -459,9 +466,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
     dispatching a writer. `SKILL.md` now says that the parent never does an item's work: when the
     total is spent, it asks the yes/no question about going over it, or stops and reports what is
     left. That rule is unmeasured.
-- **Consumer repositories set up before W5 keep the old layout:** with no read of the old names,
-  a repository that has `CONTEXT.md`, or an `## Agent skills` block in `CLAUDE.md`, needs its
-  glossary renamed and `setup-matt-pocock-skills` run again. The new run writes its block to
+- **Consumer repositories set up before W5 keep the old layout:** `setup-matt-pocock-skills`, run
+  again, offers to `git mv` an old `CONTEXT.md` or `CONTEXT-MAP.md` to its `GLOSSARY` name, but
+  an `## Agent skills` block in `CLAUDE.md` stays. The new run writes its block to
   `AGENTS.md` and leaves the old one in `CLAUDE.md`, so remove that block from `CLAUDE.md` by hand;
   otherwise Claude Code sees two `## Agent skills` blocks once `CLAUDE.md` imports `AGENTS.md`.
 - **`to-tickets` sub-issues are GitHub-only upstream:** the GitLab and local tracker templates name

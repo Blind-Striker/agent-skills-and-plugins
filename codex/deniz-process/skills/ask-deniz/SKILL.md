@@ -52,9 +52,10 @@ find environment facts rather than asking you for them.
 ### 2. Decide, and get the gate
 
 **`$deniz-process:brainstorming`** is where an idea becomes an approved design. It draws out what you
-want first, then sizes the work out loud — a quick, clear task it simply does, a small change it
-agrees with you in chat, and a project gets a written design document. Past a quick task, **it does
-not build until you approve.** That gate is the reason to route through it rather than around it.
+want first, then sizes the work out loud — a quick, clear task it simply does, a small change gets a
+short design document, and a project gets a full one. Past a quick task, **it does not build until
+you approve.** After approval a small change is built straight from its short document; only a
+project goes on to a written plan. That gate is the reason to route through it rather than around it.
 
 Grilling and brainstorming are not rivals. Grilling sharpens what you think; brainstorming decides
 what to do about it and makes you say yes. On small work you will often only want one of them.
@@ -173,6 +174,7 @@ Reach for these directly; they are not on any flow.
 | **`$deniz-process:wizard`** | Generate a bash wizard for steps only a human can do — dashboards, credentials, CI secrets. It writes real `.env` values and can set real repository secrets, so read what it generated before running it. |
 | **`$deniz-process:writing-for-agents`** | The design vocabulary for any document an agent reads: a skill, an `AGENTS.md`, a doc behind a pointer. |
 | **`$deniz-process:writing-skills`** | The testing methodology for skills: pressure scenarios, baselines, closing loopholes. Pairs with the one above rather than competing with it. |
+| **`$deniz-process:software-factory`** | Shared words for designing a software factory: agents that turn tickets, PRs and schedules into merged code on remote runners. Load it beside a grilling session. |
 | **`$deniz-process:using-superpowers`** | Switch this session to skill-driven working. Flipped by hand, never automatically. |
 | **`$deniz-process:diagnosing-superpowers`** | A session went wrong — repeated work, an ignored plan, a skill that did not fire, too slow or too costly. It finds out why, with cited evidence, and drafts an issue for the superpowers maintainers only when you approve the text. |
 | **`$deniz-process:setup-matt-pocock-skills`** | One-time setup for the issue-tracker conventions the ticket flow assumes. |

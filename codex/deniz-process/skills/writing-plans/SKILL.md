@@ -14,12 +14,13 @@ Write implementation plans for an engineer who has not seen this codebase or thi
 ## Size before ceremony
 
 Some work arrives already sized: the user explicitly asks for a written plan (typing this skill's
-invocation counts), or a design document the user approved during brainstorming says a plan comes
-next. Write the plan; do not size that work again. Otherwise, size the work before creating an
-artifact. A change that fits one sitting belongs to ordinary implementation: keep its steps in chat
-and do not create a plan document, a spec, or an execution workspace merely because it has several
-steps. Use this ceremony for multi-session work or several people's worth. A loaded skill is not a
-reason to make the task larger.
+invocation counts). Write the plan; do not size that work again. Otherwise, size the work before
+creating an artifact. Work that brainstorming hands over with an approved design doc is sized here
+too, with that doc as its input: a change that fits one sitting skips the plan and is built from the
+doc on the ordinary path, and multi-session work gets the plan. A change that fits one sitting
+belongs to ordinary implementation: keep its steps in chat and do not create a plan document, a
+spec, or an execution workspace merely because it has several steps. Use this ceremony for
+multi-session work or several people's worth. A loaded skill is not a reason to make the task larger.
 Return to the task on the ordinary path; the remaining sections apply only to the written-plan path.
 
 **Announce at start, only after that gate:** "I'm using the writing-plans skill to create the implementation plan."

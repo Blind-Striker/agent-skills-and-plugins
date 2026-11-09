@@ -4833,6 +4833,7 @@
           "deniz-process:research",
           "deniz-process:retro",
           "deniz-process:setup-matt-pocock-skills",
+          "deniz-process:software-factory",
           "deniz-process:subagent-driven-development",
           "deniz-process:teach",
           "deniz-process:to-questionnaire",
@@ -4963,6 +4964,7 @@
           "@deniz-process.research",
           "@deniz-process.retro",
           "@deniz-process.setup-matt-pocock-skills",
+          "@deniz-process.software-factory",
           "@deniz-process.subagent-driven-development",
           "@deniz-process.teach",
           "@deniz-process.to-questionnaire",
@@ -5100,6 +5102,7 @@
           "$deniz-process:research",
           "$deniz-process:retro",
           "$deniz-process:setup-matt-pocock-skills",
+          "$deniz-process:software-factory",
           "$deniz-process:subagent-driven-development",
           "$deniz-process:teach",
           "$deniz-process:to-questionnaire",
@@ -5122,7 +5125,6 @@
   "deniz-process/skill/brainstorming": {
     "source": "superpowers/skills/brainstorming",
     "invocation": "both",
-    "body": "patch",
     "dependsOn": [
       "writing-plans"
     ],
@@ -5379,6 +5381,7 @@
       ],
       "edges": {
         "model": [
+          "deniz-process:executing-plans",
           "deniz-process:finishing-a-development-branch",
           "deniz-process:requesting-code-review",
           "deniz-process:subagent-driven-development",
@@ -5399,6 +5402,7 @@
       "advertised": true,
       "edges": {
         "model": [
+          "deniz-process.executing-plans",
           "deniz-process.finishing-a-development-branch",
           "deniz-process.requesting-code-review",
           "deniz-process.subagent-driven-development",
@@ -5425,6 +5429,7 @@
       "policyFiles": [],
       "edges": {
         "model": [
+          "$deniz-process:executing-plans",
           "$deniz-process:finishing-a-development-branch",
           "$deniz-process:requesting-code-review",
           "$deniz-process:subagent-driven-development",
@@ -6502,6 +6507,59 @@
       "bodyTransformations": []
     }
   },
+  "deniz-process/skill/software-factory": {
+    "source": "mattpocock-skills/skills/in-progress/software-factory",
+    "invocation": "manual",
+    "description": "Shared language for designing a software factory: the tasks it runs and the services it plugs into.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "flags": {
+        "disable-model-invocation": true
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process.software-factory",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation"
+      ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:software-factory",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation"
+      ],
+      "bodyTransformations": []
+    }
+  },
   "deniz-process/skill/subagent-driven-development": {
     "source": "superpowers/skills/subagent-driven-development",
     "invocation": "both",
@@ -6526,6 +6584,7 @@
           "deniz-process:executing-plans",
           "deniz-process:finishing-a-development-branch",
           "deniz-process:requesting-code-review",
+          "deniz-process:subagent-driven-development",
           "deniz-process:systematic-debugging",
           "deniz-process:test-driven-development",
           "deniz-process:using-git-worktrees"
@@ -6545,6 +6604,7 @@
           "deniz-process.executing-plans",
           "deniz-process.finishing-a-development-branch",
           "deniz-process.requesting-code-review",
+          "deniz-process.subagent-driven-development",
           "deniz-process.systematic-debugging",
           "deniz-process.test-driven-development",
           "deniz-process.using-git-worktrees"
@@ -6570,6 +6630,7 @@
           "$deniz-process:executing-plans",
           "$deniz-process:finishing-a-development-branch",
           "$deniz-process:requesting-code-review",
+          "$deniz-process:subagent-driven-development",
           "$deniz-process:systematic-debugging",
           "$deniz-process:test-driven-development",
           "$deniz-process:using-git-worktrees"
@@ -7479,7 +7540,7 @@
   },
   "deniz-process/skill/writing-skills": {
     "source": "superpowers/skills/writing-skills",
-    "invocation": "manual",
+    "invocation": "both",
     "body": "patch",
     "dependsOn": [
       "systematic-debugging",
@@ -7493,12 +7554,10 @@
       "edges": {
         "model": [
           "deniz-process:systematic-debugging",
-          "deniz-process:test-driven-development"
+          "deniz-process:test-driven-development",
+          "deniz-process:writing-skills"
         ],
         "pointer": []
-      },
-      "flags": {
-        "disable-model-invocation": true
       }
     },
     "opencode": {
@@ -7506,11 +7565,12 @@
         "skill"
       ],
       "identity": "deniz-process.writing-skills",
-      "advertised": false,
+      "advertised": true,
       "edges": {
         "model": [
           "deniz-process.systematic-debugging",
-          "deniz-process.test-driven-development"
+          "deniz-process.test-driven-development",
+          "deniz-process.writing-skills"
         ],
         "pointer": []
       },
@@ -7524,15 +7584,14 @@
       "sourceKind": "skill",
       "resolvedKind": "skill",
       "emittedKind": "skill",
-      "implicit": "disabled",
+      "implicit": "enabled",
       "explicit": "available",
-      "policyFiles": [
-        "agents/openai.yaml"
-      ],
+      "policyFiles": [],
       "edges": {
         "model": [
           "$deniz-process:systematic-debugging",
-          "$deniz-process:test-driven-development"
+          "$deniz-process:test-driven-development",
+          "$deniz-process:writing-skills"
         ],
         "pointer": []
       },

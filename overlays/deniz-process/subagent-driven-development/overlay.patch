@@ -1,8 +1,8 @@
 diff --git a/SKILL.md b/SKILL.md
-index f7bbf6a..4782a38 100644
+index 4519578..c12ee57 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -1,15 +1,40 @@
+@@ -1,15 +1,33 @@
  ---
  name: subagent-driven-development
  description: Use when executing implementation plans with independent tasks in the current session
@@ -12,28 +12,21 @@ index f7bbf6a..4782a38 100644
  
 +## Size before orchestration
 +
-+This is the per-task implementer/reviewer workflow, not the default consequence of having a plan.
-+Use it when:
++Use this per-task implementer/reviewer workflow only when the user explicitly chose it (typing this
++skill's invocation counts), the plan's ledger names it as the executor (a resumed plan keeps its
++workflow, however little work is left), or substantial independent tasks benefit from fresh contexts
++and task-level review gates; several steps are not enough. A request to delegate is not by itself a
++choice of this workflow. With a written plan, a request to proceed with subagents selects it.
++Without a plan, dispatch the requested child with a self-contained brief
++(superpowers:dispatching-parallel-agents) and review it yourself: no plan, ledger, or per-task
++reviewer.
 +
-+- the user explicitly chose that workflow (typing this skill's invocation counts);
-+- the plan's ledger already names it as the executor: a resumed plan keeps its workflow, however
-+  little work is left (see Setup);
-+- or substantial independent tasks benefit from fresh contexts and task-level review gates. A plan
-+  with several steps is not enough on its own.
-+
-+A request to delegate is not by itself a choice of this workflow. With a written plan, a request to
-+proceed with subagents selects it. Without a plan, dispatch the requested child with a
-+self-contained brief (superpowers:dispatching-parallel-agents) and review its result yourself: no
-+plan, ledger, or per-task reviewer.
-+
-+For small or coupled work that fits the current context, use ordinary inline work, focused checks,
-+and a single final review when the repository or task requires one; do not create a plan, ledger, or
-+child merely because this skill loaded. Behavior changes still go test-first
-+(superpowers:test-driven-development), and an unexplained failure still goes through
-+superpowers:systematic-debugging. Choose by judgment and state the choice in one line; only when you
-+are genuinely torn between inline work, one delegated child, and this workflow, ask once, with your
-+recommendation. Return to that task directly. The remaining sections apply only to the selected
-+per-task workflow, whose review and whole-suite gates remain mandatory.
++For small or coupled work, use ordinary inline work, focused checks, and a single final review when
++required; do not create a plan, ledger, or child merely because this skill loaded. Behavior changes
++still go test-first (superpowers:test-driven-development), and an unexplained failure still goes
++through superpowers:systematic-debugging. Choose by judgment and state the choice in one line; only
++when you are genuinely torn, ask once, with your recommendation. The rest applies only to the
++selected workflow, whose review and whole-suite gates remain mandatory.
 +
  Execute plan by dispatching a fresh implementer subagent per task, a task review (spec compliance + code quality) after each, and a broad whole-branch review at the end.
  
@@ -43,7 +36,7 @@ index f7bbf6a..4782a38 100644
  
  **Narration:** between tool calls, narrate at most one short line — the
  ledger and the tool results carry the record.
-@@ -24,34 +49,36 @@ judgment settles what neither answers. Record every decision in the ledger as
+@@ -24,34 +42,36 @@ judgment settles what neither answers. Record every decision in the ledger as
  going. A wrong ruling costs rework your human partner can see and undo; a
  session parked on a question costs their whole day and buys nothing.
  
@@ -84,9 +77,9 @@ index f7bbf6a..4782a38 100644
  - Review after each task (spec compliance + code quality) instead of only at the end
  - Costs a fresh context per task and per review; inline costs one context plus one final reviewer
  - Both run in this session, share the same plan workspace and ledger, and never pause between tasks
-@@ -118,20 +145,25 @@ digraph process {
-     "Dispatch final code reviewer (../requesting-code-review/code-reviewer.md)" -> "Final findings? ONE fix dispatch, one scoped re-review, adjudicate residuals";
-     "Final findings? ONE fix dispatch, one scoped re-review, adjudicate residuals" -> "Final review clean: delete this plan's workspace";
+@@ -95,37 +115,36 @@ digraph process {
+     "More tasks remain?" -> "Final review and finish: read references/final-review.md" [label="no"];
+     "Final review and finish: read references/final-review.md" -> "Final review clean: delete this plan's workspace";
      "Final review clean: delete this plan's workspace" -> "Use superpowers:finishing-a-development-branch";
  }
  ```
@@ -97,15 +90,7 @@ index f7bbf6a..4782a38 100644
 -superpowers:using-git-worktrees to create one or verify the existing one.
 -Never start implementation on a main/master branch without your human
 -partner's explicit consent.
-+Respect an approved current checkout, including main/master, and do not ask again merely because
-+this skill loaded. Use superpowers:using-git-worktrees only when isolation is requested or a concrete
-+conflict requires it; otherwise retain the current workspace. A new checkout choice still needs
-+approval, and this setup grants no permission to discard existing work.
-+
-+The default branch (main/master) is approved only by your human partner: an earlier answer in this
-+work or a standing preference in their instructions (AGENTS.md, CLAUDE.md, or similar). Without one,
-+ask once before the first commit there, in the same message as any other question you have at
-+start, and keep the answer for the rest of the plan.
++Settle the checkout first, as [references/preflight.md](references/preflight.md) says.
  
  Conversation memory does not survive compaction. In real sessions,
  controllers that lost their place have re-dispatched entire completed task
@@ -113,27 +98,20 @@ index f7bbf6a..4782a38 100644
  a ledger file, not only in todos.
  
  - Each plan owns a workspace: at skill start, run this skill's
-   `bash scripts/sdd-workspace PLAN_FILE` — it prints the plan's git-ignored
-@@ -140,18 +172,25 @@ a ledger file, not only in todos.
+   `bash scripts/sdd-workspace PLAN_FILE` by its absolute path, from the
+   working tree you're executing in — it prints the plan's git-ignored
+   directory (under `<repo-root>/.superpowers/sdd/`), home to
+   every artifact for THIS plan: ledger, briefs, reports, review packages.
    Another plan's directory is never yours to read or write.
- - Check for this plan's ledger at `<workspace>/progress.md`. If its first
-   line names your plan file, tasks with a `Task <N>: complete` line are DONE
-   — do not re-dispatch them; resume at the first task without one. A task
-   whose last line is a fix round is mid-loop: resume the loop at the next
-   round. A ledger whose first line names a different plan file — or a stray
-   ledger at the old flat path `.superpowers/sdd/progress.md` — is another
-   plan's progress: leave it in place and start your own, fresh.
+ - Check for this plan's ledger at `<workspace>/progress.md`. If one exists,
+   read [references/resuming.md](references/resuming.md) before anything
+   else: it says whose ledger it is and where to resume.
 -- Create the ledger with its identity as the first line:
 -  `# SDD ledger — plan: <plan file path>`.
 +- Create the ledger with its identity as the first line and its executor as
 +  the second:
 +  `# SDD ledger — plan: <plan file path>` then
 +  `Executor: subagent-driven-development`.
-+- An existing ledger's `Executor:` line is the workflow this plan runs. If
-+  it names superpowers:executing-plans, continue with that skill instead,
-+  unless your human partner chose this one now. A ledger with no
-+  `Executor:` line keeps the executor that loaded it; add the line. A
-+  resumed plan is never re-sized: the size gate above does not apply to it.
  - The ledger is your recovery map: the commits it names exist in git even
    when your context no longer remembers creating them. After compaction,
    trust the ledger and `git log` over your own recollection.
@@ -142,7 +120,7 @@ index f7bbf6a..4782a38 100644
  
  Read the plan once, note its context and Global Constraints, and create a
  todo per task. If the plan names a Spec, read that too: the spec is the
-@@ -215,16 +254,20 @@ that implementer. Single-file mechanical fixes also take the cheapest tier.
+@@ -171,16 +190,20 @@ that implementer. Single-file mechanical fixes also take the cheapest tier.
  
  **Task complexity signals (implementation tasks):**
  - Touches 1-2 files with a complete spec → cheap model
@@ -155,103 +133,14 @@ index f7bbf6a..4782a38 100644
 +`../using-superpowers/references/harness-tools.md`: how its subagent tool
 +spawns, resumes, and waits on a child differs by harness.
 +
- **Batch small same-shape work.** When the plan lists several tasks that are
- each a small, independent edit of the same kind — the same one-line fix,
- constant change, or field addition repeated across files — do not dispatch
- one subagent per task. Compose ONE dispatch brief listing every file and
- its change, send the whole batch to a single subagent, and review its diff
- as one unit. Reserve one-dispatch-per-task for work that needs its own
- judgment, its own tests, or its own review surface.
+ **Small same-shape work:** when the plan lists several small edits of the
+ same kind across files, read [references/batching.md](references/batching.md)
+ before dispatching them.
  
-@@ -381,30 +424,32 @@ and the findings — the report file is the persistent memory either way.
- **Rounds 4-5 — dispatch a fresh implementer on a more capable model** (per
- Model Selection), with the brief path, the report-file path, the open
- findings, and this framing: "A prior implementer attempted this task
- [N] times; you own it now. Read the report file for what was tried." A loop
- that survives three resumes usually means the implementer cannot see its
- own problem — fresh eyes and a capability bump in one move.
+ Everything you paste into a dispatch prompt — and everything a subagent
+ prints back — stays resident in your context for the rest of the session
+ and is re-read on every later turn. Hand artifacts over as files.
  
- **Every round, either way:** the implementer fixes, re-runs the tests
--covering the amended code, appends its fix report to the same report file,
--and returns the short contract. Before re-dispatching the reviewer, confirm
--the fix report contains the covering tests, the command run, and the
--output; dispatch the re-review once all three are present. Name the
--covering test files in the fix message — a one-line fix does not need the
--whole suite.
-+covering the amended code and then the project's whole suite, appends its
-+fix report to the same report file, and returns the short contract. Before
-+re-dispatching the reviewer, confirm the fix report contains the covering
-+tests, the commands run, and their output; dispatch the re-review once all
-+three are present. Name the covering test files in the fix message — even
-+a one-line fix runs the whole suite, and any failure it shows goes in the
-+report by name.
- 
- **The re-review is scoped.** Run `bash scripts/review-package PLAN_FILE FIX_BASE HEAD`
- where FIX_BASE is the head the previous review saw, and dispatch
- [re-review-prompt.md](re-review-prompt.md) with the findings list, the
- brief, the report file, and the printed diff path. The re-reviewer verdicts
- each finding ADDRESSED or NOT ADDRESSED and flags new breakage in the fix
- diff only. New Critical/Important breakage in the fix diff joins the open
--findings list. Out-of-scope observations go to the ledger as deferred
-+findings list, and so does a whole-suite run the re-reviewer reports
-+MISSING. Out-of-scope observations go to the ledger as deferred
- minors — they never extend the loop.
- 
- **After each round,** append to the ledger:
- `Task <N>: fix round <R>/5 (<X> addressed, <Y> open — <finding one-liners>; commits <a7>..<b7>)`
- 
- Never fix findings yourself in the controller session — your context stays
- clean for coordination, and controller fixes skip review.
- 
-@@ -450,18 +495,27 @@ branch started from, e.g. `git merge-base main HEAD`) and include the
- printed path in the final review dispatch, so the final reviewer reads
- one file instead of re-deriving the branch diff with git commands. Dispatch
- on the most capable available model (see Model Selection), using
- superpowers:requesting-code-review's
- [code-reviewer.md](../requesting-code-review/code-reviewer.md). Point it at
- the ledger's deferred-minor and parked lines so it can triage which must be
- fixed before merge.
- 
-+Its "Declined to judge" list is yours to triage: every line there is a
-+ruling you make and ledger — `Final: Ruling: <behavior the reviewer set
-+aside> — <what a reasonable person using this software gets, and why that
-+stands or why it is now a finding> — <cost if wrong>`. A line that is now a
-+finding joins the findings below; nothing on the list is dropped silently.
-+
- If the final whole-branch review returns findings, dispatch ONE fix subagent
--with the complete findings list — not one fixer per finding.
-+with the complete findings list — not one fixer per finding — and a
-+report-file path in the workspace. As in every fix round, it re-runs the
-+tests covering its fixes and then the project's whole suite, and appends
-+both runs' output to that report file, which the re-review reads.
- Per-finding fixers each rebuild context and re-run suites; a real
- session's final-review fix wave cost more than all its tasks combined.
- Then run exactly one scoped re-review of the fix wave
- (`bash scripts/review-package PLAN_FILE FIX_BASE HEAD` over the fix range,
- [re-review-prompt.md](re-review-prompt.md)).
- Adjudicate any residual findings as in the task loop's breaker: park with
- rulings, or rule on the load-bearing ones and ledger what you decided. Only
- the four classes above stop you here. There is no second fix wave —
-@@ -541,17 +595,18 @@ Implementer: [No questions]
- 
- [Run review-package PLAN_FILE BASE HEAD; dispatch task reviewer with the printed path]
- Task reviewer: Spec ❌:
-   - Missing: Progress reporting (spec says "report every 100 items")
-   Issues (Important): Magic number (100)
- 
- [Fix round 1: resume the implementer with both findings]
- Implementer: Added progress reporting, extracted PROGRESS_INTERVAL constant.
--  Re-ran test/recovery.test.js — 10/10 passing. Fix report appended.
-+  Re-ran test/recovery.test.js — 10/10 passing, then the whole suite —
-+  48/48 passing. Fix report appended.
- 
- [Run review-package PLAN_FILE FIX_BASE HEAD; dispatch scoped re-review]
- Re-reviewer: Missing progress reporting — ADDRESSED (src/recovery.js:41).
-   Magic number — ADDRESSED (src/recovery.js:7). New breakage: none.
-   Verdict: all findings addressed.
- 
- [Ledger: Task 2: fix round 1/5 (2 addressed, 0 open; commits d4e5f6a..b7c8d9e)]
- [Ledger: Task 2: complete (commits d4e5f6a..b7c8d9e, review clean)]
 diff --git a/implementer-prompt.md b/implementer-prompt.md
 index 5c8ecd6..c46aafa 100644
 --- a/implementer-prompt.md
@@ -285,7 +174,7 @@ index 5c8ecd6..c46aafa 100644
      - **TDD Evidence** (if TDD was required for this task):
        - RED: command run, relevant failing output before implementation, and why the failure was expected
 diff --git a/re-review-prompt.md b/re-review-prompt.md
-index d49c182..20aa05f 100644
+index eb520df..1cc5a08 100644
 --- a/re-review-prompt.md
 +++ b/re-review-prompt.md
 @@ -58,19 +58,20 @@ Subagent (general-purpose):
@@ -335,3 +224,132 @@ index d49c182..20aa05f 100644
  
  **Placeholders:**
  - `[MODEL]` — REQUIRED: reviewer model per SKILL.md Model Selection; scoped
+diff --git a/references/final-review.md b/references/final-review.md
+index cf03546..05652d5 100644
+--- a/references/final-review.md
++++ b/references/final-review.md
+@@ -10,18 +10,27 @@ branch started from, e.g. `git merge-base main HEAD`) and include the
+ printed path in the final review dispatch, so the final reviewer reads
+ one file instead of re-deriving the branch diff with git commands. Dispatch
+ on the most capable available model (see SKILL.md's Model Selection), using
+ superpowers:requesting-code-review's
+ [code-reviewer.md](../../requesting-code-review/code-reviewer.md). Point it at
+ the ledger's deferred-minor and parked lines so it can triage which must be
+ fixed before merge.
+ 
++Its "Declined to judge" list is yours to triage: every line there is a
++ruling you make and ledger — `Final: Ruling: <behavior the reviewer set
++aside> — <what a reasonable person using this software gets, and why that
++stands or why it is now a finding> — <cost if wrong>`. A line that is now a
++finding joins the findings below; nothing on the list is dropped silently.
++
+ If the final whole-branch review returns findings, dispatch ONE fix subagent
+-with the complete findings list — not one fixer per finding.
++with the complete findings list — not one fixer per finding — and a
++report-file path in the workspace. As in every fix round, it re-runs the
++tests covering its fixes and then the project's whole suite, and appends
++both runs' output to that report file, which the re-review reads.
+ Per-finding fixers each rebuild context and re-run suites; a real
+ session's final-review fix wave cost more than all its tasks combined.
+ Then run exactly one scoped re-review of the fix wave
+ (`bash scripts/review-package PLAN_FILE FIX_BASE HEAD` by its absolute path,
+ from the working tree you're executing in, over the fix range,
+ [re-review-prompt.md](../re-review-prompt.md)).
+ Adjudicate any residual findings as in the fix loop's breaker
+ (references/fix-loop.md): park with rulings, or rule on the load-bearing
+diff --git a/references/fix-loop.md b/references/fix-loop.md
+index 34e4a48..8764fe4 100644
+--- a/references/fix-loop.md
++++ b/references/fix-loop.md
+@@ -29,30 +29,32 @@ and the findings — the report file is the persistent memory either way.
+ **Rounds 4-5 — dispatch a fresh implementer on a more capable model** (per
+ SKILL.md's Model Selection), with the brief path, the report-file path, the open
+ findings, and this framing: "A prior implementer attempted this task
+ [N] times; you own it now. Read the report file for what was tried." A loop
+ that survives three resumes usually means the implementer cannot see its
+ own problem — fresh eyes and a capability bump in one move.
+ 
+ **Every round, either way:** the implementer fixes, re-runs the tests
+-covering the amended code, appends its fix report to the same report file,
+-and returns the short contract. Before re-dispatching the reviewer, confirm
+-the fix report contains the covering tests, the command run, and the
+-output; dispatch the re-review once all three are present. Name the
+-covering test files in the fix message — a one-line fix does not need the
+-whole suite.
++covering the amended code and then the project's whole suite, appends its
++fix report to the same report file, and returns the short contract. Before
++re-dispatching the reviewer, confirm the fix report contains the covering
++tests, the commands run, and their output; dispatch the re-review once all
++three are present. Name the covering test files in the fix message — even
++a one-line fix runs the whole suite, and any failure it shows goes in the
++report by name.
+ 
+ **The re-review is scoped.** Run `bash scripts/review-package PLAN_FILE FIX_BASE HEAD`
+ by its absolute path, from the working tree you're executing in, where FIX_BASE is the head the previous review saw, and dispatch
+ [re-review-prompt.md](../re-review-prompt.md) with the findings list, the
+ brief, the report file, and the printed diff path. The re-reviewer verdicts
+ each finding ADDRESSED or NOT ADDRESSED and flags new breakage in the fix
+ diff only. New Critical/Important breakage in the fix diff joins the open
+-findings list. Out-of-scope observations go to the ledger as deferred
++findings list, and so does a whole-suite run the re-reviewer reports
++MISSING. Out-of-scope observations go to the ledger as deferred
+ minors — they never extend the loop.
+ 
+ **After each round,** append to the ledger:
+ `Task <N>: fix round <R>/5 (<X> addressed, <Y> open — <finding one-liners>; commits <a7>..<b7>)`
+ 
+ Never fix findings yourself in the controller session — your context stays
+ clean for coordination, and controller fixes skip review.
+ 
+diff --git a/references/preflight.md b/references/preflight.md
+index 1701648..5967ece 100644
+--- a/references/preflight.md
++++ b/references/preflight.md
+@@ -1,12 +1,26 @@
+ # The Pre-flight Scan
+ 
+-Part of superpowers:subagent-driven-development. Run it once, before
+-dispatching Task 1.
++Part of superpowers:subagent-driven-development. Settle the checkout at
++skill start; run the scan once, before dispatching Task 1.
++
++## The checkout
++
++Respect an approved current checkout, including main/master, and do not ask again merely because
++this skill loaded. Use superpowers:using-git-worktrees only when isolation is requested or a concrete
++conflict requires it; otherwise retain the current workspace. A new checkout choice still needs
++approval, and this setup grants no permission to discard existing work.
++
++The default branch (main/master) is approved only by your human partner: an earlier answer in this
++work or a standing preference in their instructions (AGENTS.md, CLAUDE.md, or similar). Without one,
++ask once before the first commit there, in the same message as any other question you have at
++start, and keep the answer for the rest of the plan.
++
++## The scan
+ 
+ Before dispatching Task 1, scan the plan once for conflicts, writing down
+ what you checked as you check it:
+ 
+ - tasks that contradict each other or the plan's Global Constraints
+ - anything the plan explicitly mandates that the review rubric treats as a
+   defect (a test that asserts nothing, verbatim duplication of a logic block)
+ 
+diff --git a/references/resuming.md b/references/resuming.md
+index 409b826..de141e2 100644
+--- a/references/resuming.md
++++ b/references/resuming.md
+@@ -5,8 +5,14 @@ already has a ledger at `<workspace>/progress.md`.
+ 
+ If the ledger's first line names your plan file, tasks with a `Task <N>:
+ complete` line are DONE — do not re-dispatch them; resume at the first
+ task without one. A task whose last line is a fix round is mid-loop:
+ resume the loop at the next round. A ledger whose first line names a
+ different plan file — or a stray ledger at the old flat path
+ `.superpowers/sdd/progress.md` — is another plan's progress: leave it in
+ place and start your own, fresh.
++
++An existing ledger's `Executor:` line is the workflow this plan runs. If
++it names superpowers:executing-plans, continue with that skill instead,
++unless your human partner chose this one now. A ledger with no
++`Executor:` line keeps the executor that loaded it; add the line. A
++resumed plan is never re-sized: SKILL.md's size gate does not apply to it.

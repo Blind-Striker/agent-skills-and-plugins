@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index 182dfad..4468943 100644
+index 09d76b7..c343b96 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -4,17 +4,17 @@ description: Use when creating new skills, editing existing skills, or verifying
@@ -20,4 +20,4 @@ index 182dfad..4468943 100644
  
  **REQUIRED BACKGROUND:** You MUST understand superpowers:test-driven-development before using this skill. That skill defines the fundamental RED-GREEN-REFACTOR cycle. This skill adapts TDD to documentation.
  
- **Official guidance:** For Anthropic's official skill authoring best practices, see anthropic-best-practices.md. This document provides additional patterns and guidelines that complement the TDD-focused approach in this skill.
+ **Official guidance:** For Anthropic's official skill authoring best practices, see references/anthropic-best-practices.md. This document provides additional patterns and guidelines that complement the TDD-focused approach in this skill.

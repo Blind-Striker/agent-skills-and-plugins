@@ -87,7 +87,7 @@ is a judgement call**, never a hard violation.
 
 Fill the template at [code-reviewer.md](code-reviewer.md) and dispatch a `general-purpose`
 subagent. **Placeholders:** `[DESCRIPTION]`, `[SPEC]`, `[STANDARDS_SOURCES]`, `[BASE_SHA]`,
-`[HEAD_SHA]`.
+`[HEAD_SHA]`. Start each reviewer with a fresh context window, never a fork of this conversation.
 
 **One reviewer by default.** It holds both axes and reports them separately.
 

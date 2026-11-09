@@ -50,7 +50,7 @@ and its idea-only sources are in [`skills/deniz-coordination/NOTICE.md`](../skil
 |---|---|---|
 | Route | `ask-deniz` | You know the situation but not which ceremony or skill fits; available to user and model across installed Modules, with manual ceremonies left for the user to start |
 | Know | `research` | Facts are missing; primary-source legwork should land as a repository document |
-| Explore | `brainstorming` | What you want is not settled yet; it draws that out, then sizes the work: a quick task is just done, a small change is agreed in chat, a project gets a written design |
+| Explore | `brainstorming` | What you want is not settled yet; it draws that out, then sizes the work: a quick task is just done, a small change gets a short design doc and is built from it, a project gets a full design and then a plan |
 | Probe | `prototype` | One narrow design question needs runnable throwaway code |
 | Re-pitch | `wait-what` | The previous explanation did not land and should be restated using project vocabulary and controlled English |
 | Decide | `grilling` / `grill-me` / `grill-with-docs` | An artifact exists and needs hole-finding plus sealed decisions; `grill-me` is the stateless entry, while `grill-with-docs` also maintains qualifying vocabulary and ADRs through `domain-modeling` |
@@ -81,6 +81,7 @@ Cross-cutting routes:
 - `wizard`: generate a human-operated setup script for credentials, infrastructure, or CI steps; it is deliberately manual.
 - `writing-for-agents`: design any document consumed by an agent, including `AGENTS.md` and skill prose.
 - `writing-skills`: develop and pressure-test a skill as behavior-shaping software.
+- `software-factory`: shared vocabulary for designing a remote, ticket-triggered agent factory; `manual`, loaded beside a grilling session.
 - `teach`: create and maintain a stateful learning workspace for a concept.
 - `setup-matt-pocock-skills`: configure issue-tracker routing, triage vocabulary, and domain-document conventions in a repository; it writes them to `AGENTS.md` and proposes importing that file into `CLAUDE.md`.
 - `asd-ste100`: passive controlled-English knowledge used by `wait-what`; normally reached through the handoff rather than invoked directly.
@@ -91,9 +92,10 @@ Ordinary one-sitting changes do not need a spec/ticket ladder or a written plan 
 have several steps. The planning/execution skills first check task size and preserve approvals for
 scope, executor, and current checkout; an explicit plan-only request still authorizes no implementation.
 The agent picks the process weight (inline, one delegated subagent, or a full executor) by judgment
-and asks once only when genuinely torn. An explicit plan request or an approved design is not sized
-again, a resumed plan keeps the executor its ledger records, and the default branch needs your
-earlier answer or a standing instruction before the first commit there.
+and asks once only when genuinely torn. An explicit plan request is not sized again; an approved
+design from brainstorming is, so a small change is built from it without a plan. A resumed plan
+keeps the executor its ledger records, and the default branch needs your earlier answer or a
+standing instruction before the first commit there.
 
 ## `deniz-dotnet-general`: mostly self-triggering reference
 

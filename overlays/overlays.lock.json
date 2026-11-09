@@ -355,13 +355,14 @@
   "deniz-process/brainstorming": {
     "source": "superpowers/skills/brainstorming",
     "files": {
-      "SKILL.md": "22b98fc5bac68d46bc8f066df90155aa3815262d"
-    }
+      "SKILL.md": "9eb0edc7fedf26e1d3e2f3f223e5bcc5058aed6a"
+    },
+    "frontmatter": true
   },
   "deniz-process/diagnosing-superpowers": {
     "source": "superpowers/skills/diagnosing-superpowers",
     "files": {
-      "SKILL.md": "f1d479fbc49e29b1984ef5ffa00ad20334445a14"
+      "SKILL.md": "dda2692d528574c410b118a6de545d6afc7eb047"
     },
     "frontmatter": true
   },
@@ -375,9 +376,9 @@
   "deniz-process/executing-plans": {
     "source": "superpowers/skills/executing-plans",
     "files": {
-      "SKILL.md": "49077ad961268a840d7dcb5d8c5d06c46fc276ae",
-      "scripts/task-done": "e5fc6a992fb41745a4113a55a5da5cbb11ddde55",
-      "scripts/task-start": "fab75b55b2e51c0de1a1331d19c3124924380eac"
+      "SKILL.md": "ea23196d745043eefb0287387112825d2ca99f05",
+      "scripts/task-done": "d6400b40f4404586ab7557747ae64be83cd02998",
+      "scripts/task-start": "04f1c6588be8d4fca7e9f83b20d01d0b0a165d97"
     }
   },
   "deniz-process/finishing-a-development-branch": {
@@ -407,14 +408,14 @@
   "deniz-process/implement-spec": {
     "source": "mattpocock-skills/skills/engineering/implement-spec",
     "files": {
-      "SKILL.md": "183923797ab58f1b3ef09e03bc1f1f203c309f37"
+      "SKILL.md": "73d36c23958bd04423ba3ded1c90ff0d0b858b72"
     }
   },
   "deniz-process/improve-codebase-architecture": {
     "source": "mattpocock-skills/skills/engineering/improve-codebase-architecture",
     "files": {
       "HTML-REPORT.md": "e39e8255b8797cf8257d014fb6658fb533f3a399",
-      "SKILL.md": "44cc7d3136c44534d68ac523fa6cd37e759d2846"
+      "SKILL.md": "f1eabb568464f03ae79a3346fc1918fdde6d8285"
     }
   },
   "deniz-process/ponytail": {
@@ -469,7 +470,7 @@
     },
     "mergeSources": {
       "mattpocock-skills/skills/engineering/code-review": {
-        "SKILL.md": "373a4f26e6cfa3617778397945bb069d9cb184bc",
+        "SKILL.md": "83183e0ad36fd0eef25d37c7e483284b7e34c1f0",
         "code-reviewer.md": null
       }
     }
@@ -477,7 +478,7 @@
   "deniz-process/research": {
     "source": "mattpocock-skills/skills/engineering/research",
     "files": {
-      "SKILL.md": "fecee97e9457ba039678d2fcf1b1bc9fca78307d"
+      "SKILL.md": "ffc9eb89849cc4cf74962ce93d786ffd17c6a5dc"
     }
   },
   "deniz-process/retro": {
@@ -489,19 +490,23 @@
   "deniz-process/setup-matt-pocock-skills": {
     "source": "mattpocock-skills/skills/engineering/setup-matt-pocock-skills",
     "files": {
-      "SKILL.md": "293c25b75590119794af03b037ba4288054a32b3",
+      "SKILL.md": "2df0b07981718fa5d9a51526dfbcaee87e3a543d",
       "domain.md": "4032de016c1e91119d33d477633e2b8f265f4195",
-      "issue-tracker-github.md": "a63510f74038300d8da354553f9d31d1bd954d94",
-      "issue-tracker-gitlab.md": "81499dca459e8097d560b641f8ba7c2e1c7c9da4",
+      "issue-tracker-github.md": "dc806f5655ae34c1701170f98208e5fb5dba7045",
+      "issue-tracker-gitlab.md": "1aeb5d04fadd9b7240e3f70dff20a758a1c729ea",
       "issue-tracker-local.md": "0209a19af92c9c485cf3acc3d9e253171517ea17"
     }
   },
   "deniz-process/subagent-driven-development": {
     "source": "superpowers/skills/subagent-driven-development",
     "files": {
-      "SKILL.md": "f7bbf6a01b519807ec00baf5e98522bed33f8834",
+      "SKILL.md": "45195787cb3f5d141af203e2fdc12f158be14522",
       "implementer-prompt.md": "5c8ecd61fba036263bf88d0af24d47125780efa0",
-      "re-review-prompt.md": "d49c1825f01e79641ba37e5e942d1d2bbaad1a3c"
+      "re-review-prompt.md": "eb520dfe7fc1b3d027feef4d4bf5e4abc4c1624e",
+      "references/final-review.md": "cf035464bd8b585532b2c01b5a78226ac3ba39dd",
+      "references/fix-loop.md": "34e4a48fe16b69171e09a436857bdd57260fff58",
+      "references/preflight.md": "170164883949e00aace6297b600b2c5a72bc6d5a",
+      "references/resuming.md": "409b826eb8c875c51dd3799add37fcaab43b69b3"
     }
   },
   "deniz-process/systematic-debugging": {
@@ -574,7 +579,7 @@
   "deniz-process/wayfinder": {
     "source": "mattpocock-skills/skills/engineering/wayfinder",
     "files": {
-      "SKILL.md": "e28cf3018906d6d60fc5b25390b4eeea035dd290"
+      "SKILL.md": "975d6bf9c0a49d18a651f3335e0b4dcf8650fe31"
     }
   },
   "deniz-process/writing-for-agents": {
@@ -592,7 +597,7 @@
   "deniz-process/writing-skills": {
     "source": "superpowers/skills/writing-skills",
     "files": {
-      "SKILL.md": "182dfad177c9940d8ea388be322aadddd6c4db5f"
+      "SKILL.md": "09d76b79dd4080fe4dcc9bfb3c54d05dbff8a563"
     }
   }
 }
