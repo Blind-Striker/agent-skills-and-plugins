@@ -12,7 +12,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 - The five current curation manifests pass through one common assembly and emit matching Claude
   Code Plugins, OpenCode Module Bundles, and native Codex Plugins plus both repository marketplaces.
-  Checkout Module versions are Process 0.15.2, General 0.18.0, Akka 0.4.1, Aspire 0.7.1, and
+  Checkout Module versions are Process 0.15.3, General 0.19.0, Akka 0.5.0, Aspire 0.7.2, and
   Coordination 0.1.12. Coordination is unreleased: it holds the new `coordinator` mode,
   `delegating-to-worker-models` and `verified-waves`, both moved out of Process, and the `harness` skill with its bundled .NET
   source ([ADR-0009](adr/0009-coordination-ships-in-its-own-module.md)); `harnesses` narrows
@@ -544,11 +544,12 @@ skill.
   binlog through it, and the kept specialists that lead with it do the same. Each falls back to
   text-log replay where no server is connected or it fails to start, which still happens outside
   the estate and when a repository's SDK or NuGet settings block the server's `dotnet dnx` launch.
-- **.NET 11 skills:** General takes `process-api-net11` as `auto`, curator's call.
-  `system-text-json-net11` and `migrate-dotnet10-to-dotnet11` stay excluded
-  as preview-era content until .NET 11 reaches general availability; revisit both then. A taken
-  migration would be `manual`, and `system-text-json-net11` would need its dotnet-install block
-  and its unconditional "not done until the program runs" mandate removed.
+- **.NET 11 skills:** .NET 11 reached general availability (11.0.0, SDK 11.0.100). General takes
+  `process-api-net11` and `system-text-json-net11` as `auto` and `migrate-dotnet10-to-dotnet11`
+  as `manual`, curator's call. `system-text-json-net11`'s run-the-program proof applies to a
+  requested sample only. The migration's upstream text still covers breaking changes through
+  Preview 3 and pins a preview SDK; its patch states that coverage and pins `11.0.100`. Drop that
+  patch when upstream refreshes the skill for GA.
 - **OpenSpec:** parked after the [OpenSpec evaluation](research/openspec-evaluation.md): nothing
   recorded calls for it, and the one gap it fills, a behaviour spec that outlives the merge, is
   absent by this repository's own [plan lifecycle](engineering/documentation.md#handovers-and-plans).

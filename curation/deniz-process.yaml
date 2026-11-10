@@ -599,6 +599,7 @@ items:
       - item-management
       - microbenchmarking
       - microsoft-extensions-configuration
+      - migrate-dotnet10-to-dotnet11
       - migrate-nullable-references
       - migrate-static-to-wrapper
       - modern-csharp-coding-standards
@@ -616,6 +617,7 @@ items:
       - sdk-container-publishing
       - serialization
       - snapshot-testing
+      - system-text-json-net11
       - target-authoring
       - test-analysis-extensions
       - test-anti-patterns

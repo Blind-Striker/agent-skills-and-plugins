@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-dotnet-general",
-  "version": "0.18.1",
-  "digest": "sha256:263092a06175635d1366650d721815be9de706b76bcc6a126d105ae677041a79",
+  "version": "0.19.0",
+  "digest": "sha256:c37c1b950b99016b1a5e0a785db5cb4cef26408a55c6fc8d5b6ce4708431aaa5",
   "requiredModules": [
     "deniz-dotnet-aspire",
     "deniz-process"
@@ -408,6 +408,38 @@
       "sha256": "sha256:eda59eb9c7e7226df77b5fec4ef268e33698bdb27cc3c3c591f4b8795b048d26",
       "mode": "100644"
     },
+    "skills/deniz-dotnet-general.migrate-dotnet10-to-dotnet11/SKILL.md": {
+      "sha256": "sha256:19aaf9ca08c170c554c3877e41876b5317b1d53df4436fc0104b5865b4202920",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-general.migrate-dotnet10-to-dotnet11/references/aspnetcore-dotnet10to11.md": {
+      "sha256": "sha256:e43394f9448cabd6d018b4093927c78b579612e05f02d422d946b62126b12c44",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-general.migrate-dotnet10-to-dotnet11/references/core-libraries-dotnet10to11.md": {
+      "sha256": "sha256:e7e8f4b99bd59ae94f0d1f4bed7c1abb4688c04772819d973b705780d56416c7",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-general.migrate-dotnet10-to-dotnet11/references/cryptography-dotnet10to11.md": {
+      "sha256": "sha256:7a6af040307933f5d3020de4e0d6e0ce7fdcdf123c751ffbb7b13f408ce377a3",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-general.migrate-dotnet10-to-dotnet11/references/csharp-compiler-dotnet10to11.md": {
+      "sha256": "sha256:828978d7a92468f6cd2f2c60aac10581e1ba04ed70ac710e0f7c8608a718005b",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-general.migrate-dotnet10-to-dotnet11/references/efcore-dotnet10to11.md": {
+      "sha256": "sha256:85c21fd686535248421f72cea714f2fb04bcef6c5c2316da0343e71baf12476c",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-general.migrate-dotnet10-to-dotnet11/references/runtime-jit-dotnet10to11.md": {
+      "sha256": "sha256:895e1426a55f9ea1e0bd6d3043c90c3e805bfb14ed7184ba1ab0468b38734411",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-general.migrate-dotnet10-to-dotnet11/references/sdk-msbuild-dotnet10to11.md": {
+      "sha256": "sha256:54c989ed5e74305dd8c3583214ae7fb2ba105714ddb3fb6e9fb0ebe9adc55bcd",
+      "mode": "100644"
+    },
     "skills/deniz-dotnet-general.migrate-nullable-references/SKILL.md": {
       "sha256": "sha256:c8d082da7049a357e8724e9a2902dd5e90cb0fc98ad7399f485ddf8093da7692",
       "mode": "100644"
@@ -606,6 +638,10 @@
     },
     "skills/deniz-dotnet-general.snapshot-testing/SKILL.md": {
       "sha256": "sha256:c2692de00c94cd078c8185cdc60fc91ae453dfd8bdedccdca64c89ce1bb2b352",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-general.system-text-json-net11/SKILL.md": {
+      "sha256": "sha256:e58f586e03c9788be314fe140a2939c57ea531c4040266aa558886113768c268",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.target-authoring/SKILL.md": {

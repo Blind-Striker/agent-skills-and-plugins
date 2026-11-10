@@ -1,0 +1,45 @@
+diff --git a/SKILL.md b/SKILL.md
+index 20a6daa..c33f528 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -13,18 +13,18 @@ description: >
+   established pre-net11 naming policy, or the user explicitly selected another JSON library.
+ license: MIT
+ ---
+ 
+ # System.Text.Json — .NET 11
+ 
+ Three APIs were added to `System.Text.Json` in .NET 11. This skill tells you exactly
+ when to reach for each one, what to write, what **not** to write, and how to prove the
+-result runs. Do not describe these APIs to the user — apply them, then run the code and
+-show the output.
++result runs. Do not describe these APIs to the user — apply them. When the user asked for a
++runnable sample, run it and show the output; in an existing project, build it and run its tests.
+ 
+ | API | Replaces the pre-.NET-11 workaround of... |
+ | --- | --- |
+ | `JsonNamingPolicy.PascalCase` (static property) | writing a custom `JsonNamingPolicy` subclass or hand-annotating every member with `[JsonPropertyName]` |
+ | `JsonSerializerOptions.GetTypeInfo<T>()` | calling non-generic `GetTypeInfo(typeof(T))` and casting to `JsonTypeInfo<T>` |
+ | `JsonSerializerOptions.TryGetTypeInfo<T>(out JsonTypeInfo<T>? info)` | wrapping `GetTypeInfo` in `try`/`catch` to probe availability |
+ 
+ ## Step 0 — Make the requested `net11.0` validation possible
+@@ -202,17 +202,18 @@ else
+ var empty = new JsonSerializerOptions();
+ Console.WriteLine(empty.TryGetTypeInfo<Person>(out _)); // False
+ 
+ record Person(string Name, int Age);
+ ```
+ 
+ ## Producing runnable output on `net11.0`
+ 
+-The task is not done until the program runs on `net11.0` and prints its JSON. Prefer a
++When the user asked for a runnable sample, the task is not done until the program runs on
++`net11.0` and prints its JSON; in an existing project, the build and its tests are the proof. Prefer a
+ console **project** — reflection-based serialization works there out of the box. A
+ file-based app also works but has one important caveat (below).
+ 
+ When the installed SDK cannot target `net11.0` and execution was requested, install an
+ SDK locally with the official script and invoke it by full path. The install script is
+ non-administrative and does not persistently alter `PATH`.
+ 
+ ### Option A — console project (recommended)
