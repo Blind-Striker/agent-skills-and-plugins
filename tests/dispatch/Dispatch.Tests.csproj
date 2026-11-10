@@ -37,7 +37,7 @@
 
   <!-- The harness entry's #:package pins, repeated; LayoutTests fails when they differ. -->
   <ItemGroup Label="HarnessPackages">
-    <PackageReference Include="OpenCodeDotNet.Sdk" Version="1.0.0" />
+    <PackageReference Include="OpenCodeDotNet.Sdk" Version="1.0.1" />
   </ItemGroup>
 
 </Project>

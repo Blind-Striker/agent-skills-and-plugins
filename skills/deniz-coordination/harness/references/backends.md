@@ -87,7 +87,7 @@ not as a substitute for session delivery. It disables file watchers.
 On Windows it resolves the native
 executable behind a recognized package-manager shim; user config can provide an absolute executable
 path. Planning (`plan`, `run` and selfcheck's clean-profile check) refuses a server whose reported
-version differs from pin `2.2.5`, as the Codex backend refuses a CLI off its pin; there is no
+version differs from pin `2.2.6`, as the Codex backend refuses a CLI off its pin; there is no
 override, because the SDK decodes only the pinned wire contract and another version can lose events.
 Selfcheck also reports the pin as its own check and checks stored session rules without sending a
 prompt. Normal planning validates the catalog at each task's location.
