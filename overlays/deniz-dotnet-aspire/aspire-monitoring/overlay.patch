@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index 5ee5225..ec214a2 100644
+index 5ee5225..5ba2918 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -3,21 +3,20 @@ name: aspire-monitoring
@@ -55,6 +55,25 @@ index 5ee5225..ec214a2 100644
  See [diagnostics-bridge.md](references/diagnostics-bridge.md) for detailed routing.
  
  ## Investigation Workflow
+@@ -125,17 +124,17 @@ mitigation, even temporarily or in an isolated test.
+ 
+ ```bash
+ aspire dashboard run
+ # Dashboard:  http://localhost:18888/login?t=<TOKEN>
+ # OTLP/gRPC:  http://localhost:4317
+ # OTLP/HTTP:  http://localhost:4318
+ ```
+ 
+-> ⚠️ **Foreground / blocking.** `aspire dashboard run` does **not** return until you stop it (Ctrl-C). Agents must treat it as a long-running background process — start it with the bash tool's `mode="async"`, capture the dashboard URL and token from initial output, and leave it running. Do **not** invoke it as a one-shot synchronous command, and do **not** wait for it to "finish".
++> ⚠️ **Foreground / blocking.** `aspire dashboard run` does **not** return until you stop it (Ctrl-C). Agents must treat it as a long-running background process — start it as a background process with your shell tool, capture the dashboard URL and token from initial output, and leave it running. Do **not** invoke it as a one-shot synchronous command, and do **not** wait for it to "finish".
+ 
+ ### Connect the Aspire CLI to a standalone dashboard
+ 
+ `aspire otel logs` and `aspire otel traces` accept `--dashboard-url`. The simplest form passes the full login URL printed by `aspire dashboard run` — the CLI normalizes it automatically:
+ 
+ ```bash
+ # Stream structured logs from a standalone dashboard (login URL form)
+ aspire otel logs --dashboard-url "http://localhost:18888/login?t=TOKEN" --follow
 @@ -177,51 +176,51 @@ are sent to that child resource's console log stream, not to the frontend's Open
  Do **not** use `aspire otel logs <frontend>` for browser output; it does not return that child
  resource's browser diagnostics.

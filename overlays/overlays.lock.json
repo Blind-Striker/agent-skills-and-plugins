@@ -17,6 +17,12 @@
       "SKILL.md": "bd55f86d8f8f2ad0527f96bc8e8a1d895bc53fbc"
     }
   },
+  "deniz-dotnet-akka/akka-net-testing-patterns": {
+    "source": "dotnet-skills/skills/akka-testing-patterns",
+    "files": {
+      "SKILL.md": "486cb5fed5bcfe58e6c3ef867eadd12f13795d9d"
+    }
+  },
   "deniz-dotnet-aspire/aspire": {
     "source": "aspire-skills/skills/aspire",
     "files": {
@@ -98,6 +104,12 @@
       "aot-trimming-playbook-reference.md": "1d1ed9d4d4235fff4ef1d0df3ad053e91e8ca327"
     }
   },
+  "deniz-dotnet-general/api-design": {
+    "source": "dotnet-skills/skills/csharp-api-design",
+    "files": {
+      "SKILL.md": "584b8ced51d903a049755146827637e07211893f"
+    }
+  },
   "deniz-dotnet-general/blazing-fast-dotnet": {
     "source": "blazing-fast-dotnet",
     "files": {
@@ -158,7 +170,8 @@
   "deniz-dotnet-general/directory-build-organization": {
     "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/directory-build-organization",
     "files": {
-      "SKILL.md": "c6adfb782e23e3d2dd1848349b2a4c7f0106acac"
+      "SKILL.md": "c6adfb782e23e3d2dd1848349b2a4c7f0106acac",
+      "references/multi-level-examples.md": "db80d20cb7c2fca981d75afb81fa6fa62264a156"
     }
   },
   "deniz-dotnet-general/dotnet-aot-compat": {
@@ -267,6 +280,7 @@
       "SKILL.md": "f08087610805ae643a223e8081cf1346d230cc95",
       "references/binlog-failure-analysis.md": "5f92c0595ce01a7d853d4dca37062e3941df135e",
       "references/build-perf-baseline.md": "17b8a165b1fc12c42f4054383b5d2e8bfa898bea",
+      "references/build-perf-diagnostics.md": "96eaf244283224d5c81b04db5f1a8a3e7fa717ac",
       "references/msbuild-antipatterns.md": "70a92bcd4621b2a7888045cd376d9576007ec4af"
     }
   },
@@ -619,6 +633,7 @@
   "deniz-process/writing-for-agents": {
     "source": "mattpocock-skills/skills/productivity/writing-for-agents",
     "files": {
+      "SKILL-MECHANICS.md": "9cdbdb22aadc438755392216e75ad9a14cc9832e",
       "SKILL.md": "a37608daf6e835e767deecfb498facecaaba82ba"
     }
   },
@@ -631,7 +646,8 @@
   "deniz-process/writing-skills": {
     "source": "superpowers/skills/writing-skills",
     "files": {
-      "SKILL.md": "09d76b79dd4080fe4dcc9bfb3c54d05dbff8a563"
+      "SKILL.md": "09d76b79dd4080fe4dcc9bfb3c54d05dbff8a563",
+      "references/testing-skills-with-subagents.md": "e5bf682cb4099b220d3a2fa65d170f3b9e62af21"
     }
   }
 }

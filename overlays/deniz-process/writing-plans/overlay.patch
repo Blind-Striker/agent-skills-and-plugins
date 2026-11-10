@@ -1,8 +1,8 @@
 diff --git a/SKILL.md b/SKILL.md
-index 4cf0275..4d15635 100644
+index 4cf0275..81a311c 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -1,20 +1,32 @@
+@@ -1,20 +1,33 @@
  ---
  name: writing-plans
 -description: Use when you have a spec or requirements for a multi-step task, before touching code
@@ -22,7 +22,8 @@ index 4cf0275..4d15635 100644
 +invocation counts). Write the plan; do not size that work again. Otherwise, size the work before
 +creating an artifact. Work that brainstorming hands over with an approved design doc is sized here
 +too, with that doc as its input: a change that fits one sitting skips the plan and is built from the
-+doc on the ordinary path, and multi-session work gets the plan. A change that fits one sitting
++doc on the ordinary path, unless the request was design-only; then stop after the design.
++Multi-session work gets the plan. A change that fits one sitting
 +belongs to ordinary implementation: keep its steps in chat and do not create a plan document, a
 +spec, or an execution workspace merely because it has several steps. Use this ceremony for
 +multi-session work or several people's worth. A loaded skill is not a reason to make the task larger.
@@ -37,7 +38,7 @@ index 4cf0275..4d15635 100644
  
  ## Scope Check
  
-@@ -23,16 +35,17 @@ If the spec covers multiple independent subsystems, it should have been broken i
+@@ -23,16 +36,17 @@ If the spec covers multiple independent subsystems, it should have been broken i
  ## File Structure
  
  Before defining tasks, map out which files will be created or modified and what each one is responsible for. This is where decomposition decisions get locked in.
@@ -55,7 +56,7 @@ index 4cf0275..4d15635 100644
  A task is the smallest unit that carries its own test cycle and is worth a
  fresh reviewer's gate. When drawing task boundaries: fold setup,
  configuration, scaffolding, and documentation steps into the task whose
-@@ -51,17 +64,17 @@ independently testable deliverable.
+@@ -51,17 +65,17 @@ independently testable deliverable.
  
  ## Plan Document Header
  
@@ -74,7 +75,7 @@ index 4cf0275..4d15635 100644
  **Tech Stack:** [Key technologies/libraries]
  
  **Spec:** [path to the spec/design doc this plan implements — the plan
-@@ -173,32 +186,27 @@ After writing the complete plan, look at the spec with fresh eyes and check the
+@@ -173,32 +187,27 @@ After writing the complete plan, look at the spec with fresh eyes and check the
  **4. Review Focus:** For each input class or failure mode the spec implies, is there a task whose tests exercise it? The five uncovered ones most likely to bite a person go in the Review Focus section, and each line there gets its test added to the owning task. An empty section means you checked and found none, not that you skipped the check.
  
  **5. Proportion:** Compare the plan's length to the spec's. A plan several times longer than the spec it implements is a transcript of the program, not a plan. If code blocks are most of the document, replace bodies with signatures, test names and assertions, and check that each step is still unambiguous.

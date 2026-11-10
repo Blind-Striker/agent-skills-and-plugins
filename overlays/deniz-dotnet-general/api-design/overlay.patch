@@ -1,0 +1,71 @@
+diff --git a/SKILL.md b/SKILL.md
+index 584b8ce..76d18fb 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -10,16 +10,19 @@ user-invocable: false
+ 
+ Use this skill when:
+ - Designing public APIs for NuGet packages or libraries
+ - Making changes to existing public APIs
+ - Planning wire format changes for distributed systems
+ - Implementing versioning strategies
+ - Reviewing pull requests for breaking changes
+ 
++Edit-time compatibility checks of a concrete change to an existing public API belong to
++dotnet-breaking-changes; this skill covers the design-time principles and wire compatibility.
++
+ ---
+ 
+ ## The Three Types of Compatibility
+ 
+ | Type | Definition | Scope |
+ |------|------------|-------|
+ | **API/Source** | Code compiles against newer version | Public method signatures, types |
+ | **Binary** | Compiled code runs against newer version | Assembly layout, method tokens |
+@@ -293,18 +296,18 @@ public interface IOrderRepository
+ 
+ ## Versioning Strategy
+ 
+ ### Semantic Versioning (Practical)
+ 
+ | Version | Changes Allowed |
+ |---------|----------------|
+ | **Patch** (1.0.x) | Bug fixes, security patches |
+-| **Minor** (1.x.0) | New features, deprecations, obsolete removal |
+-| **Major** (x.0.0) | Breaking changes, old API removal |
++| **Minor** (1.x.0) | New features, deprecations |
++| **Major** (x.0.0) | Breaking changes, old API removal, obsolete removal |
+ 
+ ### Key Principles
+ 
+ 1. **No surprise breaks** - Even major versions should be announced and planned
+ 2. **Extensions anytime** - New APIs can ship in any release
+ 3. **Deprecate before remove** - `[Obsolete]` for at least one minor version
+ 4. **Communicate timelines** - Users need to plan upgrades
+ 
+@@ -352,20 +355,21 @@ public async Task<Order> GetOrderAsync(OrderId id) { }
+ ```
+ 
+ ### Silent Behavior Changes
+ 
+ ```csharp
+ // Changing defaults breaks users who relied on old behavior
+ public void Configure(bool enableCaching = true)  // Was: false!
+ 
+-// Correct: New parameter with new name
+-public void Configure(
+-    bool enableCaching = false,  // Original default preserved
+-    bool enableNewCaching = true)  // New behavior opt-in
++// Correct: keep the old method, add an overload for the new behavior
++public void Configure(bool enableCaching = false)  // Original signature and default preserved
++    => Configure(enableCaching, enableNewCaching: false);
++
++public void Configure(bool enableCaching, bool enableNewCaching)  // New behavior opt-in
+ ```
+ 
+ ### Polymorphic Serialization
+ 
+ ```csharp
+ // AVOID: Type names in wire format
+ { "$type": "MyApp.Order, MyApp", "Id": 123 }
+ 

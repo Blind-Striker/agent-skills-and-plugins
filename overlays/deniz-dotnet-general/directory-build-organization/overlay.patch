@@ -43,3 +43,30 @@ index c6adfb7..ec24985 100644
     `dotnet msbuild <project> -pp:output.xml` to inspect the final merged view.
  
  ## Troubleshooting
+diff --git a/references/multi-level-examples.md b/references/multi-level-examples.md
+index db80d20..f791c80 100644
+--- a/references/multi-level-examples.md
++++ b/references/multi-level-examples.md
+@@ -95,16 +95,22 @@ Full file examples for a typical multi-level repo layout.
+     <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
+   </ItemGroup>
+ 
+ </Project>
+ ```
+ 
+ **After — centralized with Directory.Build files:**
+ 
++This after-state assumes Central Package Management is already in place: the
++`Directory.Packages.props` block and the version-less `PackageReference` items
++show the shape after the user has run the manual `/dotnet-nuget:convert-to-cpm`
++ceremony. Without that conversion, each project keeps its `Version=`; the
++conversion is not a step of this skill.
++
+ ```xml
+ <!-- Directory.Build.props -->
+ <Project>
+ 
+   <PropertyGroup>
+     <Nullable>enable</Nullable>
+     <ImplicitUsings>enable</ImplicitUsings>
+     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>

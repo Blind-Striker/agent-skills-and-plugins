@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index 950da7b..1844275 100644
+index 950da7b..db70fe9 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -6,16 +6,18 @@ description: Use when receiving code review feedback, before implementing sugges
@@ -87,6 +87,44 @@ index 950da7b..1844275 100644
  
  ```
  IF reviewer suggests "implementing properly":
+@@ -96,17 +106,17 @@ IF reviewer suggests "implementing properly":
+ ```
+ 
+ **your human partner's rule:** "You and reviewer both report to me. If we don't need this feature, don't add it."
+ 
+ ## Implementation Order
+ 
+ ```
+ FOR multi-item feedback:
+-  1. Clarify anything unclear FIRST
++  1. Clarify the unclear items that affect others FIRST
+   2. Then implement in this order:
+      - Blocking issues (breaks, security)
+      - Simple fixes (typos, imports)
+      - Complex fixes (refactoring, logic)
+   3. Test each fix individually
+   4. Verify no regressions
+ ```
+ 
+@@ -165,17 +175,17 @@ State the correction factually and move on.
+ 
+ | Mistake | Fix |
+ |---------|-----|
+ | Performative agreement | State requirement or just act |
+ | Blind implementation | Verify against codebase first |
+ | Batch without testing | One at a time, test each |
+ | Assuming reviewer is right | Check if breaks things |
+ | Avoiding pushback | Technical correctness > comfort |
+-| Partial implementation | Clarify all items first |
++| Partial implementation | Clarify the unclear items that affect others first |
+ | Can't verify, proceed anyway | State limitation, ask for direction |
+ 
+ ## Real Examples
+ 
+ **Performative Agreement (Bad):**
+ ```
+ Reviewer: "Remove legacy code"
+ ❌ "You're absolutely right! Let me remove that..."
 @@ -192,14 +202,14 @@ Reviewer: "Remove legacy code"
  Reviewer: "Implement proper metrics tracking with database, date filters, CSV export"
  ✅ "Grepped codebase - nothing calls this endpoint. Remove it (YAGNI)? Or is there usage I'm missing?"

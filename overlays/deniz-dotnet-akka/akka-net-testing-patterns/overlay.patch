@@ -1,0 +1,23 @@
+diff --git a/SKILL.md b/SKILL.md
+index 486cb5f..68cdf14 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -60,16 +60,18 @@ See [anti-patterns-and-reference.md](anti-patterns-and-reference.md) for traditi
+ 6. **No Custom Base Classes** - Use method overrides, not inheritance hierarchies
+ 7. **Test One Actor at a Time** - Use TestProbes for dependencies
+ 8. **Match Production Patterns** - Same extension methods, different `AkkaExecutionMode`
+ 
+ ---
+ 
+ ## Required NuGet Packages
+ 
++In a TUnit project, add none of the xUnit packages below and no `Microsoft.NET.Test.Sdk`: xUnit is a second test framework, and the VSTest SDK breaks TUnit's test discovery. `Akka.Hosting.TestKit`'s base class is xUnit-based, so ask the user before you introduce it there.
++
+ ```xml
+ <ItemGroup>
+   <!-- Core testing framework -->
+   <PackageReference Include="Akka.Hosting.TestKit" Version="*" />
+ 
+   <!-- xUnit (or your preferred test framework) -->
+   <PackageReference Include="xunit" Version="*" />
+   <PackageReference Include="xunit.runner.visualstudio" Version="*" />

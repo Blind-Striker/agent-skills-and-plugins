@@ -327,6 +327,7 @@
       "akka-net-best-practices",
       "akka-net-management",
       "akka-net-testing-patterns",
+      "aspire",
       "aspire-integration-testing",
       "microsoft-extensions-configuration"
     ],
@@ -340,6 +341,7 @@
           "deniz-dotnet-akka:akka-net-best-practices",
           "deniz-dotnet-akka:akka-net-management",
           "deniz-dotnet-akka:akka-net-testing-patterns",
+          "deniz-dotnet-aspire:aspire",
           "deniz-dotnet-aspire:aspire-integration-testing",
           "deniz-dotnet-general:microsoft-extensions-configuration"
         ],
@@ -360,6 +362,7 @@
           "deniz-dotnet-akka.akka-net-best-practices",
           "deniz-dotnet-akka.akka-net-management",
           "deniz-dotnet-akka.akka-net-testing-patterns",
+          "deniz-dotnet-aspire.aspire",
           "deniz-dotnet-aspire.aspire-integration-testing",
           "deniz-dotnet-general.microsoft-extensions-configuration"
         ],
@@ -385,6 +388,7 @@
           "$deniz-dotnet-akka:akka-net-best-practices",
           "$deniz-dotnet-akka:akka-net-management",
           "$deniz-dotnet-akka:akka-net-testing-patterns",
+          "$deniz-dotnet-aspire:aspire",
           "$deniz-dotnet-aspire:aspire-integration-testing",
           "$deniz-dotnet-general:microsoft-extensions-configuration"
         ],
@@ -511,6 +515,7 @@
   "deniz-dotnet-akka/skill/akka-net-testing-patterns": {
     "source": "dotnet-skills/skills/akka-testing-patterns",
     "invocation": "auto",
+    "body": "patch",
     "description": "Write unit and integration tests for Akka.NET actors using modern Akka.Hosting.TestKit patterns. Covers dependency injection, TestProbes, persistence testing, and actor interaction verification. Includes guidance on when to use traditional TestKit.",
     "claude": {
       "artifacts": [
@@ -1403,7 +1408,8 @@
   "deniz-dotnet-general/skill/api-design": {
     "source": "dotnet-skills/skills/csharp-api-design",
     "invocation": "auto",
-    "description": "Design stable, compatible public APIs using extend-only design principles. Manage API compatibility, wire compatibility, and versioning for NuGet packages and distributed systems.",
+    "body": "patch",
+    "description": "Design stable, compatible public APIs using extend-only design principles. Manage API compatibility, wire compatibility, and versioning for NuGet packages and distributed systems. Edit-time compatibility checks: dotnet-breaking-changes.",
     "claude": {
       "artifacts": [
         "skill"
@@ -3650,7 +3656,9 @@
           "deniz-dotnet-general:property-patterns",
           "deniz-dotnet-general:target-authoring"
         ],
-        "pointer": []
+        "pointer": [
+          "deniz-dotnet-general:troubleshoot-binlog-mcp"
+        ]
       },
       "flags": {
         "user-invocable": false
@@ -3675,7 +3683,9 @@
           "deniz-dotnet-general.property-patterns",
           "deniz-dotnet-general.target-authoring"
         ],
-        "pointer": []
+        "pointer": [
+          "@deniz-dotnet-general.troubleshoot-binlog-mcp"
+        ]
       },
       "dropped": [
         "license"
@@ -3705,7 +3715,9 @@
           "$deniz-dotnet-general:property-patterns",
           "$deniz-dotnet-general:target-authoring"
         ],
-        "pointer": []
+        "pointer": [
+          "$deniz-dotnet-general:troubleshoot-binlog-mcp"
+        ]
       },
       "dropped": [],
       "bodyTransformations": []
@@ -4712,7 +4724,7 @@
     "source": "dotnet-skills/skills/testcontainers",
     "invocation": "auto",
     "body": "patch",
-    "description": "Write integration tests using TestContainers for .NET with xUnit. Covers infrastructure testing with real databases, message queues, and caches in Docker containers instead of mocks.",
+    "description": "Write integration tests using TestContainers for .NET with xUnit, without an Aspire AppHost; for Aspire apps use aspire-integration-testing. Covers infrastructure testing with real databases, message queues, and caches in Docker containers instead of mocks.",
     "claude": {
       "artifacts": [
         "skill"

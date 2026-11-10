@@ -86,15 +86,22 @@ and read its exit code beside the JSON:
   measurements are exact.
 - **Exit 0:** every measurement is exact.
 
-Filter `data.methods` by exact `Method`, exact `Class`, or normalized `File`
-path; the script writes `/` separators. A report with no method rows, or no row
-that matches, is failed collection or filtering, not 0% coverage: report that
-the target is absent from the Cobertura data and do not invent a score.
+Filter `data.methods` for a method target by exact `Class` plus exact `Method`,
+and by exact `Signature` too when the user gives one; for a class target by
+exact `Class`; for a file target by normalized `File` path (the script writes
+`/` separators). When a method target still matches more than one row, such as
+overloads, report the ambiguity and the matching rows rather than widening the
+selection. A report with no method rows, or no row that matches, is failed
+collection or filtering, not 0% coverage: report that the target is absent from
+the Cobertura data and do not invent a score.
 
 A matching row with `ComplexityStatus: unknown` has a null `Complexity`: its
 Cobertura method had no `complexity` attribute, or the merged reports disagree.
-Count that method's decision points in the current source and label the result a
-manual count, or report its CRAP score as unavailable. A row with
+Count that method's decision points in the current source only when that source
+is the revision the report was collected from, such as a report you just
+collected from the unchanged checkout, and label the result a manual count. The
+scripts record no source revision, so for any other report mark its CRAP score
+unavailable rather than mix current complexity with old coverage. A row with
 `LineCoverageStatus: unknown` has no line evidence, so its CRAP score is
 unavailable. For each matching row with an exact or counted complexity and exact
 line coverage, calculate:
@@ -103,8 +110,9 @@ line coverage, calculate:
 CRAP(m) = complexity^2 * (1 - lineCoverage)^3 + complexity
 ```
 
-Here `lineCoverage` is a fraction: the row's `LineCoverage` percentage divided by
-100.
+Here `lineCoverage` is the fraction `CoveredLines / TotalLines` from the row, as
+the shipped scorer computes it; the rounded `LineCoverage` percentage can shift
+the score.
 
 Report only the selected rows, the formula inputs, the resulting score, and one
 concrete coverage or complexity recommendation. Do not emit the project-wide

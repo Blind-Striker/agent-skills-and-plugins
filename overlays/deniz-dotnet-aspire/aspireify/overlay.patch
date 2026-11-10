@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index 96ede2a..e4fdf15 100644
+index 96ede2a..05193a2 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -4,22 +4,20 @@ description: >-
@@ -29,7 +29,7 @@ index 96ede2a..e4fdf15 100644
  
  # Aspireify
  
-@@ -131,30 +129,30 @@ declared beyond the stub):
+@@ -131,30 +129,31 @@ declared beyond the stub):
  | Skeleton just dropped | `aspire init` just ran in this session | ✅ Definitive |
  | Empty AppHost stub | `apphost.cs` / `Program.cs` / current `apphost.mts` (or legacy `apphost.ts`) only contains `Build().Run()` | ✅ Definitive |
  | `aspire.config.json` without resources | Config present, AppHost has no `AddProject`/`addProject` | High |
@@ -40,6 +40,7 @@ index 96ede2a..e4fdf15 100644
  If the AppHost already has wired resources and the user wants to **start/stop**
 -the app → `aspire-orchestration`. If the user wants to **deploy** → `aspire-deployment`.
 +the app → `aspire:aspire-orchestration`. If the user wants to **deploy** → `aspire:aspire-deployment`.
++For a one-off integration on an already wired AppHost, run `aspire add PACKAGE` directly.
  
  ## Language Support
  
@@ -62,7 +63,7 @@ index 96ede2a..e4fdf15 100644
  Dependency and toolchain failures belong to this skill. Before recommending a command,
  inspect the AppHost directory and then its immediate eligible parent. Within each directory,
  the first recognized marker wins in this order:
-@@ -185,17 +183,17 @@ command matrix and resolver details.
+@@ -185,17 +184,17 @@ command matrix and resolver details.
  
  ## Workflow Phases
  
@@ -81,7 +82,7 @@ index 96ede2a..e4fdf15 100644
  - [docker-compose.md](references/docker-compose.md) — docker-compose migration, profiles, image mapping, ports, volumes, and `depends_on`.
  - [full-solution-apphosts.md](references/full-solution-apphosts.md) — large solution triage, mixed SDK boundaries, solution membership, ServiceDefaults placement, and legacy host migration.
  - [javascript-apps.md](references/javascript-apps.md) — JavaScript resource selection, workspace/monorepo package-manager handling, ports, scripts, and TS AppHost package config.
-@@ -239,17 +237,17 @@ aspire describe --format Json   # sanity check graph
+@@ -239,17 +238,17 @@ aspire describe --format Json   # sanity check graph
  
  Full validation flow + recovery in [references/validation.md](references/validation.md).
  
@@ -100,7 +101,7 @@ index 96ede2a..e4fdf15 100644
  Map detected services → Aspire integrations. See
  [references/scan-and-propose.md](references/scan-and-propose.md) for the full
  catalog.
-@@ -278,17 +276,17 @@ catalog.
+@@ -278,17 +277,17 @@ catalog.
  | Bind every resource to a compute environment with `WithComputeEnvironment(env)` when multiple environments exist | Multi-environment deploys require explicit binding |
  | **Never edit `.aspire/modules/`** in TS AppHosts | Generated; edits get clobbered. Edit the configured `apphost.mts` (or legacy `apphost.ts`) only |
  | Use `WithEndpoint("name", e => ...)` to update endpoints | Endpoint callbacks update existing endpoints rather than throwing on duplicates |
@@ -119,7 +120,7 @@ index 96ede2a..e4fdf15 100644
  ## C# vs TS Quick Reference
  
  | Concept | C# | TypeScript |
-@@ -324,31 +322,31 @@ builder.AddNextJsApp("web", "./web")
+@@ -324,31 +323,31 @@ builder.AddNextJsApp("web", "./web")
      .WithBrowserLogs();        // browser console + screenshots
  ```
  
@@ -156,7 +157,7 @@ index 96ede2a..e4fdf15 100644
  - **Ask before modifying service code**, especially OpenTelemetry and ServiceDefaults injection.
  - **Respect existing project structure** — do not reorganize the repo.
  - **If stuck, use `aspire doctor`** to diagnose environment issues.
-@@ -362,9 +360,9 @@ Full flow in [references/validation.md](references/validation.md).
+@@ -362,9 +361,9 @@ Full flow in [references/validation.md](references/validation.md).
  - [full-solution-apphosts.md](references/full-solution-apphosts.md) — Large/full-solution AppHost guidance
  - [javascript-apps.md](references/javascript-apps.md) — JavaScript/TypeScript app and workspace handling
  - [opentelemetry.md](references/opentelemetry.md) — Non-.NET OpenTelemetry setup

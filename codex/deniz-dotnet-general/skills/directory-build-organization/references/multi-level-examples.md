@@ -100,6 +100,12 @@ Full file examples for a typical multi-level repo layout.
 
 **After — centralized with Directory.Build files:**
 
+This after-state assumes Central Package Management is already in place: the
+`Directory.Packages.props` block and the version-less `PackageReference` items
+show the shape after the user has run the manual `$deniz-dotnet-general:convert-to-cpm`
+ceremony. Without that conversion, each project keeps its `Version=`; the
+conversion is not a step of this skill.
+
 ```xml
 <!-- Directory.Build.props -->
 <Project>

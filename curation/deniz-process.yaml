@@ -19,7 +19,7 @@
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
-  version: 0.15.2
+  version: 0.15.3
 items:
   # --- superpowers spine: brainstorm → plan → execute → finish ---
   - source: superpowers/skills/brainstorming
@@ -59,7 +59,10 @@ items:
     # again: an explicit written-plan request (a typed invocation included). Work brainstorming hands
     # over with an approved design doc is sized again, curator's call: upstream v7.0.2 sends every
     # approved design doc, the short one for a small change included, to this skill, so a small
-    # change is built from its doc without a plan, and only multi-session work gets one.
+    # change is built from its doc without a plan, and only multi-session work gets one. That
+    # small-work branch names the design-only exception itself, because the handoff's "authorizes no
+    # implementation" rule sits below the line that ends the gate, so a design-only request stops
+    # after the design instead of being built.
     # The handoff distinguishes plan-only delivery from authorized execution: it preserves an
     # approved scope and chosen method instead of asking for the same approval again. Curator's
     # call: a request to build/add/fix ("let's add X") is a request to execute, so the agent goes on
@@ -86,7 +89,8 @@ items:
     # unexplained failure. The weight is the agent's judgment; it asks once only when genuinely torn.
     # A resumed plan is never re-sized: the ledger's second line records the executor, so a later
     # session keeps the chosen workflow instead of downsizing a small remainder; the rule for an
-    # existing ledger sits in references/resuming.md, beside upstream's resume text. Setup preserves
+    # existing ledger sits in references/resuming.md, beside upstream's resume text; an executor switch
+    # your human partner makes rewrites that line to the one now running. Setup preserves
     # an already approved current checkout, so loading another skill does not reopen that choice; the
     # default branch counts as approved only by an earlier answer or a standing instruction, else one
     # question before the first commit there (upstream's main/master consent, kept without the loop).
@@ -134,7 +138,12 @@ items:
     # runs, which keep their `bash`, and deleted the Example Workflow. The
     # description and When to Use say inline execution "was chosen", by the user or by the handoff's
     # judgment, since the handoff no longer always asks. After the four stops, the same precedence
-    # line as subagent-driven-development: the repository's own instructions win over skill and plan
+    # line as subagent-driven-development: the repository's own instructions win over skill and plan.
+    # The final review's with-a-subagent step reads the same tool-notes file before its dispatch, as
+    # SDD does: on Codex those notes give the clean-context spawn and explicit effort, so the one
+    # fresh reviewer is not spawned as a full-history fork. An executor switch your human partner
+    # makes rewrites the ledger's Executor: line, as SDD's resume rule says, so the next session does
+    # not route back to the old executor
     depends_on: [finishing-a-development-branch, requesting-code-review, subagent-driven-development, systematic-debugging, test-driven-development, using-git-worktrees, verification-before-completion, writing-plans] # the plan's source, TDD per task, debugging on a mismatch, verification before each claim, the final review's template, the finish
   - source: superpowers/skills/finishing-a-development-branch
     invocation: both # invoked from SDD/executing-plans bodies at the end of every run
@@ -208,7 +217,9 @@ items:
     # could change how the clear ones are done, which still asks first. Unverifiable feedback is
     # investigated, and left unimplemented with a note if it stays unverified, instead of a
     # three-way question; a conflict with an earlier decision leaves that item untouched and is
-    # raised at the end. Upstream stopped every item for one unclear one
+    # raised at the end. Upstream stopped every item for one unclear one. The Implementation Order
+    # step and the mistakes table say the same, clarifying first only the unclear items that affect
+    # others, so neither brings the blocking clarification back
   # --- passive disciplines ---
   - source: superpowers/skills/test-driven-development
     invocation: auto # invoked from systematic-debugging's body and from implement's
@@ -428,8 +439,14 @@ items:
     # once retro is taken). Its upstream trigger fired on "modifying AGENTS.md or CLAUDE.md", which is
     # ordinary canon work in this repo, so the patched description narrows it to designing or
     # rewording such documents. Still the complement, not the substitute, of writing-skills: that one
-    # is a TDD-for-skills testing methodology opened by hand, this one is the design vocabulary.
-    body: patch # the narrowed description; the lock stamps it, so an upstream rewrite stops the build
+    # is a TDD-for-skills testing methodology, reachable both ways, whose test process waits for the
+    # maintainer's agreement under the AGENTS.md guard; this one is the design vocabulary. Both
+    # descriptions match skill authoring and description edits, curator's call: the descriptions
+    # stay as they are, the router separates them, and the AGENTS.md guard holds the testing cost.
+    body: patch # the narrowed description; the lock stamps it, so an upstream rewrite stops the build.
+    # SKILL-MECHANICS.md's user-invoked mechanics taught Claude Code's disable-model-invocation as
+    # universal, which leaves a skill implicitly invocable on Codex; one sentence names each harness's
+    # own switch and, where a curation manifest compiles the skills, sends the declaration there
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/retro
     invocation: manual # upstream's own flag; a look back over a session that proposes changes to the
@@ -519,7 +536,10 @@ items:
     # agent's judgment, asked once only when genuinely torn. The .NET, Aspire, and Akka maps live in
     # references/dotnet.md, read only for .NET work: as a both router this body loads on uncertainty
     # in any repository, and the .NET map nearly doubled it. The description says when to load it
-    # (unsure which skill fits, or asked) rather than only what it covers
+    # (unsure which skill fits, or asked) rather than only what it covers. Its
+    # dispatching-parallel-agents row keeps that skill's narrowed trigger (independent failures or
+    # investigations), so generic delegation does not take the lighter recipe, and wayfinder's
+    # hand-off names to-spec as the user pointer it is
     depends_on: [asd-ste100, brainstorming, codebase-design, dispatching-parallel-agents, domain-modeling, grilling, ponytail, receiving-code-review, systematic-debugging, test-driven-development, using-git-worktrees, verification-before-completion] # same-Module model facts; all conditional cross-Module facts/pointers are separate below
     harness_files: # coordination rows per tree: each names only what that tree ships (ADR-0010)
       references/coordination.md:
@@ -659,12 +679,14 @@ items:
     # own guard lives in AGENTS.md, where its test process (subagent pressure scenarios,
     # RED-GREEN-REFACTOR) waits for the maintainer's agreement
     depends_on: [systematic-debugging, test-driven-development]
-    # One-line patch, re-cut at v7.0.2, where only its context moved: the clause sent the reader to
+    # A one-line SKILL.md edit, re-cut at v7.0.2, where only its context moved: the clause sent the reader to
     # codex-tools.md or gemini-tools.md for the personal-skills path "on those runtimes", but
     # codex-tools.md names no skills path and
     # gemini-tools.md is for a harness this estate does not ship (using-superpowers omits it). The
     # clause named nothing but those two links; the runtime paths it wrapped stay, because they are
-    # the ones our harnesses actually use.
+    # the ones our harnesses actually use. A second one-word edit: the testing reference's "Don't
+    # test:" list reads "Don't pressure-test:", its own subject, so once testing is authorized a pure
+    # reference skill still gets the body's retrieval testing instead of none
     body: patch
   - source: superpowers/skills/diagnosing-superpowers
     invocation: both # curator's call: upstream designs it to be selected when the human describes a

@@ -3,7 +3,7 @@
 plugin:
   name: deniz-dotnet-akka
   description: "Deniz's curated Akka.NET skills"
-  version: 0.4.1
+  version: 0.5.0
 items:
   - source: dotnet-skills/skills/akka-best-practices
     invocation: auto # foundational Akka.NET rules; model-reachable for the Aspire configuration cookbook
@@ -18,15 +18,23 @@ items:
     depends_on: [akka-net-aspire-configuration]
   - source: dotnet-skills/skills/akka-testing-patterns
     invocation: auto # actor and integration-testing detail used by the Aspire configuration cookbook
+    body: patch # one TUnit guard on its package list, as the General testing skills carry: in a TUnit
+    # project add no xUnit or Microsoft.NET.Test.Sdk, which break TUnit's discovery. Akka.Hosting.TestKit's
+    # base class is xUnit-based, so there is no TUnit equivalent to name, and the model asks before
+    # introducing it
   - source: dotnet-skills/skills/akka-aspire-configuration
     invocation: auto # Akka owns the cross-cutting cookbook; its guarded handoffs point outward from this module
-    body: patch # promote all five related-skill handoffs to linker-checked model edges
+    body: patch # promote all five related-skill handoffs to linker-checked model edges. A sixth
+    # Related Skills line names the Aspire router for AppHost authoring and lifecycle, so "set up Akka
+    # with Aspire" reaches aspireify's proposal and installed-API discipline instead of building the
+    # AppHost from the cookbook alone; a pointer, so the cookbook's ownership stays
     depends_on:
       - akka-net-management
       - microsoft-extensions-configuration
       - akka-net-best-practices
       - aspire-integration-testing
       - akka-net-testing-patterns
+      - aspire
   - source: dotnet-skills/agents/akka-net-specialist.md
     # Native diagnostic agent in Claude Code and OpenCode 2, and a skill in Codex; its delegated
     # troubleshooting posture is distinct from the model-selected reference skills, so its upstream

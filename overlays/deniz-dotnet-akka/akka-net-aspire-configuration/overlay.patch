@@ -1,8 +1,8 @@
 diff --git a/SKILL.md b/SKILL.md
-index ec7f15f..26fd7f2 100644
+index dda2c25..0e077f2 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -13,24 +13,24 @@ Use this skill when:
+@@ -13,24 +13,25 @@ Use this skill when:
  - Configuring Akka.Cluster with cluster bootstrapping and discovery
  - Integrating Akka.Persistence with SQL Server
  - Setting up Akka.Management for cluster management
@@ -19,6 +19,7 @@ index ec7f15f..26fd7f2 100644
 +- **`dotnet-skills:microsoft-extensions-configuration`** - IValidateOptions patterns for configuration validation
 +- **`dotnet-skills:akka-best-practices`** - Cluster/local mode abstractions for testable actor systems
 +- **`dotnet-skills:aspire-integration-testing`** - Testing Aspire applications with real infrastructure
++- **`aspire:aspire`** - AppHost authoring and lifecycle
  
  ## Core Principles
  
@@ -32,7 +33,7 @@ index ec7f15f..26fd7f2 100644
  
  ## Project Structure
  
-@@ -633,29 +633,29 @@ builder.Services.AddHealthChecks()
+@@ -633,29 +634,29 @@ builder.Services.AddHealthChecks()
  **Solution:**
  1. Use `FilterOnFallbackPort = false` in local development
  2. Ensure all replicas use the same discovery configuration
@@ -64,7 +65,7 @@ index ec7f15f..26fd7f2 100644
  {
      private DistributedApplication? _app;
  
-@@ -700,17 +700,17 @@ public class AkkaAspireIntegrationTests : IAsyncLifetime
+@@ -700,17 +701,17 @@ public class AkkaAspireIntegrationTests : IAsyncLifetime
      public async Task DisposeAsync()
      {
          if (_app is not null)

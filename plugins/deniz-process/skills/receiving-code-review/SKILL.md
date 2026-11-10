@@ -115,7 +115,7 @@ IF reviewer suggests "implementing properly":
 
 ```
 FOR multi-item feedback:
-  1. Clarify anything unclear FIRST
+  1. Clarify the unclear items that affect others FIRST
   2. Then implement in this order:
      - Blocking issues (breaks, security)
      - Simple fixes (typos, imports)
@@ -184,7 +184,7 @@ State the correction factually and move on.
 | Batch without testing | One at a time, test each |
 | Assuming reviewer is right | Check if breaks things |
 | Avoiding pushback | Technical correctness > comfort |
-| Partial implementation | Clarify all items first |
+| Partial implementation | Clarify the unclear items that affect others first |
 | Can't verify, proceed anyway | State limitation, ask for direction |
 
 ## Real Examples

@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index 080023d..2644d0f 100644
+index 080023d..ec78e7a 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -131,16 +131,18 @@ public class OrderRepositoryTests : IAsyncLifetime
@@ -21,3 +21,24 @@ index 080023d..2644d0f 100644
    <PackageReference Include="Testcontainers" Version="*" />
  
    <!-- Provider modules -->
+@@ -252,20 +254,16 @@ jobs:
+       with:
+         dotnet-version: 9.0.x
+ 
+     - name: Run Integration Tests
+       run: |
+         dotnet test tests/YourApp.IntegrationTests \
+           --filter Category=Integration \
+           --logger trx
+-
+-    - name: Cleanup Containers
+-      if: always()
+-      run: docker container prune -f
+ ```
+ 
+ ## Performance Tips
+ 
+ 1. **Reuse containers** - Share fixtures across tests in a collection
+ 2. **Use Respawn** - Reset data without recreating containers
+ 3. **Parallel execution** - TestContainers handles port conflicts automatically
+ 4. **Use lightweight images** - Alpine versions are smaller and faster

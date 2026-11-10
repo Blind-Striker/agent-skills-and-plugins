@@ -50,7 +50,8 @@ contradicts recorded item intent; it never re-solves a runtime problem upstream 
   and ask rather than deciding silently.
 - In this repository, the `writing-skills` test process (subagent pressure scenarios,
   RED-GREEN-REFACTOR) starts only after the maintainer agrees: ask before the first baseline run.
-  Skills here are edited often and dogfooded, and most edits do not need that process.
+  Skills here are edited often and dogfooded, and most edits do not need that process; an edit made
+  without it stands and is not deleted.
 - Never resolve a conflict among implementation, current canon, and accepted ADR intent silently.
   Follow the ADR guide: correct stale canon or record the implementation gap with its responsible
   file or symbol.

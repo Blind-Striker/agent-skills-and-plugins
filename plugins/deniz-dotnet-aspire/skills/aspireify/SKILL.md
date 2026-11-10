@@ -135,6 +135,7 @@ declared beyond the stub):
 
 If the AppHost already has wired resources and the user wants to **start/stop**
 the app → `deniz-dotnet-aspire:aspire-orchestration`. If the user wants to **deploy** → `deniz-dotnet-aspire:aspire-deployment`.
+For a one-off integration on an already wired AppHost, run `aspire add PACKAGE` directly.
 
 ## Language Support
 

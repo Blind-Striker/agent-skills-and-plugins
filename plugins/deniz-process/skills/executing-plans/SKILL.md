@@ -158,7 +158,8 @@ and the new one resumes from the same ledger.
   it names deniz-process:subagent-driven-development, continue with that
   skill instead, unless your human partner chose inline execution now. A
   ledger with no `Executor:` line keeps the executor that loaded it; add
-  the line.
+  the line. When your human partner switches executor, rewrite the line to
+  the one now running.
 - `git clean -fdx` will destroy the workspace (it's git-ignored scratch);
   if that happens, recover from `git log`.
 
@@ -260,7 +261,8 @@ Run `bash ../subagent-driven-development/scripts/review-package PLAN_FILE MERGE_
 by its absolute path, from the working tree you're executing in (MERGE_BASE = the commit the branch started from, e.g.
 `git merge-base main HEAD`) and review from the file it prints.
 
-**With a subagent tool:** dispatch the reviewer on the most capable
+**With a subagent tool:** before the dispatch, read your harness's tool notes
+(`../using-superpowers/references/harness-tools.md`). Dispatch the reviewer on the most capable
 available model — the whole-branch review is a judgment task — using
 deniz-process:requesting-code-review's
 [code-reviewer.md](../requesting-code-review/code-reviewer.md), with the

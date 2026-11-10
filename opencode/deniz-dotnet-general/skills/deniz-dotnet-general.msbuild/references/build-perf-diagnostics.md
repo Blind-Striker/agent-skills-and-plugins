@@ -8,7 +8,8 @@ Source: original `build-perf-diagnostics` skill.
    [baseline](build-perf-baseline.md). Keep `Rebuild` and ordinary `Build` distinct.
 2. Use an existing matching binlog first. If one is missing, follow
    [binlog generation](binlog-generation.md) without changing the reported scenario.
-3. [Replay the binary log](binlog-failure-analysis.md#replay-a-binary-log) locally
+3. Query a connected binlog MCP server first. Else
+   [replay the binary log](binlog-failure-analysis.md#replay-a-binary-log) locally
    to a diagnostic text log with a performance summary. The searches below assume
    that log is named `full-01.log`, as in the replay command; use its actual path.
 4. Find expensive projects, targets, and tasks, then inspect the corresponding

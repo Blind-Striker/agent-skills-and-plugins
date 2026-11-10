@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index f080876..264811d 100644
+index f080876..f717171 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -1,20 +1,22 @@
@@ -36,7 +36,7 @@ index f080876..264811d 100644
  | Situation | Reference if needed | Action |
  | --- | --- | --- |
 -| A build failed and a binary log exists | [binlog-failure-analysis](references/binlog-failure-analysis.md) | Replay the log with MSBuild; connect errors to the responsible project instance, target, and task. Separate root causes from cascading failures. |
-+| A build failed and a binary log exists | [binlog-failure-analysis](references/binlog-failure-analysis.md) | Query the log through a connected binlog MCP server, or replay it with MSBuild; connect errors to the responsible project instance, target, and task. Separate root causes from cascading failures. |
++| A build failed and a binary log exists | [binlog-failure-analysis](references/binlog-failure-analysis.md) | Query the log through a connected binlog MCP server first, else replay it with MSBuild; connect errors to the responsible project instance, target, and task. Separate root causes from cascading failures. |
  | The failure needs evidence and no matching log exists | [binlog-generation](references/binlog-generation.md), then [failure analysis](references/binlog-failure-analysis.md) | Capture the original invocation once and verify the artifact. Analyze it only when requested. |
  | A project/build file has incorrect conditions, items, properties, or output paths | [msbuild-antipatterns](references/msbuild-antipatterns.md) | Select the relevant catalog entries and check their exceptions before changing anything. |
  | Imports or build hooks are missing, overwritten, or run in the wrong order | [extension-points](references/extension-points.md) | Inspect the import contract, discovery order, and packed NuGet layout rather than hiding a required failure. |
@@ -110,7 +110,7 @@ index f080876..264811d 100644
  ## Shared evidence and safety
  
 -- For analysis, use [MSBuild replay](references/binlog-failure-analysis.md#replay-a-binary-log),
-+- For analysis, read the log through a connected binlog MCP server or
++- For analysis, read the log through a connected binlog MCP server first, else
 +  [MSBuild replay](references/binlog-failure-analysis.md#replay-a-binary-log),
    never binary-file text parsing. Replay success and replay duration are not the recorded
    build's result or duration.
@@ -128,10 +128,10 @@ index f080876..264811d 100644
  - Distinguish recorded facts from hypotheses. Missing source, log detail, tools, or platform
    support must be reported explicitly, not replaced with assumed values or invented verification.
 diff --git a/references/binlog-failure-analysis.md b/references/binlog-failure-analysis.md
-index 5f92c05..63f5f16 100644
+index 5f92c05..9ed189c 100644
 --- a/references/binlog-failure-analysis.md
 +++ b/references/binlog-failure-analysis.md
-@@ -10,16 +10,23 @@ an existing `.binlog`, including when the original checkout is unavailable.
+@@ -10,16 +10,25 @@ an existing `.binlog`, including when the original checkout is unavailable.
  - A `.binlog` is binary. Do not use a text reader, `strings`, or text search directly on it.
  - Recorded paths identify the original build; they are not permission to search unrelated
    checkouts or proof that source/project files exist locally.
@@ -145,7 +145,9 @@ index 5f92c05..63f5f16 100644
 +or custom-task failure, and what replay cannot give (where a property got its value, why a target
 +ran or was skipped, double writes, and the embedded project and import files when no checkout
 +exists). Work from the server's own tool list. Otherwise, or when a server call fails, replay the
-+log as below; replay is also the cross-check when a server answer and local source disagree.
++log as below; replay is also the cross-check when a server answer and local source disagree. If a
++registered binlog server fails to start or connect, tell the user they can run
++`/dotnet-msbuild:troubleshoot-binlog-mcp`, and continue with replay.
 +
  Choose unused text-log filenames, substitute the supplied binary-log path, and replay it:
  
@@ -211,6 +213,30 @@ index 17b8a16..b0a4c60 100644
  
  | Scenario | Before median [range] | After median [range] | Improvement |
  | --- | --- | --- | --- |
+diff --git a/references/build-perf-diagnostics.md b/references/build-perf-diagnostics.md
+index 96eaf24..c1493ec 100644
+--- a/references/build-perf-diagnostics.md
++++ b/references/build-perf-diagnostics.md
+@@ -3,17 +3,18 @@
+ Source: original `build-perf-diagnostics` skill.
+ 
+ ## Performance Analysis Methodology
+ 
+ 1. Establish the relevant cold, warm changed-input, or no-change
+    [baseline](build-perf-baseline.md). Keep `Rebuild` and ordinary `Build` distinct.
+ 2. Use an existing matching binlog first. If one is missing, follow
+    [binlog generation](binlog-generation.md) without changing the reported scenario.
+-3. [Replay the binary log](binlog-failure-analysis.md#replay-a-binary-log) locally
++3. Query a connected binlog MCP server first. Else
++   [replay the binary log](binlog-failure-analysis.md#replay-a-binary-log) locally
+    to a diagnostic text log with a performance summary. The searches below assume
+    that log is named `full-01.log`, as in the replay command; use its actual path.
+ 4. Find expensive projects, targets, and tasks, then inspect the corresponding
+    instance, execution reason, inputs, and dependency waits. Select one cause
+    for a controlled change, not every plausible optimization.
+ 
+ Performance summaries report cumulative/inclusive durations, not additive shares
+ of elapsed wall time or CPU usage. Parallel work overlaps; orchestration targets
 diff --git a/references/msbuild-antipatterns.md b/references/msbuild-antipatterns.md
 index 70a92bc..fa081f6 100644
 --- a/references/msbuild-antipatterns.md

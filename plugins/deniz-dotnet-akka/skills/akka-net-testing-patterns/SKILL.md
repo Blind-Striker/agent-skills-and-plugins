@@ -68,6 +68,8 @@ See [anti-patterns-and-reference.md](anti-patterns-and-reference.md) for traditi
 
 ## Required NuGet Packages
 
+In a TUnit project, add none of the xUnit packages below and no `Microsoft.NET.Test.Sdk`: xUnit is a second test framework, and the VSTest SDK breaks TUnit's test discovery. `Akka.Hosting.TestKit`'s base class is xUnit-based, so ask the user before you introduce it there.
+
 ```xml
 <ItemGroup>
   <!-- Core testing framework -->

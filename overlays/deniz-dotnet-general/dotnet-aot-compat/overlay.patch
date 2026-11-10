@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index bcfeca1..985e9c9 100644
+index bcfeca1..1465771 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -2,17 +2,17 @@
@@ -21,7 +21,26 @@ index bcfeca1..985e9c9 100644
  Make .NET projects compatible with Native AOT and trimming by systematically resolving all IL trim/AOT analyzer warnings.
  
  ## When to Use This Skill
-@@ -162,17 +162,16 @@ Common patterns that break flow and how to fix them:
+@@ -67,16 +67,18 @@ Add `IsAotCompatible`. If the project doesn't exclusively target net8.0+, add a
+ ```xml
+ <PropertyGroup>
+   <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">true</IsAotCompatible>
+ </PropertyGroup>
+ ```
+ 
+ This automatically sets `EnableTrimAnalyzer=true` and `EnableAotAnalyzer=true` for compatible TFMs. For multi-targeting projects (e.g., `netstandard2.0;net8.0`), the condition ensures no `NETSDK1210` warnings on older TFMs.
+ 
++For a trim-only request, set `IsTrimmable` instead and leave IL3xxx warnings out of scope.
++
+ ### Step 2: Build and collect warnings
+ 
+ ```bash
+ dotnet build <project.csproj> -f <net8.0-or-later-tfm> --no-incremental 2>&1 | grep 'IL[0-9]\{4\}'
+ ```
+ 
+ Sort and deduplicate. Common warning codes:
+ - **IL2070**: Reflection call on a `Type` parameter missing `[DynamicallyAccessedMembers]`
+@@ -162,17 +164,16 @@ Common patterns that break flow and how to fix them:
  
  When most warnings are IL2026/IL3050 from `JsonSerializer.Serialize`/`Deserialize`, this is a single mechanical fix applied in bulk:
  
@@ -39,7 +58,7 @@ index bcfeca1..985e9c9 100644
  ```
  
  3. **Batch-update all call sites** — do not read each file individually. Apply the pattern mechanically:
-@@ -212,16 +211,32 @@ Build all target frameworks to ensure:
+@@ -212,16 +213,32 @@ Build all target frameworks to ensure:
  - **0 IL warnings** on net8.0+ TFMs
  - **No NETSDK1210 warnings** (the `IsAotCompatible` condition handles this)
  - **Clean builds** on older TFMs (netstandard2.0, net472, etc.)
@@ -72,7 +91,7 @@ index bcfeca1..985e9c9 100644
  - If a warning requires **architectural refactoring** beyond annotation flow fixes (e.g., replacing an entire serialization layer), document it and stop — don't rewrite large subsystems.
  - Limit to **3 build-fix iterations** per warning. If annotation flow doesn't resolve it after 3 attempts, escalate to `[RequiresUnreferencedCode]`.
  - Don't chase warnings in **third-party dependencies** you can't modify. Note them and move on.
-@@ -257,13 +272,13 @@ Do **not** add the external type to your `JsonSerializerContext` — it won't so
+@@ -257,13 +274,13 @@ Do **not** add the external type to your `JsonSerializerContext` — it won't so
  [Limitations](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/?tabs=windows%2Cnet8#limitations-of-native-aot-deployment)
  [Conceptual: Understanding trimming](https://learn.microsoft.com/en-us/dotnet/core/deploying/trimming/trimming-concepts)
  [How-to: trim compat](https://learn.microsoft.com/en-us/dotnet/core/deploying/trimming/fixing-warnings)

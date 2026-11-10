@@ -74,6 +74,8 @@ Add `IsAotCompatible`. If the project doesn't exclusively target net8.0+, add a 
 
 This automatically sets `EnableTrimAnalyzer=true` and `EnableAotAnalyzer=true` for compatible TFMs. For multi-targeting projects (e.g., `netstandard2.0;net8.0`), the condition ensures no `NETSDK1210` warnings on older TFMs.
 
+For a trim-only request, set `IsTrimmable` instead and leave IL3xxx warnings out of scope.
+
 ### Step 2: Build and collect warnings
 
 ```bash
