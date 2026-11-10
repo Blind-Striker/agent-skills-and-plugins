@@ -25,10 +25,10 @@ public sealed partial class LayoutTests
     [Test]
     public async Task The_harness_pins_the_include_floor_on_stable_dotnet_10()
     {
-        // #:include needs SDK 10.0.300; latestFeature keeps the harness on 10, never on 11.
+        // #:include needs SDK 10.0.300; the pin is 10.0.404, and latestFeature keeps the harness on 10, never on 11.
         using var json = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(Harness, "global.json")));
         var sdk = json.RootElement.GetProperty("sdk");
-        await Assert.That(sdk.GetProperty("version").GetString()).IsEqualTo("10.0.300");
+        await Assert.That(sdk.GetProperty("version").GetString()).IsEqualTo("10.0.404");
         await Assert.That(sdk.GetProperty("rollForward").GetString()).IsEqualTo("latestFeature");
         await Assert.That(sdk.GetProperty("allowPrerelease").GetBoolean()).IsFalse();
     }

@@ -97,7 +97,7 @@ public sealed class FakeOpenCodeTests
         var response = await client.Server.GetInfoAsync(cancellationToken: cancellationToken);
 
         await Assert.That(response.Status).IsEqualTo(200);
-        await Assert.That(response.ServerInfo.Version).IsEqualTo("2.2.5");
+        await Assert.That(response.ServerInfo.Version).IsEqualTo("2.2.6");
         await Assert.That(response.ServerInfo.Pid).IsEqualTo((long)server.ProcessId);
         await Assert.That(server.OwnsProcess).IsTrue();
         using var unauthenticated = new HttpClient();

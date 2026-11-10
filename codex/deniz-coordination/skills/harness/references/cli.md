@@ -2,7 +2,7 @@ Read for each command's arguments, output and exit codes.
 
 # Command line
 
-Run from the installed harness skill folder. Its `global.json` selects stable SDK 10.0.300 or a
+Run from the installed harness skill folder. Its `global.json` selects stable SDK 10.0.404 or a
 later compatible feature band. The entry file uses this shebang on Linux and macOS:
 `#!/usr/bin/env -S dotnet --`.
 

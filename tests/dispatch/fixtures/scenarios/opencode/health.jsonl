@@ -1,1 +1,1 @@
-{"expect":"GET /api/info","repeat":true,"reply":{"version":"2.2.5","pid":"$pid","urls":["$url"],"paths":{"tmp":"$cwd"}}}
+{"expect":"GET /api/info","repeat":true,"reply":{"version":"2.2.6","pid":"$pid","urls":["$url"],"paths":{"tmp":"$cwd"}}}
