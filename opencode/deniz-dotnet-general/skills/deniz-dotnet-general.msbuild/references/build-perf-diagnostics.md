@@ -10,8 +10,10 @@ Source: original `build-perf-diagnostics` skill.
    [binlog generation](binlog-generation.md) without changing the reported scenario.
 3. Query a connected binlog MCP server first. Else
    [replay the binary log](binlog-failure-analysis.md#replay-a-binary-log) locally
-   to a diagnostic text log with a performance summary. The searches below assume
-   that log is named `full-01.log`, as in the replay command; use its actual path.
+   to a diagnostic text log with a performance summary. The text-log searches below
+   run only on that replayed log, named `full-01.log` as in the replay command (use
+   its actual path). When the server answered, use its equivalent queries and skip
+   those searches, or replay as well before using them.
 4. Find expensive projects, targets, and tasks, then inspect the corresponding
    instance, execution reason, inputs, and dependency waits. Select one cause
    for a controlled change, not every plausible optimization.

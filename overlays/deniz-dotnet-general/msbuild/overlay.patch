@@ -214,10 +214,10 @@ index 17b8a16..b0a4c60 100644
  | Scenario | Before median [range] | After median [range] | Improvement |
  | --- | --- | --- | --- |
 diff --git a/references/build-perf-diagnostics.md b/references/build-perf-diagnostics.md
-index 96eaf24..c1493ec 100644
+index 96eaf24..9a9d49c 100644
 --- a/references/build-perf-diagnostics.md
 +++ b/references/build-perf-diagnostics.md
-@@ -3,17 +3,18 @@
+@@ -3,19 +3,22 @@
  Source: original `build-perf-diagnostics` skill.
  
  ## Performance Analysis Methodology
@@ -227,16 +227,22 @@ index 96eaf24..c1493ec 100644
  2. Use an existing matching binlog first. If one is missing, follow
     [binlog generation](binlog-generation.md) without changing the reported scenario.
 -3. [Replay the binary log](binlog-failure-analysis.md#replay-a-binary-log) locally
+-   to a diagnostic text log with a performance summary. The searches below assume
+-   that log is named `full-01.log`, as in the replay command; use its actual path.
 +3. Query a connected binlog MCP server first. Else
 +   [replay the binary log](binlog-failure-analysis.md#replay-a-binary-log) locally
-    to a diagnostic text log with a performance summary. The searches below assume
-    that log is named `full-01.log`, as in the replay command; use its actual path.
++   to a diagnostic text log with a performance summary. The text-log searches below
++   run only on that replayed log, named `full-01.log` as in the replay command (use
++   its actual path). When the server answered, use its equivalent queries and skip
++   those searches, or replay as well before using them.
  4. Find expensive projects, targets, and tasks, then inspect the corresponding
     instance, execution reason, inputs, and dependency waits. Select one cause
     for a controlled change, not every plausible optimization.
  
  Performance summaries report cumulative/inclusive durations, not additive shares
  of elapsed wall time or CPU usage. Parallel work overlaps; orchestration targets
+ and tasks can include child work and waits.
+ 
 diff --git a/references/msbuild-antipatterns.md b/references/msbuild-antipatterns.md
 index 70a92bc..fa081f6 100644
 --- a/references/msbuild-antipatterns.md

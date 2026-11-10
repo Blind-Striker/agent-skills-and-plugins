@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-dotnet-general",
   "version": "0.18.1",
-  "digest": "sha256:e638968049e5d80bf5948548ca5b54620ac988988a4b4128b9092a947b84ab84",
+  "digest": "sha256:3204c097af3459e3b6fb6e816aeb3cca4a108bd266a9ad3e2595869dd726e902",
   "requiredModules": [
     "deniz-dotnet-aspire",
     "deniz-process"
@@ -241,7 +241,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.dotnet-aot-compat/SKILL.md": {
-      "sha256": "sha256:73912000cdda9e40a608529442fae2cff5fc775581262f2c879af3b03649c159",
+      "sha256": "sha256:6ae05bd2c8f668e1a9bc9966ef2f1e8364893d377f4b737fae581118c62ccd2b",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.dotnet-aot-compat/references/polyfills.md": {
@@ -489,7 +489,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.msbuild/references/build-perf-diagnostics.md": {
-      "sha256": "sha256:9ce8860fe7d77d5deb7754d7b7ebdb0968f629435468402a61be680ff2ed6629",
+      "sha256": "sha256:ac4524878b6868499ba8da4703682d77d24a2bafc82679c514023d428d39b81d",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.msbuild/references/copy-to-output-directory.md": {

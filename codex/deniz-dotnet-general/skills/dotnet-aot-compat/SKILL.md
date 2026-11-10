@@ -211,7 +211,7 @@ After each small batch of fixes (5-10 warnings), rebuild with `--no-incremental`
 ### Step 6: Validate all TFMs
 
 Build all target frameworks to ensure:
-- **0 IL warnings** on net8.0+ TFMs
+- **0 IL warnings** on net8.0+ TFMs (for a trim-only request: 0 IL2xxx warnings, IL3xxx out of scope)
 - **No NETSDK1210 warnings** (the `IsAotCompatible` condition handles this)
 - **Clean builds** on older TFMs (netstandard2.0, net472, etc.)
 
@@ -226,7 +226,7 @@ example, when the Stop Signals below leave warnings that need architectural refa
 wants the remaining set locked. A baseline neither fixes nor suppresses a warning: every baselined
 warning still appears in the build, and the Critical Rules above still apply to every fix.
 
-1. Keep the analyzers from Step 1 enabled (`IsAotCompatible` implies `EnableTrimAnalyzer` and `EnableAotAnalyzer`). If the repository treats warnings as errors, list the baselined IL codes in `WarningsNotAsErrors` so they stay warnings; never add them to `NoWarn`, which removes them from the build the baseline compares against.
+1. Keep the analyzers from Step 1 enabled (`IsAotCompatible` implies `EnableTrimAnalyzer` and `EnableAotAnalyzer`; for a trim-only request, `IsTrimmable` implies `EnableTrimAnalyzer`). If the repository treats warnings as errors, list the baselined IL codes in `WarningsNotAsErrors` so they stay warnings; never add them to `NoWarn`, which removes them from the build the baseline compares against.
 2. Build, capture the `IL2xxx`/`IL3xxx` diagnostics, scrub volatile parts (absolute paths, line numbers), normalize separators, and group by file.
 3. Store the result as an approved baseline (a checked-in text file).
 4. Add an approval test that compares the current warnings against the baseline on every build. A new warning fails the build: fix it with the strategies above. Only the user approves a new warning into the baseline, in the same PR; never extend the baseline to make a build pass.
@@ -239,7 +239,7 @@ regressions behind an ever-growing list.
 
 - **Do not analyze more than 2-3 representative files per warning pattern.** After identifying the fix for a pattern, apply it to all matching files without reading each one first.
 - **Start fixing after one build.** Do not do a second analysis pass — begin implementing fixes for the most common warning pattern immediately after Step 3 triage.
-- Stop after achieving **0 IL warnings** for net8.0+ TFMs. Don't optimize or refactor already-clean annotations.
+- Stop after achieving **0 IL warnings** for net8.0+ TFMs (for a trim-only request, 0 IL2xxx warnings). Don't optimize or refactor already-clean annotations.
 - If a warning requires **architectural refactoring** beyond annotation flow fixes (e.g., replacing an entire serialization layer), document it and stop — don't rewrite large subsystems.
 - Limit to **3 build-fix iterations** per warning. If annotation flow doesn't resolve it after 3 attempts, escalate to `[RequiresUnreferencedCode]`.
 - Don't chase warnings in **third-party dependencies** you can't modify. Note them and move on.
@@ -277,6 +277,8 @@ Do **not** add the external type to your `JsonSerializerContext` — it won't so
 [How-to: trim compat](https://learn.microsoft.com/en-us/dotnet/core/deploying/trimming/fixing-warnings)
 
 ## Checklist
+
+For a trim-only request, the first three items read: `<IsTrimmable>` instead of `<IsAotCompatible>`, built with the trim analyzer, and every IL2xxx warning fixed, with IL3xxx out of scope.
 
 - [ ] Added `<IsAotCompatible>` with TFM condition to .csproj
 - [ ] Built with AOT analyzers enabled (net8.0+ TFM)
