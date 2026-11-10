@@ -1,0 +1,185 @@
+diff --git a/SKILL.md b/SKILL.md
+index 5660c48..cf82681 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -6,25 +6,26 @@ description: >
+   NOT for writing new programs.
+   USE FOR: upgrading TargetFramework from net10.0 to net11.0, fixing build errors
+   after updating the .NET 11 SDK, resolving source-breaking and behavioral changes
+   in .NET 11 runtime, C# 15 compiler, and EF Core 11, adapting to updated minimum
+   hardware requirements (x86-64-v2, Arm64 LSE), and updating CI/CD pipelines and
+   Dockerfiles for .NET 11.
+   DO NOT USE FOR: .NET Framework migrations, upgrading from .NET 9 or earlier,
+   greenfield .NET 11 projects, or cosmetic modernization unrelated to the upgrade.
+-  NOTE: .NET 11 is in preview. Covers breaking changes through Preview 3.
++  NOTE: covers breaking changes documented through .NET 11 Preview 3; check the official
++  .NET 11 breaking-changes list for later ones.
+ license: MIT
+ ---
+ 
+ # .NET 10 → .NET 11 Migration
+ 
+ Migrate a .NET 10 project or solution to .NET 11, systematically resolving all breaking changes. The outcome is a project targeting `net11.0` that builds cleanly, passes tests, and accounts for every behavioral, source-incompatible, and binary-incompatible change introduced in .NET 11.
+ 
+-> **Note:** .NET 11 is currently in preview. This skill covers breaking changes documented through Preview 3.
++> **Note:** This skill covers breaking changes documented through .NET 11 Preview 3. .NET 11 is now generally available: check the official .NET 11 breaking-changes list on Microsoft Learn for changes after Preview 3.
+ 
+ ## When to Use
+ 
+ - Upgrading `TargetFramework` from `net10.0` to `net11.0`
+ - Resolving build errors or new warnings after updating the .NET 11 SDK
+ - Adapting to behavioral changes in .NET 11 runtime, ASP.NET Core 11, or EF Core 11
+ - Updating CI/CD pipelines, Dockerfiles, or deployment scripts for .NET 11
+ - Fixing C# 15 compiler breaking changes after SDK upgrade
+@@ -179,17 +180,17 @@ These changes compile successfully but alter runtime behavior. Review each one a
+    ```
+ 
+ 2. **CI/CD pipelines**: Update SDK version references. If using `global.json`, update the `sdk.version` in your existing file while preserving other keys (such as `rollForward` and test configuration):
+    ```diff
+     {
+       "sdk": {
+    -    "version": "10.0.100",
+    -    "rollForward": "latestFeature"
+-   +    "version": "11.0.100-preview.3",
++   +    "version": "11.0.100",
+    +    "rollForward": "latestFeature"
+       },
+       "otherSettings": {
+         "...": "..."
+       }
+     }
+    ```
+ 
+diff --git a/references/aspnetcore-dotnet10to11.md b/references/aspnetcore-dotnet10to11.md
+index bc97680..f53df5d 100644
+--- a/references/aspnetcore-dotnet10to11.md
++++ b/references/aspnetcore-dotnet10to11.md
+@@ -1,13 +1,13 @@
+ # ASP.NET Core Breaking Changes (.NET 11)
+ 
+ These breaking changes affect ASP.NET Core projects. Source: https://learn.microsoft.com/en-us/dotnet/core/compatibility/11
+ 
+-> **Note:** .NET 11 is in preview. Additional ASP.NET Core breaking changes are expected in later previews.
++> **Note:** This list covers .NET 11 Preview 1 through Preview 3. .NET 11 is now generally available; check the official .NET 11 breaking-changes list on Microsoft Learn for ASP.NET Core breaking changes after Preview 3.
+ 
+ ## Source-Incompatible Changes
+ 
+ ### Microsoft.OpenApi updated to v3 with OpenAPI 3.2.0 support (Preview 2)
+ 
+ **Impact: Medium.** `Microsoft.AspNetCore.OpenApi` updated its dependency from `Microsoft.OpenApi` 2.x to 3.x, adding OpenAPI 3.2.0 document generation. The underlying `Microsoft.OpenApi` library has breaking API changes in the v2→v3 transition.
+ 
+ Code that directly uses `Microsoft.OpenApi` types (`OpenApiDocument`, `OpenApiSchema`, `OpenApiOperation`, etc.) will have compile errors.
+diff --git a/references/core-libraries-dotnet10to11.md b/references/core-libraries-dotnet10to11.md
+index ad45fbb..9b5cc6a 100644
+--- a/references/core-libraries-dotnet10to11.md
++++ b/references/core-libraries-dotnet10to11.md
+@@ -1,13 +1,13 @@
+ # Core .NET Libraries Breaking Changes (.NET 11)
+ 
+ These breaking changes affect all .NET 11 projects regardless of application type. Source: https://learn.microsoft.com/en-us/dotnet/core/compatibility/11
+ 
+-> **Note:** .NET 11 is in preview. Additional breaking changes are expected in later previews.
++> **Note:** This list covers .NET 11 Preview 1 through Preview 3. .NET 11 is now generally available; check the official .NET 11 breaking-changes list on Microsoft Learn for breaking changes after Preview 3.
+ 
+ ## Obsoleted APIs
+ 
+ ### NamedPipeClientStream constructor with `isConnected` parameter obsoleted (SYSLIB0063)
+ 
+ **Impact: High (for projects using `TreatWarningsAsErrors`).** The `NamedPipeClientStream` constructor overload that accepts a `bool isConnected` parameter has been obsoleted. The `isConnected` argument never had any effect — pipes created from an existing `SafePipeHandle` are always connected. A new constructor without the parameter has been added.
+ 
+ ```csharp
+diff --git a/references/cryptography-dotnet10to11.md b/references/cryptography-dotnet10to11.md
+index 6ed0516..ccf8977 100644
+--- a/references/cryptography-dotnet10to11.md
++++ b/references/cryptography-dotnet10to11.md
+@@ -1,13 +1,13 @@
+ # Cryptography Breaking Changes (.NET 11)
+ 
+ These breaking changes affect projects using cryptography APIs. Source: https://learn.microsoft.com/en-us/dotnet/core/compatibility/11
+ 
+-> **Note:** .NET 11 is in preview. Additional cryptography breaking changes are expected in later previews.
++> **Note:** This list covers .NET 11 Preview 1 through Preview 3. .NET 11 is now generally available; check the official .NET 11 breaking-changes list on Microsoft Learn for cryptography breaking changes after Preview 3.
+ 
+ ## Behavioral Changes
+ 
+ ### DSA removed from macOS
+ 
+ **Impact: Medium (macOS only).** DSA (Digital Signature Algorithm) has been removed from macOS. Code that uses DSA for signing or verification will throw on macOS.
+ 
+ ```csharp
+diff --git a/references/csharp-compiler-dotnet10to11.md b/references/csharp-compiler-dotnet10to11.md
+index a5544dc..c38d823 100644
+--- a/references/csharp-compiler-dotnet10to11.md
++++ b/references/csharp-compiler-dotnet10to11.md
+@@ -1,13 +1,13 @@
+ # C# 15 Compiler Breaking Changes (.NET 11)
+ 
+ These breaking changes are introduced by the Roslyn compiler shipping with the .NET 11 SDK. They affect all projects targeting `net11.0` (which uses C# 15 by default). These are maintained separately from the runtime breaking changes at: https://learn.microsoft.com/en-us/dotnet/csharp/whats-new/breaking-changes/compiler%20breaking%20changes%20-%20dotnet%2011
+ 
+-> **Note:** .NET 11 is in preview. Additional compiler breaking changes may be introduced in later previews.
++> **Note:** This list covers .NET 11 Preview 1 through Preview 3. .NET 11 is now generally available; check the official .NET 11 breaking-changes list on Microsoft Learn for compiler breaking changes after Preview 3.
+ 
+ ## Source-Incompatible Changes
+ 
+ ### Span/ReadOnlySpan collection expression safe-context changed to `declaration-block`
+ 
+ **Impact: Medium.** The safe-context of a collection expression of `Span<T>` or `ReadOnlySpan<T>` type is now `declaration-block`, matching the specification. Previously the compiler incorrectly used `function-member`.
+ 
+ This can cause new errors when assigning a span collection expression created in an inner scope to a variable in an outer scope:
+diff --git a/references/efcore-dotnet10to11.md b/references/efcore-dotnet10to11.md
+index d2e9cc5..2977660 100644
+--- a/references/efcore-dotnet10to11.md
++++ b/references/efcore-dotnet10to11.md
+@@ -1,13 +1,13 @@
+ # Entity Framework Core Breaking Changes (.NET 11)
+ 
+ These breaking changes affect projects using Entity Framework Core 11. Source: https://learn.microsoft.com/en-us/ef/core/what-is-new/ef-core-11.0/breaking-changes
+ 
+-> **Note:** .NET 11 is in preview. The changes below were introduced in **Preview 1 through Preview 3**. Additional EF Core breaking changes are expected in later previews.
++> **Note:** The changes below were introduced in **.NET 11 Preview 1 through Preview 3**. .NET 11 is now generally available; check the official .NET 11 breaking-changes list on Microsoft Learn for EF Core changes after Preview 3.
+ 
+ ## Medium-Impact Changes
+ 
+ ### Sync I/O via the Azure Cosmos DB provider has been fully removed (Preview 1)
+ 
+ **Impact: Medium.** Synchronous I/O via the Azure Cosmos DB provider has been completely removed. In EF Core 10, sync I/O was unsupported by default but could be re-enabled with a special opt-in. In EF Core 11, calling any synchronous I/O API always throws — there is no opt-in to restore the old behavior.
+ 
+ **Affected APIs:**
+diff --git a/references/runtime-jit-dotnet10to11.md b/references/runtime-jit-dotnet10to11.md
+index b2ded5f..4ebce41 100644
+--- a/references/runtime-jit-dotnet10to11.md
++++ b/references/runtime-jit-dotnet10to11.md
+@@ -1,13 +1,13 @@
+ # Runtime and JIT Compiler Breaking Changes (.NET 11)
+ 
+ These breaking changes affect the .NET runtime and JIT compiler. Source: https://learn.microsoft.com/en-us/dotnet/core/compatibility/11
+ 
+-> **Note:** .NET 11 is in preview. Additional runtime breaking changes are expected in later previews.
++> **Note:** This list covers .NET 11 Preview 1 through Preview 3. .NET 11 is now generally available; check the official .NET 11 breaking-changes list on Microsoft Learn for runtime breaking changes after Preview 3.
+ 
+ ## Behavioral Changes
+ 
+ ### Minimum hardware requirements updated
+ 
+ **Impact: High for deployments on older hardware.** .NET 11 updates the minimum hardware requirements for both x86/x64 and Arm64 architectures.
+ 
+ #### x86/x64 changes
+diff --git a/references/sdk-msbuild-dotnet10to11.md b/references/sdk-msbuild-dotnet10to11.md
+index e256ea6..8fe4b0b 100644
+--- a/references/sdk-msbuild-dotnet10to11.md
++++ b/references/sdk-msbuild-dotnet10to11.md
+@@ -1,13 +1,13 @@
+ # SDK and MSBuild Breaking Changes (.NET 11)
+ 
+ These changes affect the .NET SDK, CLI tooling, NuGet, and MSBuild behavior. Source: https://learn.microsoft.com/en-us/dotnet/core/compatibility/11
+ 
+-> **Note:** .NET 11 is in preview. Additional SDK/MSBuild breaking changes are expected in later previews.
++> **Note:** This list covers .NET 11 Preview 1 through Preview 3. .NET 11 is now generally available; check the official .NET 11 breaking-changes list on Microsoft Learn for SDK/MSBuild breaking changes after Preview 3.
+ 
+ ## Behavioral Changes
+ 
+ ### Mono launch target not set for .NET Framework apps
+ 
+ **Impact: Low.** The mono launch target is no longer set automatically for .NET Framework apps. If you require Mono for execution on Linux, you need to specify it explicitly in the configuration.
+ 
+ Source: https://learn.microsoft.com/en-us/dotnet/core/compatibility/sdk/11/mono-launch-target-removed

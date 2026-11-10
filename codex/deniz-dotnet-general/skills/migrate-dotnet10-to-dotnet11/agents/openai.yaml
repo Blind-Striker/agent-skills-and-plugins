@@ -1,0 +1,6 @@
+interface:
+  display_name: "Migrate Dotnet10 To Dotnet11"
+  short_description: "Migrate a .NET 10 project or solution to .NET 11 and resolve…"
+  default_prompt: "Use $deniz-dotnet-general:migrate-dotnet10-to-dotnet11 for this task."
+policy:
+  allow_implicit_invocation: false

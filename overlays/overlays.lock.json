@@ -257,6 +257,19 @@
       }
     }
   },
+  "deniz-dotnet-general/migrate-dotnet10-to-dotnet11": {
+    "source": "dotnet-agent-skills/plugins/dotnet-upgrade/skills/migrate-dotnet10-to-dotnet11",
+    "files": {
+      "SKILL.md": "5660c487e6bece6f6fbcba26d8a70eb67a26da14",
+      "references/aspnetcore-dotnet10to11.md": "bc976807bff3823fda6352ca87fb1dc10a9a8d6b",
+      "references/core-libraries-dotnet10to11.md": "ad45fbbc6899801ceb9987bb29749f3daf69de37",
+      "references/cryptography-dotnet10to11.md": "6ed051617de361e359836867f1d3ade727b5c665",
+      "references/csharp-compiler-dotnet10to11.md": "a5544dc8b87bb578351055e9f6691d6bc99fff23",
+      "references/efcore-dotnet10to11.md": "d2e9cc5b769c7520705b7b5da776c8045dabf8d3",
+      "references/runtime-jit-dotnet10to11.md": "b2ded5f026e931cd79176fbe210931ac0767338c",
+      "references/sdk-msbuild-dotnet10to11.md": "e256ea61000b8c21a226a0ee9618b8d56a3338ed"
+    }
+  },
   "deniz-dotnet-general/migrate-nullable-references": {
     "source": "dotnet-agent-skills/plugins/dotnet-upgrade/skills/migrate-nullable-references",
     "files": {
@@ -338,6 +351,12 @@
     "source": "dotnet-skills/skills/snapshot-testing",
     "files": {
       "SKILL.md": "7ff25dbcb86f2691ea2e37e31c08e1decf63067e"
+    }
+  },
+  "deniz-dotnet-general/system-text-json-net11": {
+    "source": "dotnet-agent-skills/plugins/dotnet11/skills/system-text-json-net11",
+    "files": {
+      "SKILL.md": "20a6daae4c5dd9f31d889512ca7f7de564827c5b"
     }
   },
   "deniz-dotnet-general/target-authoring": {

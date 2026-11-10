@@ -32,7 +32,7 @@
 plugin:
   name: deniz-dotnet-general
   description: "Deniz's curated general .NET skills"
-  version: 0.18.1
+  version: 0.19.0
 original_skills:
   writing-tunit-tests:
     invocation: auto # fires while a TUnit test is being written; code-testing loads it through a
@@ -196,7 +196,15 @@ items:
     invocation: auto # curator's call, taken without waiting for .NET 11 GA: the new System.Diagnostics.Process APIs
     # (Process.Run, RunAndCaptureText, StartAndForget, KillOnParentExit, InheritedHandles,
     # StartDetached) are BCL knowledge no other item carries; csharp-15 covers the language, not the
-    # library. Its siblings system-text-json-net11 and migrate-dotnet10-to-dotnet11 stay excluded
+    # library
+  - source: dotnet-agent-skills/plugins/dotnet11/skills/system-text-json-net11
+    invocation: auto # curator's call at .NET 11 GA: the .NET 11 System.Text.Json additions
+    # (JsonNamingPolicy.PascalCase, generic GetTypeInfo/TryGetTypeInfo) are BCL knowledge beside
+    # process-api-net11; its install step already prefers the GA channel and runs only when the
+    # user asks to run a sample
+    body: patch # upstream makes every use end with a running net11.0 program that prints its JSON;
+    # that proof now applies to a requested runnable sample, and an edit in an existing project is
+    # proven by its build and tests
   - source: dotnet-agent-skills/plugins/dotnet-advanced/skills/vectorization
     invocation: auto # official SIMD authoring/review knowledge: contract preservation, portable
     # Vector128-first implementation, tail/memory safety, fallbacks, and measurement. Its bounded
@@ -591,6 +599,13 @@ items:
     # shell but PowerShell
   - source: dotnet-agent-skills/plugins/dotnet-upgrade/skills/thread-abort-migration
     invocation: manual # Thread.Abort → cooperative cancellation — typed
+  - source: dotnet-agent-skills/plugins/dotnet-upgrade/skills/migrate-dotnet10-to-dotnet11
+    invocation: manual # curator's call at .NET 11 GA: the net10.0 -> net11.0 upgrade ceremony, typed
+    # like every other migration here
+    body: patch # upstream's text still says .NET 11 is in preview and pins a preview SDK in its
+    # global.json example; after GA that would steer an upgrade onto a preview SDK. The patch states
+    # what the lists cover (Preview 1 to 3) and points to the official .NET 11 breaking-changes list
+    # for later ones, and the example pins 11.0.100. Drop the patch when upstream refreshes for GA
   - source: dotnet-agent-skills/plugins/dotnet-upgrade/skills/dotnet-aot-compat
     invocation: manual # trim/AOT ceremony — typed; its in-ceremony process discipline left as shipped
     body: patch # takes in the warning-approval baseline from aot-trimming's playbook as an optional,
@@ -806,10 +821,6 @@ items:
     # of a deferred estate
   - source: dotnet-agent-skills/plugins/dotnet/skills/setup-local-sdk
     exclude: true # local SDK installs are rare; global.json pinning is covered by dotnet-project-structure
-  - source: dotnet-agent-skills/plugins/dotnet11/skills/system-text-json-net11
-    exclude: true # .NET 11 Preview-era content; revisit at GA
-  - source: dotnet-agent-skills/plugins/dotnet-upgrade/skills/migrate-dotnet10-to-dotnet11
-    exclude: true # explicitly Preview-3 facts upstream; revisit at .NET 11 GA
   - source: dotnet-agent-skills/plugins/dotnet-ai/skills/technology-selection
     exclude: true # AI/ML library selection is a separate concern from this module. (Upstream has
     # since labelled the prereleases and moved the malformed snippets into references — the scope

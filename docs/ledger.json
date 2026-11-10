@@ -3451,6 +3451,58 @@
       "bodyTransformations": []
     }
   },
+  "deniz-dotnet-general/skill/migrate-dotnet10-to-dotnet11": {
+    "source": "dotnet-agent-skills/plugins/dotnet-upgrade/skills/migrate-dotnet10-to-dotnet11",
+    "invocation": "manual",
+    "body": "patch",
+    "description": "Migrate a .NET 10 project or solution to .NET 11 and resolve all breaking changes. This is a MIGRATION skill — use it when upgrading from .NET 10 to .NET 11, NOT for writing new programs. USE FOR: upgrading TargetFramework from net10.0 to net11.0, fixing build errors after updating the .NET 11 SDK, resolving source-breaking and behavioral changes in .NET 11 runtime, C# 15 compiler, and EF Core 11, adapting to updated minimum hardware requirements (x86-64-v2, Arm64 LSE), and updating CI/CD pipelines and Dockerfiles for .NET 11. DO NOT USE FOR: .NET Framework migrations, upgrading from .NET 9 or earlier, greenfield .NET 11 projects, or cosmetic modernization unrelated to the upgrade. NOTE: covers breaking changes documented through .NET 11 Preview 3; check the official .NET 11 breaking-changes list for later ones.\n",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "flags": {
+        "disable-model-invocation": true
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general.migrate-dotnet10-to-dotnet11",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "license"
+      ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:migrate-dotnet10-to-dotnet11",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
+    }
+  },
   "deniz-dotnet-general/skill/migrate-nullable-references": {
     "source": "dotnet-agent-skills/plugins/dotnet-upgrade/skills/migrate-nullable-references",
     "invocation": "manual",
@@ -4433,6 +4485,56 @@
       "bodyTransformations": []
     }
   },
+  "deniz-dotnet-general/skill/system-text-json-net11": {
+    "source": "dotnet-agent-skills/plugins/dotnet11/skills/system-text-json-net11",
+    "invocation": "auto",
+    "body": "patch",
+    "description": "Imperative guidance for the System.Text.Json APIs added in .NET 11: the built-in `JsonNamingPolicy.PascalCase` naming policy, and the strongly-typed generic `JsonSerializerOptions.GetTypeInfo` and `JsonSerializerOptions.TryGetTypeInfo` metadata accessors (generic overloads that return a typed `JsonTypeInfo`). USE ONLY when the user is targeting net11.0 or later and needs PascalCase JSON property or dictionary-key names without writing a custom naming policy, a strongly-typed generic `JsonTypeInfo` instead of the non-generic `JsonTypeInfo`, or a no-throw way to probe whether a type's serialization metadata is resolved. DO NOT USE when the target is earlier than net11.0, the requested behavior uses an established pre-net11 naming policy, or the user explicitly selected another JSON library.\n",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "flags": {
+        "user-invocable": false
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general.system-text-json-net11",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "license"
+      ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:system-text-json-net11",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
+    }
+  },
   "deniz-dotnet-general/skill/target-authoring": {
     "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/target-authoring",
     "invocation": "auto",
@@ -5135,6 +5237,7 @@
       "item-management",
       "microbenchmarking",
       "microsoft-extensions-configuration",
+      "migrate-dotnet10-to-dotnet11",
       "migrate-nullable-references",
       "migrate-static-to-wrapper",
       "modern-csharp-coding-standards",
@@ -5152,6 +5255,7 @@
       "sdk-container-publishing",
       "serialization",
       "snapshot-testing",
+      "system-text-json-net11",
       "target-authoring",
       "test-analysis-extensions",
       "test-anti-patterns",
@@ -5237,6 +5341,7 @@
           "deniz-dotnet-general:sdk-container-publishing",
           "deniz-dotnet-general:serialization",
           "deniz-dotnet-general:snapshot-testing",
+          "deniz-dotnet-general:system-text-json-net11",
           "deniz-dotnet-general:target-authoring",
           "deniz-dotnet-general:test-analysis-extensions",
           "deniz-dotnet-general:test-anti-patterns",
@@ -5267,6 +5372,7 @@
           "deniz-dotnet-general:dotnet-trace-collect",
           "deniz-dotnet-general:dump-collect",
           "deniz-dotnet-general:generate-testability-wrappers",
+          "deniz-dotnet-general:migrate-dotnet10-to-dotnet11",
           "deniz-dotnet-general:migrate-nullable-references",
           "deniz-dotnet-general:migrate-static-to-wrapper",
           "deniz-dotnet-general:thread-abort-migration",
@@ -5373,6 +5479,7 @@
           "deniz-dotnet-general.sdk-container-publishing",
           "deniz-dotnet-general.serialization",
           "deniz-dotnet-general.snapshot-testing",
+          "deniz-dotnet-general.system-text-json-net11",
           "deniz-dotnet-general.target-authoring",
           "deniz-dotnet-general.test-analysis-extensions",
           "deniz-dotnet-general.test-anti-patterns",
@@ -5404,6 +5511,7 @@
           "@deniz-dotnet-general.dotnet-trace-collect",
           "@deniz-dotnet-general.dump-collect",
           "@deniz-dotnet-general.generate-testability-wrappers",
+          "@deniz-dotnet-general.migrate-dotnet10-to-dotnet11",
           "@deniz-dotnet-general.migrate-nullable-references",
           "@deniz-dotnet-general.migrate-static-to-wrapper",
           "@deniz-dotnet-general.thread-abort-migration",
@@ -5517,6 +5625,7 @@
           "$deniz-dotnet-general:sdk-container-publishing",
           "$deniz-dotnet-general:serialization",
           "$deniz-dotnet-general:snapshot-testing",
+          "$deniz-dotnet-general:system-text-json-net11",
           "$deniz-dotnet-general:target-authoring",
           "$deniz-dotnet-general:test-analysis-extensions",
           "$deniz-dotnet-general:test-anti-patterns",
@@ -5548,6 +5657,7 @@
           "$deniz-dotnet-general:dotnet-trace-collect",
           "$deniz-dotnet-general:dump-collect",
           "$deniz-dotnet-general:generate-testability-wrappers",
+          "$deniz-dotnet-general:migrate-dotnet10-to-dotnet11",
           "$deniz-dotnet-general:migrate-nullable-references",
           "$deniz-dotnet-general:migrate-static-to-wrapper",
           "$deniz-dotnet-general:thread-abort-migration",
