@@ -180,6 +180,61 @@ index a09d36c..633167a 100644
  another assembly.
  
  ## Interpretation and arithmetic invariants
+diff --git a/references/guidelines.md b/references/guidelines.md
+index 2c8d5c4..89df96c 100644
+--- a/references/guidelines.md
++++ b/references/guidelines.md
+@@ -8,28 +8,46 @@ arithmetic alone.
+ ## Compute the risk data
+ 
+ Resolve the scripts relative to this skill's `SKILL.md`:
+ 
+ ```powershell
+ & "<skill-directory>/scripts/Compute-CrapScores.ps1" `
+     -CoberturaPath @(<all Cobertura paths>) `
+     -CrapThreshold <crap_threshold> `
+-    -TopN <top_n>
++    -TopN <top_n> `
++    -OutputFormat json-v1
+ 
+ & "<skill-directory>/scripts/Extract-MethodCoverage.ps1" `
+     -CoberturaPath @(<all Cobertura paths>) `
+     -CoverageThreshold <line_threshold> `
+     -BranchThreshold <branch_threshold> `
+-    -Filter below-threshold
++    -Filter below-threshold `
++    -OutputFormat json-v1
+ ```
+ 
+ `Compute-CrapScores.ps1` emits aggregate line/branch coverage, method counts,
+-flagged counts, and sorted hotspots. `Extract-MethodCoverage.ps1` emits every
+-below-threshold method. Use both for explicit project-wide risk work.
++flagged counts, and sorted hotspots in `data.summary`, `data.methods`, and
++`data.hotspots`. `Extract-MethodCoverage.ps1` emits every below-threshold method
++in `data.methods`. Use both for explicit project-wide risk work.
++
++Read each script's exit code (`$LASTEXITCODE`) beside its JSON:
++
++- **Exit 2:** the input is invalid or contradictory. That is failed collection,
++  not 0% coverage: regenerate coverage when possible, otherwise stop without
++  publishing any CRAP score.
++- **Exit 3:** the evidence is partial. Continue: score and rank only the rows
++  with a non-null `CrapScore`, which have exact complexity and line coverage.
++- **Exit 0:** every measurement is exact; use every row.
++
++A `Compute-CrapScores.ps1` row with `ComplexityStatus: unknown` or
++`LineCoverageStatus: unknown` has a null `CrapScore`. Report it as "CRAP
++unavailable", never as a score with complexity 1 or coverage 0, and state how
++many rows are unavailable (`data.summary.unknown_crap_methods`) and which ones
++the answer depends on.
+ 
+ CRAP is:
+ 
+ `CRAP(m) = complexity² × (1 − lineCoverage)³ + complexity`
+ 
+ A method at 100% coverage therefore has CRAP equal to its complexity. Use 30 as
+ the default flagged threshold; treat 15–30 as moderate rather than catastrophic.
+ 
 diff --git a/references/setup-discovery.md b/references/setup-discovery.md
 index 220d6f3..2b74ef2 100644
 --- a/references/setup-discovery.md

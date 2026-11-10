@@ -461,7 +461,11 @@ items:
     # scoring them all; it takes the line fraction from CoveredLines / TotalLines as the shipped
     # scorer does, not the rounded percentage; and it hand-counts complexity only from the source
     # revision the report came from, else marks CRAP unavailable, since the scripts record no
-    # revision and a hybrid score would mislead. Collection loads
+    # revision and a hybrid score would mislead. The project-wide path in references/guidelines.md
+    # runs both scripts in json-v1 too, curator's call: the legacy format printed nothing and exited
+    # 3 on any report with one unknown measurement. It keeps the in-PowerShell `&` call, because
+    # `pwsh -File` cannot pass the several Cobertura paths that path takes; reads exits 2, 3 and 0 as
+    # the targeted path does; and reports a null-score row as "CRAP unavailable". Collection loads
     # run-tests through namespaced facts, and a missing
     # coverage provider is reported as a prerequisite, never installed without authorization
     depends_on: [run-tests]

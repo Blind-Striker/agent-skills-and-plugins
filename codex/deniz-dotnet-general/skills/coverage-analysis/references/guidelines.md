@@ -13,18 +13,36 @@ Resolve the scripts relative to this skill's `SKILL.md`:
 & "<skill-directory>/scripts/Compute-CrapScores.ps1" `
     -CoberturaPath @(<all Cobertura paths>) `
     -CrapThreshold <crap_threshold> `
-    -TopN <top_n>
+    -TopN <top_n> `
+    -OutputFormat json-v1
 
 & "<skill-directory>/scripts/Extract-MethodCoverage.ps1" `
     -CoberturaPath @(<all Cobertura paths>) `
     -CoverageThreshold <line_threshold> `
     -BranchThreshold <branch_threshold> `
-    -Filter below-threshold
+    -Filter below-threshold `
+    -OutputFormat json-v1
 ```
 
 `Compute-CrapScores.ps1` emits aggregate line/branch coverage, method counts,
-flagged counts, and sorted hotspots. `Extract-MethodCoverage.ps1` emits every
-below-threshold method. Use both for explicit project-wide risk work.
+flagged counts, and sorted hotspots in `data.summary`, `data.methods`, and
+`data.hotspots`. `Extract-MethodCoverage.ps1` emits every below-threshold method
+in `data.methods`. Use both for explicit project-wide risk work.
+
+Read each script's exit code (`$LASTEXITCODE`) beside its JSON:
+
+- **Exit 2:** the input is invalid or contradictory. That is failed collection,
+  not 0% coverage: regenerate coverage when possible, otherwise stop without
+  publishing any CRAP score.
+- **Exit 3:** the evidence is partial. Continue: score and rank only the rows
+  with a non-null `CrapScore`, which have exact complexity and line coverage.
+- **Exit 0:** every measurement is exact; use every row.
+
+A `Compute-CrapScores.ps1` row with `ComplexityStatus: unknown` or
+`LineCoverageStatus: unknown` has a null `CrapScore`. Report it as "CRAP
+unavailable", never as a score with complexity 1 or coverage 0, and state how
+many rows are unavailable (`data.summary.unknown_crap_methods`) and which ones
+the answer depends on.
 
 CRAP is:
 
