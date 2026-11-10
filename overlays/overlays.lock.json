@@ -134,6 +134,7 @@
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/coverage-analysis",
     "files": {
       "SKILL.md": "a09d36cee78a6a1e21ff8c6d869450727c644f39",
+      "references/guidelines.md": "2c8d5c484db3a67d7e4f35322a684e4544da16fd",
       "references/setup-discovery.md": "220d6f3e2a20013c104d8d0ec362b1d6e8a56a20"
     }
   },
