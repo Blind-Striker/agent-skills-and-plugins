@@ -1,8 +1,9 @@
 ---
 name: deniz-dotnet-general.api-design
-description: Design stable, compatible public APIs using extend-only design
+description: "Design stable, compatible public APIs using extend-only design
   principles. Manage API compatibility, wire compatibility, and versioning for
-  NuGet packages and distributed systems.
+  NuGet packages and distributed systems. Edit-time compatibility checks:
+  dotnet-breaking-changes."
 ---
 
 # Public API Design and Compatibility
@@ -15,6 +16,9 @@ Use this skill when:
 - Planning wire format changes for distributed systems
 - Implementing versioning strategies
 - Reviewing pull requests for breaking changes
+
+Edit-time compatibility checks of a concrete change to an existing public API belong to
+dotnet-breaking-changes; this skill covers the design-time principles and wire compatibility.
 
 ---
 
@@ -299,8 +303,8 @@ public interface IOrderRepository
 | Version | Changes Allowed |
 |---------|----------------|
 | **Patch** (1.0.x) | Bug fixes, security patches |
-| **Minor** (1.x.0) | New features, deprecations, obsolete removal |
-| **Major** (x.0.0) | Breaking changes, old API removal |
+| **Minor** (1.x.0) | New features, deprecations |
+| **Major** (x.0.0) | Breaking changes, old API removal, obsolete removal |
 
 ### Key Principles
 
@@ -358,10 +362,11 @@ public async Task<Order> GetOrderAsync(OrderId id) { }
 // Changing defaults breaks users who relied on old behavior
 public void Configure(bool enableCaching = true)  // Was: false!
 
-// Correct: New parameter with new name
-public void Configure(
-    bool enableCaching = false,  // Original default preserved
-    bool enableNewCaching = true)  // New behavior opt-in
+// Correct: keep the old method, add an overload for the new behavior
+public void Configure(bool enableCaching = false)  // Original signature and default preserved
+    => Configure(enableCaching, enableNewCaching: false);
+
+public void Configure(bool enableCaching, bool enableNewCaching)  // New behavior opt-in
 ```
 
 ### Polymorphic Serialization

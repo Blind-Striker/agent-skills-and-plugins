@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-dotnet-aspire",
-  "version": "0.7.1",
-  "digest": "sha256:d00ceb4ab86bc2e2e2102aaa5ca2570cad85a69e5c0d1c402541b6746f3719da",
+  "version": "0.7.2",
+  "digest": "sha256:353dc261ef238254e85b6d7fdc02b60e34aa970b1bbe06e1344c05fd45f0d1e2",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -78,7 +78,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire-monitoring/SKILL.md": {
-      "sha256": "sha256:7e426273f12c1277301e58ff198ccfb491252faf53ed76ad101ed9e51de64c2f",
+      "sha256": "sha256:f257ab3056812621c6db72524ba041b59235b582486f6f03f53a25164091ca72",
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire-monitoring/references/diagnostics-bridge.md": {
@@ -166,7 +166,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspireify/SKILL.md": {
-      "sha256": "sha256:1d7d3345f6f2994451de64fcf56c13a0874a9bf783625e0ddf96ea22745e4cf2",
+      "sha256": "sha256:cd3000a0d8315c7d0a7e0134fb492fe75b99da2ef3ebf2cf355d727d6ffd6a5e",
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspireify/references/apphost-wiring.md": {

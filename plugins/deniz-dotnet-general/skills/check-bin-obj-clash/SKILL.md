@@ -83,7 +83,7 @@ Compare the `OutputPath` and `IntermediateOutputPath` values across all evaluati
 
 ## Fallback workflow — text-log replay (when MCP is unavailable)
 
-Use this only when the MCP server cannot be started.
+Use this only when the MCP server is unavailable or a call to it fails.
 
 Replay the binlog to a diagnostic text log, then grep for the same signals the MCP tools surface:
 
@@ -322,4 +322,4 @@ When multiple evaluations share an output path, compare these global properties 
 
 ## Testing Fixes
 
-After making changes to fix path clashes, clean and rebuild to verify. Preserve existing binlog files during that cleanup, as the binlog-generation reference of the `deniz-dotnet-general:msbuild` skill describes.
+After making changes to fix path clashes, verify in a disposable copy, or clean only the outputs the user approved; the confirming build of the original deletes nothing. The disposable-copy rule under "Troubleshoot build issues" in the `deniz-dotnet-general:msbuild` skill gives the procedure. Preserve existing binlog files during any approved cleanup, as the binlog-generation reference of the `deniz-dotnet-general:msbuild` skill describes.

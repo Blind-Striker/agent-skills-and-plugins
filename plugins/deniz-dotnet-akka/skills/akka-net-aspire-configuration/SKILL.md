@@ -24,6 +24,7 @@ Use this skill when:
 - **`deniz-dotnet-general:microsoft-extensions-configuration`** - IValidateOptions patterns for configuration validation
 - **`deniz-dotnet-akka:akka-net-best-practices`** - Cluster/local mode abstractions for testable actor systems
 - **`deniz-dotnet-aspire:aspire-integration-testing`** - Testing Aspire applications with real infrastructure
+- **`deniz-dotnet-aspire:aspire`** - AppHost authoring and lifecycle
 
 ## Core Principles
 

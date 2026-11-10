@@ -20,7 +20,9 @@ tools first: overview and failure diagnosis, deduplicated errors with the task o
 or custom-task failure, and what replay cannot give (where a property got its value, why a target
 ran or was skipped, double writes, and the embedded project and import files when no checkout
 exists). Work from the server's own tool list. Otherwise, or when a server call fails, replay the
-log as below; replay is also the cross-check when a server answer and local source disagree.
+log as below; replay is also the cross-check when a server answer and local source disagree. If a
+registered binlog server fails to start or connect, tell the user they can run
+`@deniz-dotnet-general.troubleshoot-binlog-mcp`, and continue with replay.
 
 Choose unused text-log filenames, substitute the supplied binary-log path, and replay it:
 

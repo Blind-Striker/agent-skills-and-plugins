@@ -1,6 +1,7 @@
 ---
 name: deniz-dotnet-general.testcontainers-integration-tests
-description: Write integration tests using TestContainers for .NET with xUnit.
+description: Write integration tests using TestContainers for .NET with xUnit,
+  without an Aspire AppHost; for Aspire apps use aspire-integration-testing.
   Covers infrastructure testing with real databases, message queues, and caches
   in Docker containers instead of mocks.
 ---
@@ -260,10 +261,6 @@ jobs:
         dotnet test tests/YourApp.IntegrationTests \
           --filter Category=Integration \
           --logger trx
-
-    - name: Cleanup Containers
-      if: always()
-      run: docker container prune -f
 ```
 
 ## Performance Tips

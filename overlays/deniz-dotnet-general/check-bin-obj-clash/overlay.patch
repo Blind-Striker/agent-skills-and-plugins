@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index 48be612..dfdbecc 100644
+index 4d287d0..151e34d 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -26,19 +26,21 @@ Clashes can occur between:
@@ -25,6 +25,25 @@ index 48be612..dfdbecc 100644
  file. Call `tools/list` for the MCP first if you are unsure which tools are available.
  
  **Important constraints:**
+@@ -68,17 +70,17 @@ Use the MCP double_writes tool if available — it directly detects files writte
+ Compare the `OutputPath` and `IntermediateOutputPath` values across all evaluations:
+ 1. **Normalize paths** - Convert to absolute paths and normalize separators
+ 2. **Group by path** - Find evaluations that share the same OutputPath or IntermediateOutputPath
+ 3. **Filter out non-build evaluations** - Exclude `BuildProjectReferences=false` instances (P2P queries)
+ 4. **Report clashes** - Any group with more than one evaluation indicates a clash
+ 
+ ## Fallback workflow — text-log replay (when MCP is unavailable)
+ 
+-Use this only when the MCP server cannot be started.
++Use this only when the MCP server is unavailable or a call to it fails.
+ 
+ Replay the binlog to a diagnostic text log, then grep for the same signals the MCP tools surface:
+ 
+ ```bash
+ dotnet msbuild build.binlog -noconlog -fl "-flp:v=diag;logfile=full.log"
+ ```
+ 
+ Then extract the clash signals:
 @@ -208,41 +210,41 @@ This is particularly wasteful for projects where the extra property has no effec
  <!-- (b) project A publishes project B that it consumes -->
  <MSBuild Projects="..\tool\tool.csproj" Targets="Publish" Properties="_IsPublishing=true" />
@@ -100,4 +119,4 @@ index 48be612..dfdbecc 100644
  ## Testing Fixes
  
 -After making changes to fix path clashes, clean and rebuild to verify. See the `binlog-generation` skill's "Cleaning the Repository" section on how to clean the repository while preserving binlog files.
-+After making changes to fix path clashes, clean and rebuild to verify. Preserve existing binlog files during that cleanup, as the binlog-generation reference of the `dotnet:msbuild` skill describes.
++After making changes to fix path clashes, verify in a disposable copy, or clean only the outputs the user approved; the confirming build of the original deletes nothing. The disposable-copy rule under "Troubleshoot build issues" in the `dotnet:msbuild` skill gives the procedure. Preserve existing binlog files during any approved cleanup, as the binlog-generation reference of the `dotnet:msbuild` skill describes.

@@ -32,7 +32,7 @@
 plugin:
   name: deniz-dotnet-general
   description: "Deniz's curated general .NET skills"
-  version: 0.18.0
+  version: 0.18.1
 original_skills:
   writing-tunit-tests:
     invocation: auto # fires while a TUnit test is being written; code-testing loads it through a
@@ -94,6 +94,17 @@ items:
     # source-generation section.
   - source: dotnet-skills/skills/csharp-api-design
     invocation: auto # extend-only public API + wire compatibility; the NuGet/distributed side of design
+    body: patch # its own "correct" Silent Behavior Changes example replaced `Configure(bool)` with a
+    # two-parameter method, a binary break (MissingMethodException in compiled callers), and its
+    # versioning table allowed obsolete removal in a minor release; dotnet-breaking-changes teaches
+    # the opposite, and a model loading both got conflicting guidance. The example keeps the old
+    # method and adds an overload, and obsolete removal moves to Major. One line under When to Use
+    # hands edit-time checks of a concrete change to dotnet-breaking-changes, a bare hint per the
+    # Module's reference posture, as the description below does
+    frontmatter:
+      # upstream's text plus the recorded split with dotnet-breaking-changes, so "change this public
+      # API without breaking consumers" reaches the inspect-first discipline
+      description: "Design stable, compatible public APIs using extend-only design principles. Manage API compatibility, wire compatibility, and versioning for NuGet packages and distributed systems. Edit-time compatibility checks: dotnet-breaking-changes."
   - source: dotnet-skills/skills/csharp-concurrency-patterns
     invocation: auto # the concurrency chooser; its Akka/R3 handoffs land on r3-reactive-extensions (taken) and the akka module (its own session)
   - source: dotnet-skills/skills/r3-reactive-extensions
@@ -252,7 +263,11 @@ items:
     # specialists, so it is rewritten to route to them, and routing rows reach each one as a checked
     # fact. Its binlog-failure-analysis reference opens the replay section with one paragraph: query a
     # connected binlog MCP server first, replay when none is connected or a call fails, and replay as
-    # the cross-check; the failure routing row and the shared-evidence rule say the same. It also
+    # the cross-check; the failure routing row and the shared-evidence rule say the same ("first,
+    # else"), and build-perf-diagnostics' replay step queries a connected server first, so no entry
+    # point skips a connected server. That paragraph also tells the user, when a registered server
+    # fails to start or connect, that they can run the manual troubleshoot-binlog-mcp, and analysis
+    # goes on with replay: a user pointer, so MCP-3's manual posture holds. It also
     # carries what its bundled copies lost against the specialists they replace: the
     # analyzer-evidence step (ReportAnalyzer) and the no-universal-thresholds rule in
     # build-perf-baseline, whose 5s/30s no-op hints it drops; that rule reads build-perf-diagnostics'
@@ -286,7 +301,10 @@ items:
     body: patch # its workflow step that converted the repository to Central Package Management now
     # points the user at the manual convert-to-cpm ceremony: a repository-mutating conversion never
     # runs on the model's initiative. The CPM section's "Enable CPM" imperative heading now labels its
-    # example as the shape of the file, which stays in scope for placement and layering
+    # example as the shape of the file, which stays in scope for placement and layering. The linked
+    # before/after example in references/multi-level-examples.md turned versioned projects into a CPM
+    # setup, so its after-state is captioned as the shape after the user has run convert-to-cpm, with
+    # each Version= kept without that conversion
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/property-patterns
     invocation: auto
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/item-management
@@ -333,7 +351,11 @@ items:
     # universal repair and can hit MSB4006 through `dotnet msbuild -t:Publish`, and a build-order
     # reference schedules the producer's build, not its Publish. A lock held by a running process,
     # such as an Aspire AppHost, is not a path clash: the process stops first. Upstream's shorter
-    # description flows; it names find-repeated-work-within-one-build, which ships
+    # description flows; it names find-repeated-work-within-one-build, which ships. Its text-log
+    # fallback runs when the binlog server is unavailable or a call fails, the Module's server-first
+    # rule. Its closing "clean and rebuild" now verifies in a disposable copy or cleans only
+    # user-approved outputs, and the confirming build deletes nothing, as msbuild's repair rule says,
+    # so a model never cleans the user's working checkout
     depends_on: [msbuild]
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/find-repeated-work-within-one-build
     invocation: auto # repeat counting within one MSBuild invocation (per-project Exec, a dependency
@@ -433,7 +455,12 @@ items:
     # format through `pwsh -File` like every bundled script (curation/SCHEMA.md "Bundled scripts").
     # Upstream's shared parser, scripts/CoverageData.ps1, which ships, reports a missing complexity as
     # unknown; the branch scores only exact or hand-counted rows, reads exit 2 as invalid input and
-    # exit 3 as partial evidence, and rejects a report with no matching row. Collection loads
+    # exit 3 as partial evidence, and rejects a report with no matching row. It matches a method on
+    # Class plus Method, and Signature when given, and reports overloads as ambiguous rather than
+    # scoring them all; it takes the line fraction from CoveredLines / TotalLines as the shipped
+    # scorer does, not the rounded percentage; and it hand-counts complexity only from the source
+    # revision the report came from, else marks CRAP unavailable, since the scripts record no
+    # revision and a hybrid score would mislead. Collection loads
     # run-tests through namespaced facts, and a missing
     # coverage provider is reported as a prerequisite, never installed without authorization
     depends_on: [run-tests]
@@ -482,7 +509,14 @@ items:
     # Upstream now teaches the Testcontainers 4.x module-builder API itself
     body: patch # one
     # TUnit guard, curator's call: in a TUnit project, never add xUnit or Microsoft.NET.Test.Sdk,
-    # which break TUnit's discovery, and use the TUnit equivalents; the examples stay as written
+    # which break TUnit's discovery, and use the TUnit equivalents; the examples stay as written.
+    # Its CI example drops upstream's `docker container prune -f` step: on a shared Docker daemon it
+    # removes stopped containers the suite does not own, and Testcontainers already cleans up its own
+    frontmatter:
+      # upstream's text plus the recorded "without Aspire" boundary, so an infrastructure-testing
+      # request in an Aspire application picks the AppHost graph; a bare hint, per the Module's
+      # reference posture
+      description: "Write integration tests using TestContainers for .NET with xUnit, without an Aspire AppHost; for Aspire apps use aspire-integration-testing. Covers infrastructure testing with real databases, message queues, and caches in Docker containers instead of mocks."
   - source: dotnet-skills/skills/cscheck
     invocation: auto # CsCheck property-based, model-based, and Spec test knowledge, unique in the corpus;
     # the curator chose CsCheck as the property-testing library. Its body is framework-neutral by its
@@ -533,7 +567,9 @@ items:
       - dummy.cs # an empty class that only marks the repository as C# on GitHub
   - source: dotnet-agent-skills/plugins/dotnet-diag/skills/dotnet-trace-collect
     invocation: manual # production artifact-collection ceremony — the curator decides when
-    body: patch # user invokes the dump-collection ceremony separately where applicable
+    body: patch # user invokes the dump-collection ceremony separately where applicable. The PerfView
+    # reference's .NET Framework no-admin note gives `procdump -ma <PID>` or Task Manager directly, as
+    # the main body does, because dump-collect excludes .NET Framework
   - source: dotnet-agent-skills/plugins/dotnet-diag/skills/dump-collect
     invocation: manual # collection-only counterpart; the curator decides when
   - source: dotnet-skills/skills/ilspy-decompile
@@ -560,7 +596,10 @@ items:
     # WarningsNotAsErrors and never NoWarn. Two upstream defects are fixed, both outside that
     # discipline: the Strategy C sample put JsonSerializerContext, a base class, on the context
     # class as an attribute, which does not compile, and the description called this mutating
-    # ceremony "pure knowledge" with no tools, a label its users see in the / menu
+    # ceremony "pure knowledge" with no tools, a label its users see in the / menu. aot-trimming
+    # routes trim-only library adoption here too, so Step 1 sets IsTrimmable instead of
+    # IsAotCompatible for a trim-only request and leaves IL3xxx out of scope, rather than declaring
+    # a stronger contract than the user asked for
     merged_from:
       - source: dotnet-skills/skills/aot-trimming
         files: [aot-trimming-playbook-reference.md]
@@ -604,11 +643,16 @@ items:
     exclude: true # taxonomy/reporting is not in the curator's flow; canonical-framework edits remain
     # in its default scope, and its MUST-USE trigger would compete with the report-only audit pair
   - source: dotnet-agent-skills/plugins/dotnet-data/skills/optimizing-ef-core-queries
-    exclude: true # not rejected — merged, and split by level: the upstream rewrite stopped being a
-    # weaker duplicate and grew three things neither taken skill had. Sargability and keyset paging
-    # are SQL-level, so they went into database-performance; EF.CompileQuery is an EF Core API, so it
-    # went into efcore-patterns. Taking it whole would put a third data auto in trigger competition
-    # with both, the same reason csharp-type-design-performance is excluded above
+    exclude: true # not rejected — partly merged, and split by level: the upstream rewrite stopped
+    # being a weaker duplicate and grew about a dozen correctness topics. Four were split by level
+    # into the two kept skills: sargability and keyset paging are SQL-level, so they went into
+    # database-performance; EF.CompileQuery and the ExecuteUpdate/ExecuteDelete caveats are EF Core
+    # APIs, so they went into efcore-patterns. The rest stay out (parameterization and plan reuse,
+    # dynamic query shapes, join multiplication versus wide rows, tracking for the result graph,
+    # change detection in growing imports, persistence through repositories, non-overlapping
+    # DbContext operations, source-review evidence gating): taking it whole would put a third data
+    # auto in trigger competition with both, the same reason csharp-type-design-performance is
+    # excluded above
   - source: dotnet-agent-skills/plugins/dotnet-data/skills/create-datadriven-aspnetcore
     exclude: true # scaffolding sprawl across API+EF+UI; no cleanly bounded job
   # --- framework fit (curator: TUnit primary, xUnit occasional, NUnit/MSTest never) ---

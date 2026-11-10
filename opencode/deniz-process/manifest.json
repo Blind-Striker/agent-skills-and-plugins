@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-process",
-  "version": "0.15.2",
-  "digest": "sha256:d7516b2289e1d5399c4cd2d44aebdf0376691d95eef2ebcab89ba33c4a749b53",
+  "version": "0.15.3",
+  "digest": "sha256:9c21f71aafe72bd0336eddfe87057fcd0a0c6c99856258fb396c02db3ad6fa27",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -38,7 +38,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.ask-deniz/SKILL.md": {
-      "sha256": "sha256:0672da87cb8f6e7ea7fabc32e4bbd7652f058fe54efd6ff2678bfd19b505370d",
+      "sha256": "sha256:4818fd90778f750c9d2d5fa9a54a580b6759310ae030c17162c537216a54b249",
       "mode": "100644"
     },
     "skills/deniz-process.ask-deniz/references/coordination.md": {
@@ -190,7 +190,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.executing-plans/SKILL.md": {
-      "sha256": "sha256:3e716e671e3b4fc361c3a39bfa39223bc1c20bcd99e5e53d73aaf6759d49354c",
+      "sha256": "sha256:0a5a3e55ef36533eddeb09846bd7f0190d57bc82ccc0453a84a8f051b18dc97e",
       "mode": "100644"
     },
     "skills/deniz-process.executing-plans/references/checkout.md": {
@@ -278,7 +278,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.receiving-code-review/SKILL.md": {
-      "sha256": "sha256:116dc96a055deee3cedcd5f437eddc64f973e4afeaa7444bf28f189af60b67a0",
+      "sha256": "sha256:dcc482ccbd5f266fcc3d9c576bcede4d8ea44f280e394fe0b3035991a5b82fed",
       "mode": "100644"
     },
     "skills/deniz-process.requesting-code-review/SKILL.md": {
@@ -382,7 +382,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.subagent-driven-development/references/resuming.md": {
-      "sha256": "sha256:a8b981ce571c7493b7857fbb65c8d89f31b0ced51c056ff604c35e622ed43ab4",
+      "sha256": "sha256:fae4fefd82ff760a8a1020c5946b2458fb2e455ab7911389ae2194eb567555bf",
       "mode": "100644"
     },
     "skills/deniz-process.subagent-driven-development/scripts/review-package": {
@@ -514,7 +514,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.writing-for-agents/SKILL-MECHANICS.md": {
-      "sha256": "sha256:c768e6307c7c10728c401c213f2c4ba71c542127eeb7ad2956aabd15a0fa0059",
+      "sha256": "sha256:885d883cb0464df8d6a06bd1de654fc877826e1ed1124297a57155114370199e",
       "mode": "100644"
     },
     "skills/deniz-process.writing-for-agents/SKILL.md": {
@@ -522,7 +522,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.writing-plans/SKILL.md": {
-      "sha256": "sha256:13156a808dbc30391d9c283d9c0c04a3dcd042e70bfa51a35caef02416b1575d",
+      "sha256": "sha256:0fb691f7d9b2aef5f802b685f103b70962fea06d2040a55589c00580936884f7",
       "mode": "100644"
     },
     "skills/deniz-process.writing-skills/SKILL.md": {
@@ -558,7 +558,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.writing-skills/references/testing-skills-with-subagents.md": {
-      "sha256": "sha256:658c259a324d5f38e4c753534b25d909965f285ef9f67e49104b6940bf44e72b",
+      "sha256": "sha256:fd07086693c3b960182696d18218b77353ee70b9608e537bda4a271762df827b",
       "mode": "100644"
     },
     "skills/deniz-process.writing-skills/render-graphs.js": {

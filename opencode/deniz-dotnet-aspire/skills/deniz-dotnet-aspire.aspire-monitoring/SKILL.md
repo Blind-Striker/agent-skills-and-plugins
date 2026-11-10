@@ -129,7 +129,7 @@ aspire dashboard run
 # OTLP/HTTP:  http://localhost:4318
 ```
 
-> ⚠️ **Foreground / blocking.** `aspire dashboard run` does **not** return until you stop it (Ctrl-C). Agents must treat it as a long-running background process — start it with the bash tool's `mode="async"`, capture the dashboard URL and token from initial output, and leave it running. Do **not** invoke it as a one-shot synchronous command, and do **not** wait for it to "finish".
+> ⚠️ **Foreground / blocking.** `aspire dashboard run` does **not** return until you stop it (Ctrl-C). Agents must treat it as a long-running background process — start it as a background process with your shell tool, capture the dashboard URL and token from initial output, and leave it running. Do **not** invoke it as a one-shot synchronous command, and do **not** wait for it to "finish".
 
 ### Connect the Aspire CLI to a standalone dashboard
 

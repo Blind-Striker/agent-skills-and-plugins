@@ -138,7 +138,7 @@ A starting situation that generates work, then merges onto the main flow.
 - **A huge, foggy effort** — greenfield, or a build too big to see the end of → **`$deniz-process:wayfinder`**.
   The most demanding flow here. It charts a shared map of decision tickets and resolves them one at
   a time, producing **decisions, not deliverables**, until the way is clear. Then it hands off: join
-  the main flow at `to-spec` or `$deniz-process:brainstorming`, depending on which ladder the cleared
+  the main flow at **`$deniz-process:to-spec`** or `$deniz-process:brainstorming`, depending on which ladder the cleared
   work wants. Never reach for it on a well-scoped feature.
 
 ## Codebase health
@@ -178,7 +178,7 @@ Reach for these directly; they are not on any flow.
 | **`$deniz-process:using-superpowers`** | Switch this session to skill-driven working. Flipped by hand, never automatically. |
 | **`$deniz-process:diagnosing-superpowers`** | A session went wrong — repeated work, an ignored plan, a skill that did not fire, too slow or too costly. It finds out why, with cited evidence, and drafts an issue for the superpowers maintainers only when you approve the text. |
 | **`$deniz-process:setup-matt-pocock-skills`** | One-time setup for the issue-tracker conventions the ticket flow assumes. |
-| `$deniz-process:dispatching-parallel-agents` | How to brief a subagent so it comes back with something usable. Model-reachable; it arrives when you are about to fan work out. |
+| `$deniz-process:dispatching-parallel-agents` | How to brief a subagent so it comes back with something usable. Model-reachable; it arrives for independent failures or investigations run in parallel. |
 | `$deniz-process:asd-ste100` | Rewrite ambiguous machine- or agent-facing text in controlled English; not creative copy or a new execution ceremony. |
 | `$deniz-process:ponytail` | You want the smallest change that fully solves the task, or the work is getting over-engineered. Model-reachable when you ask for the simplest solution or complain about bloat; it never switches on for a whole session. |
 | **`$deniz-process:ponytail-review`** | A plain-English quality review of one change, ranked must/should/nice, that also asks whether every line is needed. A second opinion; plan runs keep their own review contract. |

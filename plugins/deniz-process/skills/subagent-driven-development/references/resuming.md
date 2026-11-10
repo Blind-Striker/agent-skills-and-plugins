@@ -14,5 +14,6 @@ place and start your own, fresh.
 An existing ledger's `Executor:` line is the workflow this plan runs. If
 it names deniz-process:executing-plans, continue with that skill instead,
 unless your human partner chose this one now. A ledger with no
-`Executor:` line keeps the executor that loaded it; add the line. A
-resumed plan is never re-sized: SKILL.md's size gate does not apply to it.
+`Executor:` line keeps the executor that loaded it; add the line. When
+your human partner switches executor, rewrite the line to the one now
+running. A resumed plan is never re-sized: SKILL.md's size gate does not apply to it.

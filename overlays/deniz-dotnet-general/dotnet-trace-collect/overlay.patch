@@ -80,7 +80,7 @@ index d2ad26b..00dfa4f 100644
  Networking issues (HTTP 5xx errors from downstream services, request timeouts, connection failures, DNS resolution failures, TLS handshake failures, connection pool exhaustion) require **both** a thread-time trace and networking event providers. The thread-time trace shows where threads are blocked (slow downstream calls, thread starvation), while the networking events show the request lifecycle — which requests failed, what status codes came back, how long DNS resolution and TLS handshakes took, and how long requests waited for a connection from the pool.
  
 diff --git a/references/perfview.md b/references/perfview.md
-index 6760f9d..da45c3a 100644
+index 6760f9d..217eb32 100644
 --- a/references/perfview.md
 +++ b/references/perfview.md
 @@ -123,9 +123,9 @@ PerfView collect /MaxCollectSec:30 /BufferSizeMB:1024 /CircularMB:2048
@@ -93,4 +93,4 @@ index 6760f9d..da45c3a 100644
  - ❌ Windows only
  - ❌ Requires admin privileges
 -- ⚠️ **For .NET Framework without admin**: PerfView is the only trace tool for .NET Framework, and it requires admin. Without admin, there is **no way to investigate high CPU, slow requests, or excessive GC** on .NET Framework. Dumps can help with hangs and memory leaks (delegate to the `dump-collect` skill), but trace-based investigation requires admin access.
-+- ⚠️ **For .NET Framework without admin**: PerfView is the only trace tool for .NET Framework, and it requires admin. Without admin, there is **no way to investigate high CPU, slow requests, or excessive GC** on .NET Framework. Dumps can help with hangs and memory leaks (tell the user to invoke the `dump-collect` ceremony separately), but trace-based investigation requires admin access.
++- ⚠️ **For .NET Framework without admin**: PerfView is the only trace tool for .NET Framework, and it requires admin. Without admin, there is **no way to investigate high CPU, slow requests, or excessive GC** on .NET Framework. Dumps can help with hangs and memory leaks (provide `procdump -ma <PID>` or Task Manager directly), but trace-based investigation requires admin access.

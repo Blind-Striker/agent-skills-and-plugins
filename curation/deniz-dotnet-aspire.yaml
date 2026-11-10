@@ -6,7 +6,7 @@
 plugin:
   name: deniz-dotnet-aspire
   description: "Deniz's curated .NET Aspire skills"
-  version: 0.7.1
+  version: 0.7.2
 items:
   - source: aspire-skills/skills/aspire
     invocation: both # stated so the passthrough posture is explicit: the model routes Aspire work here and
@@ -32,7 +32,10 @@ items:
     omit: ["evals/**"] # upstream evaluation assets are not harness runtime content
     body: patch # localize authoring handoffs, including the CLI migration owned by orchestration; drop the
     # description's INVOKES line, which repeats its summary, and its trailing "FOR SINGLE OPERATIONS"
-    # sentence, the clause least relevant to triggering, so the rendered description fits 1,024 characters
+    # sentence, the clause least relevant to triggering, so the rendered description fits 1,024 characters.
+    # That sentence's one-off rule lands in the body instead, under Detection: a one-off integration on
+    # an already wired AppHost runs `aspire add PACKAGE` directly, since the body activates only on an
+    # unwired AppHost while the description still advertises adding Postgres or Redis
     depends_on: [aspire-init, aspire-orchestration, aspire-deployment, aspire-monitoring, aspire-terminals]
   - source: aspire-skills/skills/aspire-orchestration
     invocation: both # stated so the passthrough posture is explicit; auto would remove the slash command
@@ -51,7 +54,9 @@ items:
     omit: ["evals/**"] # upstream evaluation assets are not harness runtime content
     body: patch # localize diagnostics routing to the packaged sibling skills; drop the description's
     # trailing "FOR SINGLE OPERATIONS" sentence, the clause least relevant to triggering, so the
-    # rendered description fits 1,024 characters
+    # rendered description fits 1,024 characters. Its blocking-dashboard warning says to start
+    # `aspire dashboard run` as a background process with your shell tool, where upstream named one
+    # host's `mode="async"` parameter, an invalid call on hosts without it
     depends_on: [aspire-orchestration, aspire-deployment, aspireify, aspire-terminals]
   - source: aspire-skills/skills/aspire-terminals
     invocation: both # stated so the passthrough posture is explicit; auto would remove the slash command.

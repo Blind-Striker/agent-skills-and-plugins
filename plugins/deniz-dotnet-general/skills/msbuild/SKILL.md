@@ -50,7 +50,7 @@ logger-option, toolset, or privacy question.
 
 | Situation | Reference if needed | Action |
 | --- | --- | --- |
-| A build failed and a binary log exists | [binlog-failure-analysis](references/binlog-failure-analysis.md) | Query the log through a connected binlog MCP server, or replay it with MSBuild; connect errors to the responsible project instance, target, and task. Separate root causes from cascading failures. |
+| A build failed and a binary log exists | [binlog-failure-analysis](references/binlog-failure-analysis.md) | Query the log through a connected binlog MCP server first, else replay it with MSBuild; connect errors to the responsible project instance, target, and task. Separate root causes from cascading failures. |
 | The failure needs evidence and no matching log exists | [binlog-generation](references/binlog-generation.md), then [failure analysis](references/binlog-failure-analysis.md) | Capture the original invocation once and verify the artifact. Analyze it only when requested. |
 | A project/build file has incorrect conditions, items, properties, or output paths | [msbuild-antipatterns](references/msbuild-antipatterns.md) | Select the relevant catalog entries and check their exceptions before changing anything. |
 | Imports or build hooks are missing, overwritten, or run in the wrong order | [extension-points](references/extension-points.md) | Inspect the import contract, discovery order, and packed NuGet layout rather than hiding a required failure. |
@@ -202,7 +202,7 @@ verification is requested or contents remain unknown.
 
 ## Shared evidence and safety
 
-- For analysis, read the log through a connected binlog MCP server or
+- For analysis, read the log through a connected binlog MCP server first, else
   [MSBuild replay](references/binlog-failure-analysis.md#replay-a-binary-log),
   never binary-file text parsing. Replay success and replay duration are not the recorded
   build's result or duration.

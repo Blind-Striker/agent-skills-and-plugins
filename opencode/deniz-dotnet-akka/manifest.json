@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-dotnet-akka",
-  "version": "0.4.1",
-  "digest": "sha256:f5fb32c8341258fc72e21a0cd24a8d8cc14cc201116f130cc93d8b941a10e7ad",
+  "version": "0.5.0",
+  "digest": "sha256:b24bce29f66ff24f471eaa69872af49f54208f17b81bcc6187e95668b048473e",
   "requiredModules": [
     "deniz-dotnet-aspire",
     "deniz-dotnet-general"
@@ -25,7 +25,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-akka.akka-net-aspire-configuration/SKILL.md": {
-      "sha256": "sha256:97a3a317f91e662e67fae718a55f9ffb74c4717ea6567b2425b6271e67afb44e",
+      "sha256": "sha256:a3026d4a35140ed57253ff5f343b344cebbe058627f120e23b522a104791a5b2",
       "mode": "100644"
     },
     "skills/deniz-dotnet-akka.akka-net-best-practices/SKILL.md": {
@@ -57,7 +57,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-akka.akka-net-testing-patterns/SKILL.md": {
-      "sha256": "sha256:129e809e535ffa57bd90d59c37a1f5e221074f328564ba9ce3d6850d44509d5f",
+      "sha256": "sha256:39f404e3453ee5e34091b781840733320cf27de84bc962f562e6cc2202cb5645",
       "mode": "100644"
     },
     "skills/deniz-dotnet-akka.akka-net-testing-patterns/anti-patterns-and-reference.md": {

@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index ea23196..16ad7db 100644
+index ea23196..cce7896 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -1,15 +1,28 @@
@@ -62,7 +62,7 @@ index ea23196..16ad7db 100644
  it runs well on a mid-tier session model, and the one place the most
  capable model earns its cost is the final review, which this skill
  dispatches separately. Tell your human partner so when they choose inline.
-@@ -102,47 +117,51 @@ digraph process {
+@@ -102,47 +117,52 @@ digraph process {
      "Final whole-branch review (fresh reviewer if you have one)" -> "Re-grade, then: Critical/Important → ONE fix pass, each fix RED→GREEN + green suite; Minor → ledger";
      "Re-grade, then: Critical/Important → ONE fix pass, each fix RED→GREEN + green suite; Minor → ledger" -> "Final review clean: delete this plan's workspace";
      "Final review clean: delete this plan's workspace" -> "Use superpowers:finishing-a-development-branch";
@@ -112,7 +112,8 @@ index ea23196..16ad7db 100644
 +  it names superpowers:subagent-driven-development, continue with that
 +  skill instead, unless your human partner chose inline execution now. A
 +  ledger with no `Executor:` line keeps the executor that loaded it; add
-+  the line.
++  the line. When your human partner switches executor, rewrite the line to
++  the one now running.
  - `git clean -fdx` will destroy the workspace (it's git-ignored scratch);
    if that happens, recover from `git log`.
  
@@ -121,7 +122,7 @@ index ea23196..16ad7db 100644
  authority the plan argues from, and conflicts inside the plan resolve
  against it. A plan with no reachable spec gets a ledger note saying so —
  rulings made without one are provisional.
-@@ -165,17 +184,17 @@ its brief, not here.
+@@ -165,17 +185,17 @@ its brief, not here.
  ## The Task Loop
  
  Everything you print, and every tool result, stays resident in your
@@ -140,7 +141,7 @@ index ea23196..16ad7db 100644
  - Mark the task's todo in_progress.
  
  Every tool call is a turn that re-reads your whole context. Bookkeeping
-@@ -218,29 +237,29 @@ in this session — not inferred from the diff looking right:
+@@ -218,33 +238,34 @@ in this session — not inferred from the diff looking right:
  - Every `Expected:` line in the brief was compared against real output.
  - Every deviation from the brief has a `Ruling:` line in the ledger.
  
@@ -167,11 +168,17 @@ index ea23196..16ad7db 100644
  by its absolute path, from the working tree you're executing in (MERGE_BASE = the commit the branch started from, e.g.
  `git merge-base main HEAD`) and review from the file it prints.
  
- **With a subagent tool:** dispatch the reviewer on the most capable
+-**With a subagent tool:** dispatch the reviewer on the most capable
++**With a subagent tool:** before the dispatch, read your harness's tool notes
++(`../using-superpowers/references/harness-tools.md`). Dispatch the reviewer on the most capable
  available model — the whole-branch review is a judgment task — using
  superpowers:requesting-code-review's
  [code-reviewer.md](../requesting-code-review/code-reviewer.md), with the
  package path, the plan and spec paths, the plan's Review Focus section
+ verbatim if it has one (the input classes and failure modes the plan's
+ tests do not exercise — the reviewer checks each deliberately), and a
+ pointer to the ledger's `Ruling:` lines so it can weigh the calls you
+ made. Specify the model
 diff --git b/references/checkout.md b/references/checkout.md
 new file mode 100644
 index 0000000..a95b85b

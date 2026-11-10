@@ -335,10 +335,10 @@ index 1701648..5967ece 100644
    defect (a test that asserts nothing, verbatim duplication of a logic block)
  
 diff --git a/references/resuming.md b/references/resuming.md
-index 409b826..de141e2 100644
+index 409b826..225ba63 100644
 --- a/references/resuming.md
 +++ b/references/resuming.md
-@@ -5,8 +5,14 @@ already has a ledger at `<workspace>/progress.md`.
+@@ -5,8 +5,15 @@ already has a ledger at `<workspace>/progress.md`.
  
  If the ledger's first line names your plan file, tasks with a `Task <N>:
  complete` line are DONE — do not re-dispatch them; resume at the first
@@ -351,5 +351,6 @@ index 409b826..de141e2 100644
 +An existing ledger's `Executor:` line is the workflow this plan runs. If
 +it names superpowers:executing-plans, continue with that skill instead,
 +unless your human partner chose this one now. A ledger with no
-+`Executor:` line keeps the executor that loaded it; add the line. A
-+resumed plan is never re-sized: SKILL.md's size gate does not apply to it.
++`Executor:` line keeps the executor that loaded it; add the line. When
++your human partner switches executor, rewrite the line to the one now
++running. A resumed plan is never re-sized: SKILL.md's size gate does not apply to it.
