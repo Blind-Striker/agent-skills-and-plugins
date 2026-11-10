@@ -265,7 +265,8 @@ items:
     # connected binlog MCP server first, replay when none is connected or a call fails, and replay as
     # the cross-check; the failure routing row and the shared-evidence rule say the same ("first,
     # else"), and build-perf-diagnostics' replay step queries a connected server first, so no entry
-    # point skips a connected server. That paragraph also tells the user, when a registered server
+    # point skips a connected server; its text-log recipes run only on a replayed log, so after a
+    # server answer the model uses the server's queries or replays as well. That paragraph also tells the user, when a registered server
     # fails to start or connect, that they can run the manual troubleshoot-binlog-mcp, and analysis
     # goes on with replay: a user pointer, so MCP-3's manual posture holds. It also
     # carries what its bundled copies lost against the specialists they replace: the
@@ -599,7 +600,8 @@ items:
     # ceremony "pure knowledge" with no tools, a label its users see in the / menu. aot-trimming
     # routes trim-only library adoption here too, so Step 1 sets IsTrimmable instead of
     # IsAotCompatible for a trim-only request and leaves IL3xxx out of scope, rather than declaring
-    # a stronger contract than the user asked for
+    # a stronger contract than the user asked for. Step 6, the baseline's analyzer step, the stop
+    # signal, and the Checklist say what holds then: IsTrimmable, the trim analyzer, and IL2xxx fixed
     merged_from:
       - source: dotnet-skills/skills/aot-trimming
         files: [aot-trimming-playbook-reference.md]
