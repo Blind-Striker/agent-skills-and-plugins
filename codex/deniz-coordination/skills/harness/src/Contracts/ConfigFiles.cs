@@ -49,6 +49,7 @@ sealed class BackendConfig : AnnotatedObject
 {
     public string? Executable { get; set; }
     public List<string>? Env { get; set; }
+    public bool? AllowVersionDrift { get; set; }
 }
 
 sealed class PolicyRule : AnnotatedObject

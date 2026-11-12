@@ -1,6 +1,8 @@
 sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, string>? environment = null) : IWorkerBackend
 {
     public const string PinnedVersion = "0.167.0";
+    string? installedVersion;
+    string? drift;
     readonly IReadOnlyDictionary<string, string> environment = environment ?? WorkerEnvironment.Snapshot();
     readonly Channel<WorkerSignal> signals = Channel.CreateUnbounded<WorkerSignal>();
     readonly ConcurrentDictionary<string, Connection> workers = new(StringComparer.Ordinal);
@@ -38,8 +40,12 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
     {
         if (probe is not null) return probe;
         var version = await CodexProcess.CommandAsync(context, directory, environment, version: true, ct);
-        if (version.ExitCode != 0 || version.Output.Trim() != $"codex-cli {PinnedVersion}")
-            throw new HarnessException($"Codex installed version '{version.Output.Trim()}' differs from pin {PinnedVersion}; install with npm install -g @openai/codex@{PinnedVersion}");
+        var output = version.Output.Trim();
+        var installed = version.ExitCode == 0 && output.StartsWith("codex-cli ", StringComparison.Ordinal) ? output["codex-cli ".Length..] : null;
+        if (installed is null)
+            throw new HarnessException($"Codex installed version '{output}' is unreadable; install with npm install -g @openai/codex@{PinnedVersion}");
+        drift = VersionPin.Check(Name, installed, PinnedVersion, $"npm install -g @openai/codex@{PinnedVersion}");
+        installedVersion = installed;
         var login = await CodexProcess.CommandAsync(context, directory, environment, version: false, ct);
         if (login.ExitCode != 0) throw new HarnessException("Codex is missing a login; run codex login. Environment keys are scrubbed unless listed in backends.codex.env");
         var connection = await ConnectAsync(directory, environment, null, ct);
@@ -100,7 +106,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
     public async Task<BackendProbe> ProbeAsync(ProbeRequest request, CancellationToken ct)
     {
         await ProbeConnectionAsync(request.Directory, ct);
-        return new(true, PinnedVersion, [], [], [new("codex", true, $"Codex {PinnedVersion}; {models.Length} models")]);
+        return new(true, installedVersion, [], [], [new("codex", true, $"Codex {installedVersion}; {models.Length} models")]);
     }
 
     public async Task<IReadOnlyList<LiveCheck>> ValidateAsync(IReadOnlyList<WorkerPlan> tasks, CancellationToken ct)
@@ -120,7 +126,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
             if (OperatingSystem.IsWindows() && task.Modes.Access != "full" && connection.Readiness != "ready")
                 errors.Add($"Windows sandbox is {connection.Readiness}; setup is the operator's responsibility");
             // Codex's model catalog lists no context window; its token usage reports one during the run.
-            return new LiveCheck(task.TaskId, errors, [], task.Route.Model, task.Modes.Profile == "clean" ? clean.Actual : "full",
+            return new LiveCheck(task.TaskId, errors, drift is not null && task == tasks[0] ? [drift] : [], task.Route.Model, task.Modes.Profile == "clean" ? clean.Actual : "full",
                 task.Modes.Profile == "clean" ? clean.Reason : null, [$"context window of codex:{task.Route.Model} is known after the run (result.json contextWindow)"]);
         }).ToList();
     }

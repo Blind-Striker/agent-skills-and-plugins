@@ -314,3 +314,30 @@ static class BackendValues
         return value;
     }
 }
+
+// Each backend decodes only the wire contract of its pinned version: a patch release keeps that
+// contract, another minor or major can lose events. A drift override runs any version and still warns.
+static class VersionPin
+{
+    public static bool FlagAllowsDrift { get; set; }
+
+    // Returns null on the pin, a warning on allowed drift, and throws on refused drift.
+    public static string? Check(string backend, string? installed, string pin, string install)
+    {
+        if (installed == pin) return null;
+        var drift = $"{backend} version '{installed ?? "unknown"}' differs from pin {pin}";
+        var configured = (backend == "codex" ? ConfigLayers.User?.Backends?.Codex : ConfigLayers.User?.Backends?.Opencode)?.AllowVersionDrift == true;
+        if (FlagAllowsDrift || configured)
+            return $"{drift}; allowed by {(FlagAllowsDrift ? "--allow-version-drift" : $"backends.{backend}.allowVersionDrift")}, untested wire contract";
+        if (PatchOf(installed, pin))
+            return $"{drift}; patch release, untested wire contract";
+        throw new HarnessException($"{drift}; install with {install}, or allow it with backends.{backend}.allowVersionDrift in user config or --allow-version-drift");
+    }
+
+    static bool PatchOf(string? installed, string pin)
+    {
+        static string[]? Parts(string? version) =>
+            version is not null && Regex.IsMatch(version, @"^[0-9]+\.[0-9]+\.[0-9]+\z") ? version.Split('.') : null;
+        return Parts(installed) is { } a && Parts(pin) is { } b && a[0] == b[0] && a[1] == b[1];
+    }
+}

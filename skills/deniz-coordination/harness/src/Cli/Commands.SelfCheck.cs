@@ -107,7 +107,12 @@ static partial class Commands
                             warn: codex.WindowsSandboxReadiness != "ready");
                     }
                     var pin = selected == "codex" ? CodexBackend.PinnedVersion : Constants.PinnedUpstream;
-                    Check("pin", probe.Version == pin, $"installed {probe.Version ?? "unknown"}, pin {pin}");
+                    try
+                    {
+                        var drift = VersionPin.Check(selected, probe.Version, pin, selected == "codex" ? $"npm install -g @openai/codex@{pin}" : $"npm install -g @opencode/cli@{pin}");
+                        Check("pin", true, drift ?? $"installed {probe.Version}, pin {pin}", warn: drift is not null);
+                    }
+                    catch (HarnessException ex) { Check("pin", false, ex.Message); }
                     Check("ready", probe.Ready, probe.Ready ? "backend probe passed" : "backend probe failed");
                     foreach (var error in probe.Errors) Check("probe", false, error);
                     foreach (var detail in probe.Warnings) Console.WriteLine($"warning: {detail}");

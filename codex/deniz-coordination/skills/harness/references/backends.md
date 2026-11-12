@@ -86,9 +86,8 @@ continuation from frozen settings. Separate processes are needed for differing p
 not as a substitute for session delivery. It disables file watchers.
 On Windows it resolves the native
 executable behind a recognized package-manager shim; user config can provide an absolute executable
-path. Planning (`plan`, `run` and selfcheck's clean-profile check) refuses a server whose reported
-version differs from pin `2.2.6`, as the Codex backend refuses a CLI off its pin; there is no
-override, because the SDK decodes only the pinned wire contract and another version can lose events.
+path. Planning (`plan`, `run` and selfcheck's clean-profile check) compares the server's reported
+version with pin `2.2.6` under the [version pin](#version-pins) rule.
 Selfcheck also reports the pin as its own check and checks stored session rules without sending a
 prompt. Normal planning validates the catalog at each task's location.
 An SDK `UnknownEvent` whose preserved type starts with `permission.`, `form.` or
@@ -157,10 +156,34 @@ refuses fenced work, without an unfenced fallback. Launch uses the absolute fenc
 by readiness. On Linux, an existing `$XDG_RUNTIME_DIR` is hidden with a private tmpfs to block its
 user D-Bus and systemd sockets. This remains only an [accident guard](#opencode-accident-guard).
 
+## Version pins
+
+Each backend decodes only the wire contract of its pinned version: opencode server `2.2.6`, which
+the SDK package is generated from, and Codex CLI `0.167.0`. Another version can lose events: an
+unknown event outside the faulted `permission.`, `form.` and `session.execution.` prefixes is
+ignored, so a renamed event can leave a run waiting until its timeout. Plan, run, selfcheck and
+Codex `routes` classify the installed version:
+
+| Installed version | Result |
+|---|---|
+| Equal to the pin | Runs. |
+| Same major and minor, other patch (`2.2.7`) | Runs with a warning: `<backend> version '<v>' differs from pin <pin>; patch release, untested wire contract`. |
+| Other major or minor, or not `x.y.z` | Refused: exit 2 from plan, run and Codex `routes`. In selfcheck, opencode prints `FAIL  pin` and then fails its clean-profile check with the same message; Codex fails its probe as `FAIL  live: codex` and skips its other checks. The message names the install command and the override. |
+| Any version with the override | Runs with a warning that names the override. |
+
+The override is `backends.<backend>.allowVersionDrift: true` in [user config](config.md), or
+`--allow-version-drift` on one command (both backends). Plan and run print each warning once per
+backend and record it under `warnings` in the run's `config.json`. Selfcheck prints a
+`WARN  pin` line, and its clean-profile check repeats the text as a `warning:` line. opencode
+`routes` never refuses; it prints the pin beside the server version. A run that misbehaves after a warning points at the version first: install the
+pin and run it again before treating the behaviour as a harness defect. A Codex version output that is
+not `codex-cli <version>` is refused without override.
+
 ## Codex process and sandbox
 
-The backend runs `codex app-server` over stdio and requires CLI pin `0.167.0`. Its protocol contract
-tests cover expected request shapes; installed version and sign-in are also checked before use.
+The backend runs `codex app-server` over stdio and checks the CLI against pin `0.167.0` under the
+[version pin](#version-pins) rule. Its protocol contract
+tests cover expected request shapes; sign-in is also checked before use.
 The probe checks account state and paginates the model catalog. It reads Windows readiness, but
 the base selfcheck does not fail on readiness alone. Plan/run refuse read-only or workspace tasks
 unless Windows reports `ready`; the operator sets the sandbox up, never the harness.

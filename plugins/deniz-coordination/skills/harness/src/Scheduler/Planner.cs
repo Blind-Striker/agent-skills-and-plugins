@@ -361,7 +361,11 @@ static class Planner
         foreach (var check in checks)
         {
             plan.Errors.AddRange(check.Errors.Select(error => $"{check.TaskId}: {error}"));
-            plan.Warnings.AddRange(check.Warnings.Select(warning => $"{check.TaskId}: {warning}"));
+            foreach (var warning in check.Warnings.Select(warning => $"{check.TaskId}: {warning}"))
+            {
+                plan.Warnings.Add(warning);
+                plan.Config?.Effective.Warnings.Add(warning);
+            }
             plan.Info.AddRange((check.Info ?? []).Select(info => $"{check.TaskId}: {info}"));
             if (plan.Config is { } config && config.Effective.Tasks[check.TaskId].Settings.Profile is { } profile)
             {

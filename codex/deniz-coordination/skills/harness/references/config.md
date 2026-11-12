@@ -65,6 +65,8 @@ lives there; the harness gives each worker a clean profile itself when `profile:
 | `backends.codex.executable` | string path | Discover `codex` | Same absolute-path validation. |
 | `backends.opencode.env` | array of variable names | `[]` | Re-adds named scrubbed values to backend processes. Names match `^[A-Za-z_][A-Za-z0-9_]*$`; otherwise `<layer>: backends env must contain environment variable names`. |
 | `backends.codex.env` | array of variable names | `[]` | Same name validation and passthrough behaviour. |
+| `backends.opencode.allowVersionDrift` | boolean | `false` | `true` runs any opencode server version with a warning. See [version pins](backends.md#version-pins). |
+| `backends.codex.allowVersionDrift` | boolean | `false` | `true` runs any Codex CLI version with a warning. |
 
 A fenced opencode worker's `TMPDIR` is a short private folder outside `tempRoot`
 (`/var/tmp/dispatch-*` on Linux, `/private/tmp/dispatch-*` on macOS).

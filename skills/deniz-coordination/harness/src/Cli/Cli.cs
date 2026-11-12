@@ -25,6 +25,7 @@ static class Cli
         try
         {
             var a = Args.Parse(argv);
+            VersionPin.FlagAllowsDrift = a.Has("allow-version-drift");
             Locations.Resolve();
             a.ValidatePaths();
             ConfigLayers.Initialize(a);
@@ -123,6 +124,7 @@ static class Cli
             Preferences override user, repository, task file, then CLI; restrictions accumulate.
             --ledger <absolute path> overrides the ledger root for every command.
             --contract <absolute path> prepends a contract to every task; repeatable.
+            --allow-version-drift runs an opencode server or Codex CLI off the pin, with a warning.
             --read-only-shell decline|escalate selects the read-only shell approval policy (default decline).
 
             Windows user PATH ({UserPathGuard.ValueName}):

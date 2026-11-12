@@ -1186,8 +1186,32 @@ public sealed class CodexBackendTests
             lab.Environment.ToDictionary(x => x.Key, x => (string?)x.Value));
         await Assert.That(result.ExitCode).IsEqualTo(2);
         await Assert.That(result.Stderr).Contains(failure == "version" ? "0.167.0" : "codex login");
+        if (failure == "version") await Assert.That(result.Stderr).Contains("allowVersionDrift");
         await Assert.That(Directory.GetFiles(lab.Tree.DispatchHome, "run.json", SearchOption.AllDirectories)).IsEmpty();
         await Assert.That(lab.Input().Where(x => x["method"]?.GetValue<string>() == "turn/start")).IsEmpty();
+    }
+
+    [Test]
+    [Arguments("0.167.1", false, "patch release")]
+    [Arguments("0.168.0", true, "allowed by --allow-version-drift")]
+    [Timeout(180_000)]
+    public async Task Run_off_the_pin_settles_and_records_the_warning(string version, bool flag, string reason, CancellationToken cancellationToken)
+    {
+        using var lab = new CodexLab();
+        var repo = await LabRepo.CreateAsync(lab.Tree, cancellationToken);
+        lab.CodeTask();
+        lab.Write("task", CodexLab.Handshake + CodexLab.Thread + CodexLab.Final);
+        File.WriteAllText(Path.Combine(lab.Scenarios, "version.txt"), $"codex-cli {version}\n");
+        using var harness = new HarnessProcess(lab.Tree);
+        var result = await harness.RunAsync(flag ? ["run", lab.Tasks, "--repo", repo.Root, "--allow-version-drift"] : ["run", lab.Tasks, "--repo", repo.Root],
+            cancellationToken, lab.Environment.ToDictionary(x => x.Key, x => (string?)x.Value));
+        result.RequireSuccess("Codex run off the pin");
+        await Assert.That(lab.Result["state"]!.GetValue<string>()).IsEqualTo("done");
+        var warning = $"codex version '{version}' differs from pin {CodexBackend.PinnedVersion}; {reason}";
+        await Assert.That(result.Stdout).Contains(warning);
+        var config = Directory.GetFiles(lab.Tree.DispatchHome, "config.json", SearchOption.AllDirectories).Single();
+        await Assert.That(JsonNode.Parse(File.ReadAllText(config))!["warnings"]!.AsArray()
+            .Count(x => x!.GetValue<string>().Contains(warning, StringComparison.Ordinal))).IsEqualTo(1);
     }
 
     [Test]

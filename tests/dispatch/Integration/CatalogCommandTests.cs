@@ -210,6 +210,33 @@ public sealed class CatalogCommandTests
     }
 
     [Test]
+    [Arguments("0.167.1", false, "patch release")]
+    [Arguments("0.168.0", true, "allowed by backends.codex.allowVersionDrift")]
+    [Timeout(180_000)]
+    public async Task Selfcheck_warns_for_a_Codex_off_the_pin_on_a_patch_or_an_override(string version, bool allow, string reason, CancellationToken ct)
+    {
+        using var lab = new CodexLab();
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        var environment = Configure(lab, both: false);
+        File.WriteAllText(Path.Combine(lab.Scenarios, "version.txt"), $"codex-cli {version}\n");
+        if (allow)
+        {
+            var configPath = Path.Combine(lab.Tree.DispatchHome, "config", "config.jsonc");
+            var config = JsonNode.Parse(File.ReadAllText(configPath))!;
+            config["backends"]!["codex"]!["allowVersionDrift"] = true;
+            File.WriteAllText(configPath, config.ToJsonString());
+        }
+        using var harness = new HarnessProcess(lab.Tree);
+
+        var result = await harness.RunAsync(["selfcheck", "--repo", repo.Root], ct, environment);
+
+        TestContext.Current!.Output.WriteLine(result.ToString());
+        result.RequireSuccess("selfcheck off the Codex pin");
+        await Assert.That(result.Stdout).Contains($"WARN  pin: codex version '{version}' differs from pin {CodexBackend.PinnedVersion}; {reason}");
+        await Assert.That(result.Stdout).Contains($"Codex {version};");
+    }
+
+    [Test]
     [Timeout(180_000)]
     public async Task Selfcheck_with_only_a_codex_executable_names_the_installed_OpenCode_it_skips(CancellationToken ct)
     {

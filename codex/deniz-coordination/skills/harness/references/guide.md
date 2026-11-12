@@ -29,7 +29,9 @@ Each section says when to use a setting, why, and what it costs. Field details l
   [`prepare`](#dependencies-and-the-sandbox) below. On Linux/macOS, for build-time cache
   writes, prefer workspace access with [writable roots](config.md#writable-roots) rather than removing
   the fence.
-- Both backends refuse a server or CLI off the harness's pin: install the version the error names.
+- A server or CLI off the harness's pin runs with a warning on a patch release and is refused on
+  another minor or major; install the version the error names, or allow it on purpose
+  ([version pins](backends.md#version-pins)).
 
 ## Access, network and profile
 

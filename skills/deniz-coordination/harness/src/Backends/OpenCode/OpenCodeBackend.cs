@@ -4,6 +4,7 @@ using OpenCode.Sdk.Models;
 sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? context = null, string? runId = null) : IWorkerBackend
 {
     readonly SemaphoreSlim hostGate = new(1);
+    readonly HashSet<string> reportedDrift = new(StringComparer.Ordinal);
     readonly SemaphoreSlim workerGate = new(1);
     readonly CancellationTokenSource lifetime = new();
     readonly Channel<WorkerSignal> signals = Channel.CreateUnbounded<WorkerSignal>();
@@ -176,9 +177,9 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
             }
             var server = await HostAsync(ct, task.Modes, task.Route,
                 routes: tasks.Where(x => x.Modes.Profile == "clean").Select(x => x.Route));
-            // The SDK decodes only its pinned wire contract; another server version can lose events.
-            if (server.Version != Constants.PinnedUpstream)
-                throw new HarnessException($"opencode server version '{server.Version}' differs from pin {Constants.PinnedUpstream}; install with npm install -g @opencode/cli@{Constants.PinnedUpstream}");
+            var warnings = new List<string>();
+            if (VersionPin.Check(Name, server.Version, Constants.PinnedUpstream, $"npm install -g @opencode/cli@{Constants.PinnedUpstream}") is { } drift
+                && reportedDrift.Add(drift)) warnings.Add(drift);
             var catalog = await Catalog.LoadAsync(server.Client, task.Directory, TimeSpan.FromSeconds(60), ct);
             var errors = new List<string>();
             RouteRef? route = task.Route;
@@ -198,7 +199,7 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
                 else if (catalog.CheckRoute(task.Route) is { } why) errors.Add($"route {task.Route}: {why}");
             }
             var window = route is null ? null : catalog.FindModel(route)?.Limit.Context;
-            result.Add(new(task.TaskId, errors, [], route is null ? "unknown" : catalog.Lineage(route), task.Modes.Profile, null,
+            result.Add(new(task.TaskId, errors, warnings, route is null ? "unknown" : catalog.Lineage(route), task.Modes.Profile, null,
                 route is null ? null : [window is null ? $"context window of opencode:{route} is not listed in the catalog" : $"context window {window} tokens (opencode:{route})"]));
         }
         return result;
@@ -463,7 +464,6 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
         var checks = new List<ProbeCheck>();
         void Check(string name, bool ok, string detail) => checks.Add(new(name, ok, detail));
         Check("server", true, $"opencode {host.Version} pid {host.Pid} (OPENCODE_DISABLE_FILEWATCHER=1, command {host.CommandDescription})");
-        Check("pin", host.Version == Constants.PinnedUpstream, $"server {host.Version}, SDK pin {Constants.PinnedUpstream}");
         Check("bus", true, "EventServerConnected received before any session call");
         var catalog = await Catalog.LoadAsync(host.Client, directory, TimeSpan.FromSeconds(90), ct);
         Check("agents", catalog.Agents.Count > 0, $"{catalog.Agents.Count} agents at the worktree, {catalog.Agents.Count(x => x.Model is not null)} pin a model, {catalog.Manual.Count} manual-class");

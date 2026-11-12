@@ -662,25 +662,68 @@ public sealed class ExitCodeTests
     [Arguments("plan")]
     [Arguments("run")]
     [Timeout(45_000)]
-    public async Task An_opencode_server_off_the_pin_is_refused_before_a_run_starts(string command, CancellationToken ct)
+    public async Task An_opencode_server_off_the_pin_minor_is_refused_before_a_run_starts(string command, CancellationToken ct)
     {
         using var tree = new TempTree();
-        var repo = await LabRepo.CreateAsync(tree, ct);
-        var tasks = Path.Combine(tree.Root, "tasks.jsonc");
-        File.WriteAllText(tasks, """{"schemaVersion":2,"defaults":{"backend":"opencode"},"tasks":[{"id":"inspect","kind":"research","base":"main","route":"fixture/model","prompt":"Inspect."}]}""");
-        var scenario = Path.Combine(tree.Root, "other-version.jsonl");
-        File.WriteAllLines(scenario, File.ReadAllLines(FakeOpenCode.Fixture("one-task.jsonl"))
-            .Select(line => line.Replace("\"version\":\"2.2.6\"", "\"version\":\"2.2.7\"")));
-        var env = FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value);
-        env["FAKE_OPENCODE_SCENARIO"] = scenario;
+        var (tasks, repo, env) = await OffPinAsync(tree, "2.3.0", ct);
         using var child = new HarnessProcess(tree);
 
         var result = await child.RunAsync([command, tasks, "--repo", repo.Root], ct, env);
 
         TestContext.Current!.Output.WriteLine(result.ToString());
         await Assert.That(result.ExitCode).IsEqualTo(2);
-        await Assert.That(result.Stdout + result.Stderr).Contains($"'2.2.7' differs from pin {Constants.PinnedUpstream}");
+        await Assert.That(result.Stdout + result.Stderr).Contains($"'2.3.0' differs from pin {Constants.PinnedUpstream}; install with");
+        await Assert.That(result.Stdout + result.Stderr).Contains("allowVersionDrift");
         await Assert.That(Directory.GetFiles(tree.DispatchHome, "run.json", SearchOption.AllDirectories)).IsEmpty();
+    }
+
+    [Test]
+    [Arguments("plan", "2.2.7", "none", "patch release")]
+    [Arguments("plan", "2.3.0", "flag", "allowed by --allow-version-drift")]
+    [Arguments("plan", "3.0.0", "config", "allowed by backends.opencode.allowVersionDrift")]
+    [Arguments("run", "2.2.7", "none", "patch release")]
+    [Timeout(60_000)]
+    public async Task An_opencode_server_off_the_pin_runs_with_a_warning_on_a_patch_or_an_override(
+        string command, string version, string allow, string reason, CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var (tasks, repo, env) = await OffPinAsync(tree, version, ct);
+        if (allow == "config")
+        {
+            var configPath = Path.Combine(tree.DispatchHome, "config", "config.jsonc");
+            var config = File.Exists(configPath) ? JsonNode.Parse(File.ReadAllText(configPath))!.AsObject() : new JsonObject { ["schemaVersion"] = 2 };
+            if (config["backends"] is not JsonObject backends) config["backends"] = backends = new JsonObject();
+            if (backends["opencode"] is not JsonObject opencode) backends["opencode"] = opencode = new JsonObject();
+            opencode["allowVersionDrift"] = true;
+            Directory.CreateDirectory(Path.GetDirectoryName(configPath)!);
+            File.WriteAllText(configPath, config.ToJsonString());
+        }
+        using var child = new HarnessProcess(tree);
+
+        var result = await child.RunAsync(allow == "flag" ? [command, tasks, "--repo", repo.Root, "--allow-version-drift"] : [command, tasks, "--repo", repo.Root], ct, env);
+
+        TestContext.Current!.Output.WriteLine(result.ToString());
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+        var warning = $"inspect: opencode version '{version}' differs from pin {Constants.PinnedUpstream}; {reason}";
+        await Assert.That(result.Stdout).Contains($"WARN {warning}");
+        if (command == "run")
+        {
+            var config = Directory.GetFiles(tree.DispatchHome, "config.json", SearchOption.AllDirectories).Single();
+            await Assert.That(JsonNode.Parse(File.ReadAllText(config))!["warnings"]!.AsArray().Count(x => x!.GetValue<string>().StartsWith(warning, StringComparison.Ordinal))).IsEqualTo(1);
+        }
+    }
+
+    static async Task<(string Tasks, LabRepo Repo, Dictionary<string, string?> Env)> OffPinAsync(TempTree tree, string version, CancellationToken ct)
+    {
+        var repo = await LabRepo.CreateAsync(tree, ct);
+        var tasks = Path.Combine(tree.Root, "tasks.jsonc");
+        File.WriteAllText(tasks, """{"schemaVersion":2,"defaults":{"backend":"opencode"},"tasks":[{"id":"inspect","kind":"research","base":"main","route":"fixture/model","prompt":"Inspect."}]}""");
+        var scenario = Path.Combine(tree.Root, "other-version.jsonl");
+        File.WriteAllLines(scenario, File.ReadAllLines(FakeOpenCode.Fixture("one-task.jsonl"))
+            .Select(line => line.Replace($"\"version\":\"{Constants.PinnedUpstream}\"", $"\"version\":\"{version}\"")));
+        var env = FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value);
+        env["FAKE_OPENCODE_SCENARIO"] = scenario;
+        return (tasks, repo, env);
     }
 
     [Test]
