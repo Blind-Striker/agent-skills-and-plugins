@@ -229,13 +229,15 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   upstream license copies, a public noreply marketplace contact, least-privilege secret and
   machine-path CI checks, private vulnerability reporting, and an explicit personal/no-SLA boundary.
 - OpenCode supports two installation transports: a recursive clone using the repository installer,
-  and the compiled npm-format Package attached to GitHub Release `installer-v0.18.0`. The Linux-built
-  asset carries the schema-2 OpenCode 2 Bundles of Process 0.15.3, General 0.19.0, Akka 0.5.0,
-  Aspire 0.7.2, and Coordination 0.1.12 with the installer of Package 0.5.0, unchanged, and passed the manual release
+  and the compiled npm-format Package attached to GitHub Release `installer-v0.19.0`. The Linux-built
+  asset carries the schema-2 OpenCode 2 Bundles of Process 0.15.4, General 0.19.0, Akka 0.5.0,
+  Aspire 0.7.2, and Coordination 0.2.0 with the installer of Package 0.5.0, unchanged, and passed the manual release
   workflow's source gate, tar-mode verifier, isolated Plan/Apply/status, publication, and remote
   re-download checks. Its exact identity and proof boundary are in the
-  [release record](../experiments/harness-invocation/records/2026-11-10-opencode-installer-v0.18.0.md).
-  The previous schema-2 Releases `installer-v0.17.0`
+  [release record](../experiments/harness-invocation/records/2026-11-15-opencode-installer-v0.19.0.md).
+  The previous schema-2 Releases `installer-v0.18.0`
+  ([record](../experiments/harness-invocation/records/2026-11-10-opencode-installer-v0.18.0.md)),
+  `installer-v0.17.0`
   ([record](../experiments/harness-invocation/records/2026-11-07-opencode-installer-v0.17.0.md)),
   `installer-v0.16.0`
   ([record](../experiments/harness-invocation/records/2026-11-01-opencode-installer-v0.16.0.md)),
@@ -319,6 +321,19 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Known Gaps
 
+- **`eject`'s exec-mode test depends on the umask:** `R6 exec mode survives replay and cut` in
+  [`tools/eject.test.ts`](../tools/eject.test.ts) asserts the replayed script's mode is exactly
+  `0755`, so it fails under umask `002` (`0775`), although Git records only the executable bit. The
+  fix is to assert the executable bit. Until then, run `npm test` under umask `022` on such a host.
+- **The worker contract's base-mismatch rule reads two ways:** in
+  [`worker-contract.md`](../skills/deniz-coordination/delegating-to-worker-models/references/worker-contract.md),
+  the last "Stop and report" item lists a HEAD that differs from the base as a stop, then says to
+  report the difference and go on when standing instructions name another base. A brief that pins
+  one base and says it is the only one avoids it; the contract text is unchanged.
+- **A test-outcome comparison needs volatile values named:** a brief that settles a worker by
+  comparing failing tests' first failure lines with the base must name what may differ besides
+  approved literals (process ids, temporary paths). One worker stopped on a changed process id in
+  `Prepare_interruption_is_not_replayed`.
 - **A sandbox-denied Codex command leaves no ledger tool event on macOS and Linux:** the dispatch
   harness's pinned Codex 0.167.0 sends no command item for a code-mode exec whose sandboxed session
   fails to open. So a sandbox-denied attempt is missing from the ledger, although the sandbox refused
