@@ -1,7 +1,7 @@
 {
   "name": "deniz-coordination",
-  "version": "0.1.15",
-  "description": "Deniz's coordination skills (the delegation craft on any mechanism, the coordinator mode with the dispatch harness, verified waves)",
+  "version": "0.2.0",
+  "description": "Deniz's coordination skills (the coordinator mode, the delegation craft, the dispatch harness and T3 Code as delegation mechanisms, verified waves)",
   "author": {
     "name": "Deniz İrgin",
     "email": "1965259+Blind-Striker@users.noreply.github.com"
@@ -16,8 +16,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Deniz Coordination",
-    "shortDescription": "Deniz's coordination skills (the delegation craft on any mechanism, the coordinator mode with the dispatch harness, verified waves)",
-    "longDescription": "Deniz's coordination skills (the delegation craft on any mechanism, the coordinator mode with the dispatch harness, verified waves)",
+    "shortDescription": "Deniz's coordination skills (the coordinator mode, the delegation craft, the dispatch harness and T3 Code as delegation mechanisms, verified waves)",
+    "longDescription": "Deniz's coordination skills (the coordinator mode, the delegation craft, the dispatch harness and T3 Code as delegation mechanisms, verified waves)",
     "developerName": "Deniz İrgin",
     "category": "Productivity",
     "capabilities": [

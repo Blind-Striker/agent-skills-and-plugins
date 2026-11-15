@@ -87,8 +87,8 @@ Rejected:
   - `verified-waves`: `harnesses: [opencode, codex]`. Its Claude Code tool notes and their test go,
     and its `harness_files` mapping loses the `claude` side.
   - `harness`: `harnesses: [claude, codex]`.
-  - `coordinator` ships everywhere and names the harness only from a notes file that the Claude Code
-    and Codex trees ship. That is the case the reachability rule above exists for.
+  - `delegating-to-worker-models` ships everywhere and names the harness only from a notes file that
+    the Claude Code and Codex trees ship. That is the case the reachability rule above exists for.
   - In Process, `ask-deniz` ships everywhere, so its `verified-waves` and `harness` rows move into
     files that only the matching trees ship.
 - Records under `experiments/` and notes under `docs/research/` are dated evidence. They keep the

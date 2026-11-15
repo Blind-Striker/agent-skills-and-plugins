@@ -31,7 +31,8 @@ and ASD-STE100 contributes one additional controlled-English skill. Exact item d
 to make the agent own a task and hand its work to other agents; `delegating-to-worker-models`,
 written from the field runs and controlled comparison in the
 [worker-model delegation research](docs/research/worker-model-delegation.md); `harness`, a dispatcher
-shipped as the source of a .NET file-based app, for Claude Code and Codex; and `verified-waves`,
+shipped as the source of a .NET file-based app, for Claude Code and Codex; `t3-delegation`, how the
+craft runs on T3 Code's delegation tools; and `verified-waves`,
 written here from the approaches in the
 [orchestration research](docs/research/claude-ultracode-and-orchestration-ports.md#adopted-approaches-curator-approved),
 for OpenCode and Codex. Each skill ships only to the harnesses it serves

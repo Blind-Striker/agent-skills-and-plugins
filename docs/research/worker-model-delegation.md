@@ -1,6 +1,6 @@
 # Worker-model delegation evidence
 
-Date: 2026-10-17
+Date: 2026-11-14
 
 This dated note holds the evidence behind the original skill
 [`delegating-to-worker-models`](../../skills/deniz-dispatch/delegating-to-worker-models/SKILL.md). The
@@ -74,7 +74,7 @@ correct: three successive fix-ups each stopped on a real upstream fact, not on w
 recurred: a gate step reported as done that the worker had skipped, caught by the Claude review. The
 model index gives the route the Sol profile on this basis.
 
-## Pilot log (2026-10-17)
+## Pilot log (2026-10-17 to 2026-11-14)
 
 Stops from the first day of running the shipped template in both repositories. Every one was
 coordinator-caused and every worker stop was correct (estate 7 of 7, SDK 8 of 8 over-triggers on the
@@ -97,6 +97,8 @@ pass, instead of one rule per case.
 | Two fast models serialized two writes despite an explicit "emit both calls in one step" prompt (one run each, two hosts) | n/a | logged only: an instance of "a randomized race is not an oracle"; create concurrent state through the server or API |
 | A bold `**Closes:** #N` in a PR body left the issue open after merge (twice) | n/a | logged only: workers do not file or close issues; a PR-body rule belongs to whatever drafts PR bodies |
 | Killing a dispatcher's wrapper process orphaned its child and private server; cancel then found no supervisor | n/a | logged only: dispatcher-specific; the dispatcher contract already requires collecting a killed run |
+| T3 Code lead with lanes on three machines (2026-11-14): the lead stepped into an issue a lane owned, and the user asked why it acted there | n/a | logged only, one repository: a coordinator leaves a lane's own issue to that lane and keeps cross-lane order and the user's decisions |
+| Same run: remote lanes waited idle on the lead, which polled every 45 minutes | lane hours idle | logged only, one repository: lanes read pushes, merges and CI themselves and check back on their own schedule; `t3-delegation` carries it as a T3 tip |
 
 Reading (opinion): the STOP list makes coordinator defects cheap and visible, so a single pilot stop is
 not by itself a reason for a new rule.

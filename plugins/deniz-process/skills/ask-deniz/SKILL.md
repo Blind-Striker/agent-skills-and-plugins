@@ -192,7 +192,8 @@ Applies only when the `deniz-coordination` Module is installed.
 | Skill | For |
 |---|---|
 | **`/deniz-coordination:coordinator`** | You want the agent to own a task or project end to end: plan it, hand the work to other agents, review what comes back, and finish with as few questions as possible. A mode you start per task. |
-| `deniz-coordination:delegating-to-worker-models` | Handing one piece of work to another agent: what stays with you, the prompt, the worker contract, evidence from your own run, review. Model-reachable; it arrives when another agent's prompt is being written. |
+| `deniz-coordination:delegating-to-worker-models` | Handing one piece of work to another agent: what stays with you, the model and then the mechanism that reaches it, the prompt, the worker contract, evidence from your own run, review. Model-reachable; it arrives when another agent's prompt is being written. |
+| `deniz-coordination:t3-delegation` | Handing work to other agents inside T3 Code: `delegate_task` children, lane threads, other machines, and the record of the model that ran. Model-reachable; the craft loads it when T3's tools are in the tool list. |
 
 This harness's coordination tools are in [references/coordination.md](references/coordination.md).
 

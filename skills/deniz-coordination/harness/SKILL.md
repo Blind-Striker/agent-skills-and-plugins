@@ -19,6 +19,27 @@ that result, and records every step in a ledger. This skill is the harness's con
 - Use `prepare` for dependency steps outside the sandbox: [Dependencies and the sandbox](references/guide.md#dependencies-and-the-sandbox).
   When a build, test or tool fails under the fence or sandbox, read `references/cookbook.md`.
 
+## For a caller that follows the delegation craft
+
+How the steps of the delegation craft (its worker contract, model files and review rules) map onto
+the harness:
+
+- The task file's `contracts` lists the absolute paths to the craft's `references/worker-contract.md`
+  and then the worker file that the craft's `references/models/README.md` names for the task's model
+  and role, taken from the craft's folder. A model or role without a worker file gets only
+  `worker-contract.md`.
+- After a worker stops, a new task with `continueOf: <run>/<task>` goes on from its collected work; its
+  prompt is the amendment. `usage` sums runs, tokens, cost and duration across the ledgers; give tasks
+  `tags` to group them by work item.
+- `clean --force` removes unmerged and dirty work, so it is a reserved action: run it only on runs you
+  started, and only on the user's word.
+- The record of the model that ran is `routeVerified: true` in the task's result; the family claim
+  of a review rests on it for the author and the reviewer.
+- A task with `prepare` gets, in the prompt's Environment section in place of the authorized
+  preparation line: "Dependencies were prepared before you started. Build only with <offline build
+  command> and test only with <offline test command>, inside the sandbox. Adding dependencies is out
+  of scope; the sandbox already holds what the task needs."
+
 ## Invocation
 
 From this skill's folder (its `global.json` selects the SDK), build, then run the command:

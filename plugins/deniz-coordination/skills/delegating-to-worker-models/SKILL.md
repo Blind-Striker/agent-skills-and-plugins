@@ -13,14 +13,25 @@ description: Use when you hand off implementation, a plan, research a decision
 
 You keep the judgement; other agents do the work.
 
-**Mechanism.** Use the first that applies: the mechanism the user names for this work; a calling skill
-that pins one; the repository addendum's Worker mechanism; otherwise your host's own subagents. Another
-harness's workers or a dispatch tool run only when one of the first three names them.
+**Model first, then mechanism.** Give each piece of work a model by strength: judgement to the
+strongest reasoner you can reach, implementation to the strongest implementer. `references/models/`
+says which model is strong at what, how to brief it, and where to look when you review it; a routing
+the user or the repository set up (a routing agent, a model named per role) chooses among equals. Then
+start the piece through a delegation mechanism, a tool that starts another agent and returns its work,
+that reaches that model:
 
-Within that mechanism, assign work by strength: judgement to the strongest reasoner it reaches,
-implementation to the strongest implementer it reaches. `references/models/` says which model is strong
-at what, how to brief it, and where to look when you review it; it ranks models, the mechanism decides
-which ones a task can use. The rules below hold for every mechanism.
+- the mechanism the user, a calling skill, or the repository addendum's Worker mechanism names for this
+  work, when one does;
+- otherwise any mechanism you have. Your host's own subagents are always there. A mechanism that
+  starts workers on other providers runs when the user asked for workers: they started a coordinator,
+  or named a worker, a model, or that mechanism.
+
+Before your first hand-off through a mechanism, read its notes: your host's subagents and the other
+mechanisms this host carries in `references/host-tools.md`; T3 Code in
+`deniz-coordination:t3-delegation`, when T3's `delegate_task` is in your tool list. A mechanism's
+notes say how it starts a worker on a model, delivers the worker contract, records the model that ran,
+continues a stopped worker, isolates its writes, cancels and cleans up, reports cost, and reaches other
+sessions. The rules below hold for every mechanism.
 
 ## What stays with you
 
@@ -151,6 +162,8 @@ which ones a task can use. The rules below hold for every mechanism.
 
 ## References
 
+- `references/host-tools.md`: your host's own subagents and sessions, and the other mechanisms this
+  host carries.
 - `references/worker-contract.md`: what every worker gets, verbatim.
 - `references/models/README.md`: the model index (roles, cost, review focus) and each model's profile.
 - `references/prompt-template.md`: the per-task fill-in, with sections by task type.

@@ -1,26 +1,24 @@
-# Intended sources: none upstream. This Module holds coordination (ADR-0009): the craft of handing
-# work to a worker model of another family, the dispatch harness (a .NET file-based app bundled as the
-# harness skill's source), and verified-waves, the verified multi-agent ceremony for harnesses
-# without a native workflow tool the user opts into. Each skill ships only to the harnesses it serves
+# Intended sources: none upstream. This Module holds coordination (ADR-0009): the coordinator role,
+# the craft of handing work to a worker model of another family, the delegation mechanisms the craft
+# can use beyond the host's own subagents (the dispatch harness, a .NET file-based app bundled as the
+# harness skill's source, and T3 Code), and verified-waves, the verified multi-agent ceremony for
+# harnesses without a native workflow tool the user opts into. Each skill ships only to the harnesses it serves
 # (ADR-0010). It requires Process for the coordinator's review read; Process reaches it only through
 # guarded optional pointers.
 plugin:
   name: deniz-coordination
-  description: "Deniz's coordination skills (the delegation craft on any mechanism, the coordinator mode with the dispatch harness, verified waves)"
-  version: 0.1.15
+  description: "Deniz's coordination skills (the coordinator mode, the delegation craft, the dispatch harness and T3 Code as delegation mechanisms, verified waves)"
+  version: 0.2.0
 original_skills:
   coordinator:
     invocation: manual # a mode the user chooses per task: it makes the agent own the goal, plan, hand
     # work to other agents, and review it; a model-invocable coordinator would turn ordinary subagent
     # use into coordination ceremony, curator's call (ADR-0009). Starting it is the user's explicit
-    # request for workers, including the dispatch harness where that ships
-    depends_on: [delegating-to-worker-models, harness] # the body loads the craft; only the Claude Code
-    # and Codex notes name the harness, so its reachability is checked in those trees (ADR-0010)
-    harness_files: # each harness reads only its own worker-tool notes
-      references/harness-tools.md:
-        claude: references/claude-code-tools.md
-        codex: references/codex-tools.md
-        opencode: references/opencode-tools.md
+    # request for workers through any delegation mechanism the agent has. It names no tool: the
+    # craft picks the model first and then a mechanism that reaches it, with no fixed order among
+    # mechanisms, curator's call. In T3 Code the curator had to paste a "T3 only, ignore the dispatch
+    # harness" paragraph into every lane while these notes pinned the harness
+    depends_on: [delegating-to-worker-models] # the body loads the craft
   verified-waves:
     invocation: manual # it spends many agents on one task, so the user starts it. Its
     # small-task test counts only one item as small; a sequential chain cannot fan out but is not
@@ -51,10 +49,12 @@ original_skills:
     # without these rules, and coordinator loads it by name, so the model must be able to invoke it;
     # the description names the hand-off, not a tool, so it serves every subagent mechanism, and the
     # repository addendum's load line is the reliable trigger, curator's call (ADR-0009)
-    depends_on: [delegating-to-worker-models, requesting-code-review] # requesting-code-review is the
-    # coordinator's own review read, and it makes this Module require Process. The self entry is the
-    # load line the addendum template hands each dispatching repository, rendered in every harness's
-    # own spelling. Language test rules stay generic: this
+    depends_on: [delegating-to-worker-models, requesting-code-review, harness, t3-delegation] #
+    # requesting-code-review is the coordinator's own review read, and it makes this Module require
+    # Process. The self entry is the load line the addendum template hands each dispatching repository,
+    # rendered in every harness's own spelling. The body names t3-delegation, which ships everywhere;
+    # only the Claude Code and Codex host notes name the harness, so its reachability is checked in
+    # those trees (ADR-0010). Language test rules stay generic: this
     # Module names no General skill, so a repository addendum quotes them
     # Model-specific countermeasures live one file per model under references/models/, curator's
     # call: not every model overbuilds, so the generic worker contract carries hygiene only.
@@ -62,10 +62,26 @@ original_skills:
     # repository or tool, is not an instance of an existing rule, and recurred or cost real money;
     # otherwise it goes to the research note's pilot log. The per-case coordinator rules from the
     # first pilot day were folded into one no-contradiction pass for that reason
+    harness_files: # each harness reads only its own subagent and session notes
+      references/host-tools.md:
+        claude: references/claude-code-tools.md
+        codex: references/codex-tools.md
+        opencode: references/opencode-tools.md
+  t3-delegation:
+    invocation: both # the craft loads it by name when T3's delegate_task is in the tool list, and the
+    # user reaches it with "delegate through T3"; it maps the craft onto T3 and repeats none of T3's
+    # own orchestration instructions, which win where they differ, curator's call. Its content is the
+    # method a T3 coordinator built by hand: pasted contract, base-SHA stop, settling
+    # from git for want of a write fence, and the model record from OpenCode's database while T3's
+    # executedModel stays null. It names no provider or model, because orchestrator_capabilities lists
+    # them. Ships to every harness: a T3 session can run on any of the three
+    depends_on: [delegating-to-worker-models] # the body maps that craft's steps
   harness:
     invocation: both # model-invocable so callers (a coordinator, a task-file tool, a colleague's skill)
     # can load it by name: a manual skill cannot be loaded through the skill tool. It runs only when
-    # the user asks for it or starts the coordinator (ADR-0009)
+    # the user asks for workers (ADR-0009). Its section for the delegation craft holds the mapping that
+    # the coordinator's Claude Code and Codex notes carried, so a caller that does not follow the craft
+    # still uses it alone
     harnesses: [claude, codex] # OpenCode reaches many model families natively, so a coordinator there
     # starts workers without this tool, curator's call (ADR-0009)
     # no depends_on: the body names no other skill

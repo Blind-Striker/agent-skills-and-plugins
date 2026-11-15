@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-10-13
+Date: 2026-11-15
 
 Operational document: current orientation, next work, open decisions, known gaps, and deferred work.
 It shrinks as work lands and is not a chronology. Current mechanics live in
@@ -12,12 +12,15 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 - The five current curation manifests pass through one common assembly and emit matching Claude
   Code Plugins, OpenCode Module Bundles, and native Codex Plugins plus both repository marketplaces.
-  Checkout Module versions are Process 0.15.3, General 0.19.0, Akka 0.5.0, Aspire 0.7.2, and
-  Coordination 0.1.15. Coordination is unreleased: it holds the new `coordinator` mode,
-  `delegating-to-worker-models` and `verified-waves`, both moved out of Process, and the `harness` skill with its bundled .NET
-  source ([ADR-0009](adr/0009-coordination-ships-in-its-own-module.md)); `harnesses` narrows
+  Checkout Module versions are Process 0.15.4, General 0.19.0, Akka 0.5.0, Aspire 0.7.2, and
+  Coordination 0.2.0. Coordination holds the `coordinator` mode, `delegating-to-worker-models` and
+  `verified-waves`, both moved out of Process, the `harness` skill with its bundled .NET source, and
+  `t3-delegation` ([ADR-0009](adr/0009-coordination-ships-in-its-own-module.md)); `harnesses` narrows
   `harness` to Claude Code and Codex and `verified-waves` to OpenCode and Codex
-  ([ADR-0010](adr/0010-per-harness-item-emission.md)). No Release carries it yet. Their
+  ([ADR-0010](adr/0010-per-harness-item-emission.md)). Every Release since `installer-v0.13.0`
+  carries it. At 0.2.0 the coordinator names no delegation tool: the craft picks each piece's model
+  and then any mechanism that reaches it, so in T3 Code no per-lane "ignore the dispatch harness"
+  paragraph is needed. Their
   item posture, source pins, transformations, exclusions, and reasons live in
   [`curation/*.yaml`](../curation/) and the generated [ledger](ledger.json), not in this roadmap.
 - OpenCode 2 is the only OpenCode target. Canon now states the decided OpenCode 2 rules: the runtime

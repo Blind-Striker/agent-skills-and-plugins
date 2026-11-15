@@ -1,0 +1,72 @@
+---
+name: t3-delegation
+description: Use when you hand work to other agents inside T3 Code, through
+  `delegate_task` children, lane threads, or another machine.
+---
+
+# Delegating in T3 Code
+
+T3 Code hosts agent sessions on several machines, and its tools start children and lanes on every
+provider and model it lists. Its own orchestration instructions sit in your system prompt; where they
+and this file differ, T3's win. This file maps the steps of
+`$deniz-coordination:delegating-to-worker-models` onto T3.
+
+## Start a worker
+
+- `orchestrator_capabilities` lists the providers, models and options `delegate_task` reaches; its
+  `search` finds an exact id, and `environmentId` asks another machine. A listed model is a candidate
+  until one small read-only child on that route has run.
+- One `delegate_task` child per bounded task: an implementation, a fix-up pass, a contradiction scan, a
+  review, a research read. `target` names the provider, the model and its options (effort or variant);
+  `target.environmentId` with that machine's `projectId` runs it on another machine.
+- An implementation child runs with `isolation: "worktree"`; a read-only scan or review runs in the
+  shared checkout.
+
+## The brief
+
+A child starts with only its task text, and T3 prepends nothing. Its task text holds, in this order:
+
+1. The worker contract, verbatim, then the model's worker block when the model has one.
+2. The base: `git checkout --detach <BASE_SHA>`, and "if HEAD is not <BASE_SHA>, stop and report". A
+   worktree starts from the parent checkout's HEAD, which can be behind the base.
+3. The per-task fill-in from the craft's prompt template.
+
+## Settle from git
+
+A T3 child writes with its runtime mode's rights, and no fence holds it to the task's scope. Settle
+each implementation child from git: compare `git diff --stat <BASE_SHA>..<child head>` with the scope
+line, read the diff, and rerun the verify commands yourself on its committed tree.
+
+## The model that ran
+
+1. When the child's run reports an `executedModel`, that is the record.
+2. When it reports none and the child ran on OpenCode, read the record from that machine's OpenCode
+   database, `~/.local/share/opencode/opencode.db`, opened read-only (`file:<path>?mode=ro`): in table
+   `session_v2`, the row whose `title` is the child's task title and whose `directory` is its
+   checkout; its `model` column holds `id`, `providerID` and `variant`, and its `cost` column the
+   session's cost. Table `session_message`, rows whose `type` is `assistant`, carries the same `model`
+   per reply. Read those two tables only.
+3. Otherwise the model that ran is unverified. The report says so, and a review of that work counts
+   as a review by an unknown family.
+
+## Continue and clean up
+
+- A stopped child: start a new child whose brief names the stop, takes the stopped child's head as its
+  base, and carries the amendment.
+- A stop of your own turn stops your children too: relaunch the ones still needed.
+- A worktree child's checkout stays until it is removed. Removing a checkout that holds unmerged work
+  is a reserved action.
+
+## Lanes and other machines
+
+- A lane is a T3 thread (`t3_thread_launch`) for a stream with its own queue, machine or repository,
+  opened when the user asked for lanes; one bounded task is a child.
+- A lane reads pushes, merges and CI itself and checks back on its own schedule (`schedule_task`),
+  so its next step never waits on you as a relay.
+- A child runs in its parent thread's project. Work in a second repository goes to a lane there, or to
+  a child that edits a clean checkout of it by path.
+- A send reaches another machine only over a full-access link, and only a thread whose runtime mode is
+  no broader than yours. When a send is refused, the sender ends its turn with its report and the other
+  side reads its thread.
+- T3's tools can drop and come back mid-session: load them again before you conclude they are gone.
+- Every message to an idle lane starts a paid turn: batch what you send.

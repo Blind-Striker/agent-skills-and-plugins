@@ -4,16 +4,8 @@
     "original": true,
     "invocation": "manual",
     "dependsOn": [
-      "delegating-to-worker-models",
-      "harness"
+      "delegating-to-worker-models"
     ],
-    "harnessFiles": {
-      "references/harness-tools.md": {
-        "claude": "references/claude-code-tools.md",
-        "codex": "references/codex-tools.md",
-        "opencode": "references/opencode-tools.md"
-      }
-    },
     "description": "Work as the coordinator of a task or project. You own the user's goal, plan the work, hand it to other agents, review what comes back, and carry it through to verified completion with as few questions as possible.",
     "claude": {
       "artifacts": [
@@ -21,8 +13,7 @@
       ],
       "edges": {
         "model": [
-          "deniz-coordination:delegating-to-worker-models",
-          "deniz-coordination:harness"
+          "deniz-coordination:delegating-to-worker-models"
         ],
         "pointer": []
       },
@@ -59,8 +50,7 @@
       ],
       "edges": {
         "model": [
-          "$deniz-coordination:delegating-to-worker-models",
-          "$deniz-coordination:harness"
+          "$deniz-coordination:delegating-to-worker-models"
         ],
         "pointer": []
       },
@@ -74,8 +64,17 @@
     "invocation": "both",
     "dependsOn": [
       "delegating-to-worker-models",
-      "requesting-code-review"
+      "harness",
+      "requesting-code-review",
+      "t3-delegation"
     ],
+    "harnessFiles": {
+      "references/host-tools.md": {
+        "claude": "references/claude-code-tools.md",
+        "codex": "references/codex-tools.md",
+        "opencode": "references/opencode-tools.md"
+      }
+    },
     "description": "Use when you hand off implementation, a plan, research a decision will rely on, or a review, and you brief the worker and check what comes back. A subagent that searches, reads in parallel, or keeps your context small is ordinary tool use. Covers what stays with you, the mechanism, assigning work by strength, the walls preflight, prompts without contradictions, the worker contract and model profiles, evidence from your own run, review, and the fix-up loop.",
     "claude": {
       "artifacts": [
@@ -83,6 +82,8 @@
       ],
       "edges": {
         "model": [
+          "deniz-coordination:harness",
+          "deniz-coordination:t3-delegation",
           "deniz-process:requesting-code-review"
         ],
         "pointer": [
@@ -98,6 +99,7 @@
       "advertised": true,
       "edges": {
         "model": [
+          "deniz-coordination.t3-delegation",
           "deniz-process.requesting-code-review"
         ],
         "pointer": [
@@ -119,6 +121,8 @@
       "policyFiles": [],
       "edges": {
         "model": [
+          "$deniz-coordination:harness",
+          "$deniz-coordination:t3-delegation",
           "$deniz-process:requesting-code-review"
         ],
         "pointer": [
@@ -160,6 +164,60 @@
       "policyFiles": [],
       "edges": {
         "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
+    }
+  },
+  "deniz-coordination/skill/t3-delegation": {
+    "source": "skills/deniz-coordination/t3-delegation",
+    "original": true,
+    "invocation": "both",
+    "dependsOn": [
+      "delegating-to-worker-models"
+    ],
+    "description": "Use when you hand work to other agents inside T3 Code, through `delegate_task` children, lane threads, or another machine.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "deniz-coordination:delegating-to-worker-models"
+        ],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-coordination.t3-delegation",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-coordination.delegating-to-worker-models"
+        ],
+        "pointer": []
+      },
+      "dropped": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-coordination:t3-delegation",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-coordination:delegating-to-worker-models"
+        ],
         "pointer": []
       },
       "dropped": [],
@@ -5256,6 +5314,7 @@
       "serialization",
       "snapshot-testing",
       "system-text-json-net11",
+      "t3-delegation",
       "target-authoring",
       "test-analysis-extensions",
       "test-anti-patterns",
@@ -5284,6 +5343,7 @@
         "model": [
           "deniz-coordination:delegating-to-worker-models",
           "deniz-coordination:harness",
+          "deniz-coordination:t3-delegation",
           "deniz-dotnet-akka:akka-hosting-actor-patterns",
           "deniz-dotnet-akka:akka-net-aspire-configuration",
           "deniz-dotnet-akka:akka-net-best-practices",
@@ -5422,6 +5482,7 @@
       "edges": {
         "model": [
           "deniz-coordination.delegating-to-worker-models",
+          "deniz-coordination.t3-delegation",
           "deniz-dotnet-akka.akka-hosting-actor-patterns",
           "deniz-dotnet-akka.akka-net-aspire-configuration",
           "deniz-dotnet-akka.akka-net-best-practices",
@@ -5568,6 +5629,7 @@
         "model": [
           "$deniz-coordination:delegating-to-worker-models",
           "$deniz-coordination:harness",
+          "$deniz-coordination:t3-delegation",
           "$deniz-dotnet-akka:akka-hosting-actor-patterns",
           "$deniz-dotnet-akka:akka-net-aspire-configuration",
           "$deniz-dotnet-akka:akka-net-best-practices",

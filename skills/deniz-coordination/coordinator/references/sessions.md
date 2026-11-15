@@ -4,8 +4,9 @@ Read before you brief a lane that runs in a session of its own.
 
 ## Briefs and gates
 
-- The user opens and names the session. You write its brief to a file outside the repository and
-  send the session a short kickoff that points to the file.
+- The user opens and names the session, or tells you to open it through your mechanism. You write
+  its brief to a file outside the repository and send the session a short kickoff that points to the
+  file.
 - A brief names: the lane's role and host, the repositories and the working folders it may use,
   what to read first, an ordered queue, the files it owns and the files it must not touch, how it
   takes a shared gate, and its report format with a line cap. A lane runs the repository's canonical

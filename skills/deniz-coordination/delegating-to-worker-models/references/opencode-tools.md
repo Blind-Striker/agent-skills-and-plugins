@@ -1,6 +1,6 @@
 Read with this skill's `SKILL.md`; this file is part of its instructions.
 
-## Workers
+## Your own subagents
 
 Start workers with `subagent`. This harness reaches several model families natively, so
 implementation and second-family review both go through it. When the user's configuration

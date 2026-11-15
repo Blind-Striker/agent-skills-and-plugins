@@ -137,3 +137,11 @@ A Plan that restores transaction-managed Destination changes and the prior Insta
 before commit, or finalizes cleanup after new Install state is committed. Unrelated Destination
 files are preserved. It never resumes or finishes the original request.
 _Avoid_: resume, retry
+
+### Coordination
+
+**Delegation mechanism**:
+The means by which an agent starts another agent and gets its work back: the host's own subagents,
+the dispatch harness, or an orchestrator such as T3. The coordinator role and the delegation craft
+name none; each mechanism has its own skill or notes.
+_Avoid_: harness (alone), worker tool, backend

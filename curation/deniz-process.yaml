@@ -19,7 +19,7 @@
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
-  version: 0.15.3
+  version: 0.15.4
 items:
   # --- superpowers spine: brainstorm → plan → execute → finish ---
   - source: superpowers/skills/brainstorming
@@ -618,6 +618,7 @@ items:
       - serialization
       - snapshot-testing
       - system-text-json-net11
+      - t3-delegation
       - target-authoring
       - test-analysis-extensions
       - test-anti-patterns

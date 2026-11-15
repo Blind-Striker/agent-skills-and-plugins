@@ -1,6 +1,6 @@
 # ADR-0009: Coordination ships in its own Module, with the dispatch harness as a .NET file-based app
 
-Date: 2026-10-21
+Date: 2026-11-15
 Status: Accepted
 
 ## Context
@@ -32,30 +32,46 @@ stays plain TypeScript ([ADR-0004](0004-minimal-toolchain.md)), and its Bundles,
 installer accept only Native paths under `skills/`, `commands/`, and `agents/`
 ([Distribution and installation](../architecture/distribution-and-installation.md)).
 
+The first record had the coordinator's Claude Code and Codex notes send implementation to the
+dispatch harness. In T3 Code, which reaches every provider it lists on several machines through its
+own delegation tools, that pin pushed the coordinator to the harness every time; the curator pasted a
+"T3 only, ignore the dispatch harness" paragraph into each lane, and the lead rebuilt by hand what the
+harness gives (the pasted worker contract, a base check, settling from git, the record of the model
+that ran). What matters is choosing the right model for each piece, so the mechanism follows the
+model.
+
 ## Decision
 
 Coordination ships in a new Module, `deniz-coordination`, and the dispatch harness ships in it as the
 source of a .NET file-based application bundled inside one of that Module's skills.
 
-- **Module.** `deniz-coordination` holds four skills. Each ships only to the harnesses it serves
+- **Module.** `deniz-coordination` holds five skills. Each ships only to the harnesses it serves
   ([ADR-0010](0010-per-harness-item-emission.md)).
   - `coordinator`, started by the user, makes the agent the coordinator. Starting it is the user's
-    explicit request for workers: it loads the craft and, where the harness ships, the harness.
-    It ships to every harness.
-  - `delegating-to-worker-models`, model-invocable, is the craft. It names no tool, so it works
-    with any subagent mechanism, and it ships to every harness.
+    explicit request for workers through any delegation mechanism the agent has; it loads the craft
+    and names no tool. It ships to every harness.
+  - `delegating-to-worker-models`, model-invocable, is the craft. It picks each piece's model first
+    and then a delegation mechanism that reaches it, with no fixed order among mechanisms: the host's
+    own subagents, whose notes it carries per harness, the dispatch harness, or T3 Code. It ships to
+    every harness.
   - `harness`, model-invocable, is the dispatch tool and its contract for every caller. It depends
-    on no other skill, so a caller that only needs the tool uses it alone. It ships to Claude Code
-    and Codex, because OpenCode reaches several model families natively.
+    on no other skill, so a caller that only needs the tool uses it alone; its section for the craft
+    maps the craft's steps onto task files. It ships to Claude Code and Codex, because OpenCode
+    reaches several model families natively.
+  - `t3-delegation`, model-invocable, maps the craft onto T3 Code's delegation tools, which reach
+    every provider T3 lists on several machines. It repeats none of T3's own orchestration
+    instructions, which win where they differ, and it ships to every harness, because a T3 session
+    can run on any of them.
   - `verified-waves`, started by the user, moves out of Process. It ships to the harnesses without
     a native workflow tool the user opts into, which today means OpenCode and Codex.
 
   Coordination requires Process (the craft's review path is Process's `requesting-code-review`);
   Process never requires Coordination, and Process's remaining mentions of these skills become
   conditional cross-Module pointers.
-- **The harness runs only on an explicit request.** A user's own request or the start of
-  `coordinator` is that request; the harness being installed is not. Only `coordinator` depends on
-  the harness, and only in the trees that ship it.
+- **Workers on other providers run only on an explicit request.** A user's own request for
+  workers, a model, or the mechanism, or the start of `coordinator`, is that request; the harness or
+  T3 being available is not. The craft names the harness only from the host notes that the Claude Code
+  and Codex trees ship.
 - **Harness.** The harness skill's body is the harness's contract. It runs workers on two equal
   backends: OpenCode through the OpenCode .NET SDK, and Codex through a thin JSON-RPC client over the
   standard streams of `codex app-server`.
@@ -79,7 +95,9 @@ source of a .NET file-based application bundled inside one of that Module's skil
   a harness whose native workflow tool already does that work. A separate Module for the text skills
   without the harness, which keeps the .NET payload out of their installs but adds a Module and
   separates the coordinator from the tool it most often drives; bundled source costs nothing until it
-  runs. A model-invocable `coordinator`, which would turn ordinary subagent use into coordination
+  runs. One Module per mechanism (the dispatch harness, T3), which multiplies Modules for skills that
+  change together. A fixed order among mechanisms, which picks the wrong one outside the setting it
+  was written for; the model a piece needs decides instead. A model-invocable `coordinator`, which would turn ordinary subagent use into coordination
   ceremony. Shipping compiled binaries or a NuGet tool, which brings per-platform builds, signing,
   and a transport outside the Release model, and turns reviewable source into an opaque artifact.
   Rewriting the harness in TypeScript or Python, which abandons the maintained .NET OpenCode SDK its

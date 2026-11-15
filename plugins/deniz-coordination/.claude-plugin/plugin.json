@@ -1,5 +1,5 @@
 {
   "name": "deniz-coordination",
-  "description": "Deniz's coordination skills (the delegation craft on any mechanism, the coordinator mode with the dispatch harness, verified waves)",
-  "version": "0.1.15"
+  "description": "Deniz's coordination skills (the coordinator mode, the delegation craft, the dispatch harness and T3 Code as delegation mechanisms, verified waves)",
+  "version": "0.2.0"
 }
