@@ -273,6 +273,13 @@ retrying.
 
 ### OpenCode from a Release Package
 
+Package 0.19.0 is being prepared with Process 0.15.4, General 0.19.0, Akka 0.5.0, Aspire 0.7.2, and
+Coordination 0.2.0. Its dispatch harness pins OpenCode 2.3.0, its coordinator names no delegation
+tool and picks each piece's model before the mechanism that reaches it, and it adds `t3-delegation`.
+The verified recipe below remains on the last published Release until the new asset passes
+publication checks. For the current recipe after publication, use the
+[repository README](https://github.com/Blind-Striker/agent-skills-and-plugins#opencode-from-a-release-package).
+
 The current Package is attached to GitHub Release `installer-v0.18.0`, targeting commit `d5d7db9`.
 It carries OpenCode 2 Bundles: Process 0.15.3, General 0.19.0, Akka 0.5.0, Aspire 0.7.2, and
 Coordination 0.1.12. `delegating-to-worker-models` and `verified-waves` moved from Process into
