@@ -87,7 +87,7 @@ not as a substitute for session delivery. It disables file watchers.
 On Windows it resolves the native
 executable behind a recognized package-manager shim; user config can provide an absolute executable
 path. Planning (`plan`, `run` and selfcheck's clean-profile check) compares the server's reported
-version with pin `2.2.6` under the [version pin](#version-pins) rule.
+version with pin `2.3.0` under the [version pin](#version-pins) rule.
 Selfcheck also reports the pin as its own check and checks stored session rules without sending a
 prompt. Normal planning validates the catalog at each task's location.
 An SDK `UnknownEvent` whose preserved type starts with `permission.`, `form.` or
@@ -158,7 +158,7 @@ user D-Bus and systemd sockets. This remains only an [accident guard](#opencode-
 
 ## Version pins
 
-Each backend decodes only the wire contract of its pinned version: opencode server `2.2.6`, which
+Each backend decodes only the wire contract of its pinned version: opencode server `2.3.0`, which
 the SDK package is generated from, and Codex CLI `0.167.0`. Another version can lose events: an
 unknown event outside the faulted `permission.`, `form.` and `session.execution.` prefixes is
 ignored, so a renamed event can leave a run waiting until its timeout. Plan, run, selfcheck and
@@ -167,7 +167,7 @@ Codex `routes` classify the installed version:
 | Installed version | Result |
 |---|---|
 | Equal to the pin | Runs. |
-| Same major and minor, other patch (`2.2.7`) | Runs with a warning: `<backend> version '<v>' differs from pin <pin>; patch release, untested wire contract`. |
+| Same major and minor, other patch (`2.3.1`) | Runs with a warning: `<backend> version '<v>' differs from pin <pin>; patch release, untested wire contract`. |
 | Other major or minor, or not `x.y.z` | Refused: exit 2 from plan, run and Codex `routes`. In selfcheck, opencode prints `FAIL  pin` and then fails its clean-profile check with the same message; Codex fails its probe as `FAIL  live: codex` and skips its other checks. The message names the install command and the override. |
 | Any version with the override | Runs with a warning that names the override. |
 

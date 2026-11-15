@@ -440,7 +440,7 @@ public sealed class OpenCodeModesTests
         HarnessException? failure = null;
         try { await creating; }
         catch (HarnessException ex) { failure = ex; }
-        await Assert.That(failure?.Message).IsEqualTo("the server call failed: OpenCodeApiException: The opencode API returned status 500 ('InternalError').");
+        await Assert.That(failure?.Message).IsEqualTo("the server call failed: OpenCodeApiException: The opencode API returned status 500 ('InternalError'): create failed.");
         await Assert.That(process.IsAlive()).IsFalse();
         foreach (var name in new[] { "TMPDIR", "TEMP", "TMP" })
             await Assert.That(host["environment"]![name]!.GetValue<string>()).IsEqualTo(temporary);

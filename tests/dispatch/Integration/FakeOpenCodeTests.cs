@@ -11,6 +11,29 @@ namespace Dispatch.Tests.Integration;
 public sealed class FakeOpenCodeTests
 {
     [Test]
+    [Timeout(60_000)]
+    public async Task The_catalog_lists_models_before_agents(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        await using var server = await OpenCodeServer.StartAsync(new OpenCodeServerOptions
+        {
+            Command = [FakeOpenCode.Executable, "serve"],
+            WorkingDirectory = tree.Root,
+            Environment = FakeOpenCode.Environment(tree, "one-task.jsonl"),
+        }, ct);
+        using var client = server.CreateClient();
+
+        var catalog = await Catalog.LoadAsync(client, tree.Root, TimeSpan.FromSeconds(5), ct);
+
+        var listings = File.ReadLines(FakeOpenCode.Record(tree)).Select(line => JsonNode.Parse(line)!)
+            .Where(request => request["path"]!.GetValue<string>() is "/api/model" or "/api/agent")
+            .Select(request => $"{request["method"]!.GetValue<string>()} {request["path"]!.GetValue<string>()}");
+        await Assert.That(listings).IsEquivalentTo(new[] { "GET /api/model", "GET /api/agent" }, CollectionOrdering.Matching);
+        await Assert.That(catalog.Agents.Select(agent => agent.Id))
+            .IsEquivalentTo(new[] { "build" }, CollectionOrdering.Matching);
+    }
+
+    [Test]
     [NotInParallel]
     [Arguments("permission.asked")]
     [Arguments("form.created")]
@@ -97,7 +120,7 @@ public sealed class FakeOpenCodeTests
         var response = await client.Server.GetInfoAsync(cancellationToken: cancellationToken);
 
         await Assert.That(response.Status).IsEqualTo(200);
-        await Assert.That(response.ServerInfo.Version).IsEqualTo("2.2.6");
+        await Assert.That(response.ServerInfo.Version).IsEqualTo("2.3.0");
         await Assert.That(response.ServerInfo.Pid).IsEqualTo((long)server.ProcessId);
         await Assert.That(server.OwnsProcess).IsTrue();
         using var unauthenticated = new HttpClient();

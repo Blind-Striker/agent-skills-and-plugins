@@ -15,10 +15,11 @@ sealed class Catalog
     {
         var where = new LocationSelector { Directory = directory };
 
-        // Activation at a fresh location has no barrier: agents and models can both list empty
-        // at first (observed: 0 agents while models were already listed), and the listing can
-        // answer 503 while the location's plugins activate (observed on a fresh server). Built-in
-        // agents always exist, so poll until both lists are non-empty, under a deadline.
+        // List models first: at 2.3.0 it waits up to five seconds for plugin activation and
+        // answers 503 if activation has not finished, while the agent listing returns only the
+        // agents loaded so far; so a returned model listing means the agent listing after it is
+        // complete. Listings can still be empty at a fresh location. Built-in agents always
+        // exist, so poll until both lists are non-empty, under a deadline.
         IReadOnlyList<AgentInfo>? agents = null;
         IReadOnlyList<ModelInfo>? models = null;
         OpenCodeApiException? unavailable = null;
@@ -27,8 +28,8 @@ sealed class Catalog
         {
             try
             {
-                var listedAgents = (await client.Agents.ListAgentsAsync(new AgentListRequest { Location = where }, cancellationToken: ct)).Agents;
                 var listedModels = (await client.LanguageModels.ListModelsAsync(new ModelListRequest { Location = where }, cancellationToken: ct)).Models;
+                var listedAgents = (await client.Agents.ListAgentsAsync(new AgentListRequest { Location = where }, cancellationToken: ct)).Agents;
                 (agents, models, unavailable) = (listedAgents, listedModels, null);
             }
             catch (OpenCodeApiException ex) when (Ready.IsNotReady(ex))

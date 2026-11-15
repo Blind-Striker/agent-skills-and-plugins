@@ -665,23 +665,23 @@ public sealed class ExitCodeTests
     public async Task An_opencode_server_off_the_pin_minor_is_refused_before_a_run_starts(string command, CancellationToken ct)
     {
         using var tree = new TempTree();
-        var (tasks, repo, env) = await OffPinAsync(tree, "2.3.0", ct);
+        var (tasks, repo, env) = await OffPinAsync(tree, "2.4.0", ct);
         using var child = new HarnessProcess(tree);
 
         var result = await child.RunAsync([command, tasks, "--repo", repo.Root], ct, env);
 
         TestContext.Current!.Output.WriteLine(result.ToString());
         await Assert.That(result.ExitCode).IsEqualTo(2);
-        await Assert.That(result.Stdout + result.Stderr).Contains($"'2.3.0' differs from pin {Constants.PinnedUpstream}; install with");
+        await Assert.That(result.Stdout + result.Stderr).Contains($"'2.4.0' differs from pin {Constants.PinnedUpstream}; install with");
         await Assert.That(result.Stdout + result.Stderr).Contains("allowVersionDrift");
         await Assert.That(Directory.GetFiles(tree.DispatchHome, "run.json", SearchOption.AllDirectories)).IsEmpty();
     }
 
     [Test]
-    [Arguments("plan", "2.2.7", "none", "patch release")]
-    [Arguments("plan", "2.3.0", "flag", "allowed by --allow-version-drift")]
+    [Arguments("plan", "2.3.1", "none", "patch release")]
+    [Arguments("plan", "2.4.0", "flag", "allowed by --allow-version-drift")]
     [Arguments("plan", "3.0.0", "config", "allowed by backends.opencode.allowVersionDrift")]
-    [Arguments("run", "2.2.7", "none", "patch release")]
+    [Arguments("run", "2.3.1", "none", "patch release")]
     [Timeout(60_000)]
     public async Task An_opencode_server_off_the_pin_runs_with_a_warning_on_a_patch_or_an_override(
         string command, string version, string allow, string reason, CancellationToken ct)
