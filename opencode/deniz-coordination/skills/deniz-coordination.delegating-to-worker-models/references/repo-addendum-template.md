@@ -9,7 +9,6 @@ The skill reads it; repository truth stays in the repository.
 | Worker mechanism | the default mechanism when the user names none: the host's own subagents, a cross-harness subagent, or a dispatch tool with its command and configuration |
 | Model profiles | the profile list this repository's work uses, such as `deniz-coordination.model-profiles`, or "none" |
 | Binding rules | what the repository declares binding: its agent instructions, its contributing rules, its decision records, and any reference implementation it follows. A question these settle is not the user's to decide, except a change to what done means, to a public API, or a reserved action |
-| Report language | the language worker reports are written in; English when none is named |
 | Merge path | an integration branch, or one change per task from a pinned base through a merge queue |
 | Work type | new code, refactor, or both |
 | Walls | the repository's own gates and how to run them; or "none" (the preflight then brings ephemeral walls) |

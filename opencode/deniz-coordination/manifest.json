@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-coordination",
   "version": "0.3.0",
-  "digest": "sha256:1442370eaa325c559c7682bb7b06bfe1e773877961e87449277153141fe401a7",
+  "digest": "sha256:ef7aa33eaa856b21e107f12b092b281dc58631dd5c961240f34439fc34fc100c",
   "requiredModules": [
     "deniz-process"
   ],
@@ -28,7 +28,7 @@
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/failure-modes.md": {
-      "sha256": "sha256:e2ef595a591f74012379ec445cd57598deeb31d98f9bfff386f81bd61107d34c",
+      "sha256": "sha256:c04c6a739051ecfc68f5ff82c5e4502acd22cfe228e2d761dc630182720ae3c9",
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/host-tools.md": {
@@ -40,7 +40,7 @@
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/repo-addendum-template.md": {
-      "sha256": "sha256:f4d58030f1d668b14a82f4282f82a4a5e85687c9f64dc925d9d4c5d5d9f312cc",
+      "sha256": "sha256:97a0d268ea50807a0930c6f754dc762c8ff39c21fb1631be7ce4fdb21a4fd048",
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/test-oracles.md": {
@@ -60,7 +60,7 @@
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/worker-contract.md": {
-      "sha256": "sha256:305d37f64ff5e87ccc537e4c638744c5a0bbfe20643be5302d647aa3fa97b095",
+      "sha256": "sha256:7bfd566aead040dd2f0eaaee5ddac874b85d02ba70d90f1e9da0804d4e9cac74",
       "mode": "100644"
     },
     "skills/deniz-coordination.model-profiles/SKILL.md": {

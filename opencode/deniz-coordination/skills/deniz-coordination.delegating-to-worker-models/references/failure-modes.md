@@ -20,7 +20,7 @@ Read when you review, and after any surprise. Severity is the harm when the fail
 | 12 | Loose words read strictly | an abstract definition stopped a task; "touched" undefined | Medium / occasional | in-scope and out-of-scope examples |
 | 13 | Stop rule over-triggers | the same benign conflict stopped a task three times; each stop costs a rerun | Low / occasional | do-not-stop list |
 | 14 | Cross-change interaction invisible per change | a clone between two sibling changes | Medium / rare | the merge queue and CI where the repository has them; otherwise the gate at the merged head |
-| 15 | Report in the wrong language | a report written in the user's chat language | Low / occasional | the contract's report-language line, filled from the repository addendum |
+| 15 | Report in the wrong language | a report written in the user's chat language | Low / occasional | "Report language: English" in the contract |
 
 ## Coordinator failure modes
 

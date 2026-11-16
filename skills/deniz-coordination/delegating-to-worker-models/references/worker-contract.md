@@ -125,7 +125,7 @@ inconclusive, with its cause, never as a pass or a fail.
 
 ## Report
 
-Report language: the one the task text names; English when it names none.
+Report language: English. The report is read by agents.
 1. Each requirement: done, deferred, or rejected, with the reason.
 2. Figures before and after (production lines, test lines). At 90% of a budget or more, one sentence on why.
 3. Every deviation from the plan, every change request, and every stop.
