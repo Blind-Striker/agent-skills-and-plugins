@@ -8,7 +8,7 @@
     {
       "name": "deniz-coordination",
       "source": "./plugins/deniz-coordination",
-      "description": "Deniz's coordination skills (the coordinator mode, the delegation craft, the dispatch harness and T3 Code as delegation mechanisms, verified waves)"
+      "description": "Deniz's coordination skills (the coordinator mode, the delegation craft, model profiles, the dispatch harness and T3 Code as delegation mechanisms, verified waves)"
     },
     {
       "name": "deniz-dotnet-akka",

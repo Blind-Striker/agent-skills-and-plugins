@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-process",
-  "version": "0.15.4",
-  "digest": "sha256:37500c4141dd10ce4a10149087924aaeb5d948d31fe9555c49bd78e36aaad0eb",
+  "version": "0.15.5",
+  "digest": "sha256:7d3bb7d69641e798943b13e1ce45244f3100697d3fc6d0d2a89056c8cfed6281",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -38,7 +38,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.ask-deniz/SKILL.md": {
-      "sha256": "sha256:aec967ef6ad3a7ce079a526ed3ffea682bf975f2192178e56b9d5d3ff08f2889",
+      "sha256": "sha256:8eee3e70ef802e5848dcb3fb3b54e4b456d19e76f788975ee6f84ab07e1f7fa5",
       "mode": "100644"
     },
     "skills/deniz-process.ask-deniz/references/coordination.md": {

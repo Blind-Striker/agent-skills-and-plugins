@@ -11,5 +11,15 @@ before it builds. Known readings:
 - It prescribes tooling at plan time (a probe project, a script in another language, an evidence
   document) and then builds it faithfully. Cut those items when you approve the plan.
 - It overbuilds new code: hand-written parsers, defensive code over its own inputs.
+- It stops cleanly on the stop conditions a brief names: a validator rule, a naming rule, a budget
+  projection, a clone gate.
+- Resumed after a host restart, it keeps going on its own, and when its own final gate fails it starts
+  an unasked fix loop instead of stopping. Check after every restart whether its session still runs.
+- The verification tools it writes count too much: a mutation runner that read any non-zero exit as a
+  kill, and a watchdog over a whole generator run that reported a false hang. Read the tool before
+  you trust a count it reports.
+- On a 1M-context route, one child that spans several checkpoints grows to about 780K tokens of
+  context and repeats the same check dozens of times. Give it one checkpoint per child.
+- As a contradiction scanner of briefs it regularly finds several valid findings per brief.
 
 The worker block in [sol-worker.md](sol-worker.md) goes to the worker verbatim.

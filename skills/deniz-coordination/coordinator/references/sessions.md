@@ -26,6 +26,11 @@ Read before you brief a lane that runs in a session of its own.
 
 - Files that several lanes change (changelogs, generated baselines, registries, build lock files)
   get an order from you: name which change lands first, and the later one rebases once on its merge.
+- When two lanes must change the same product file, name one owner of its meaning and one shared
+  interface, and tell both lanes.
+- Act on a process or service that another session or the user owns only through that owner, and name
+  it by its exact identity (a process id with its start time, a session id, a path), never by a name
+  alone.
 - A heavy job (a full gate, a benchmark, a mutant run, a workspace preparation) takes the machine's lock and
   announces its start and end to you. A lock is a handle the job holds (an open file handle on
   Windows, `flock` on POSIX), never a file whose existence is the lock. Nobody frees a lock by
@@ -37,8 +42,8 @@ Read before you brief a lane that runs in a session of its own.
   decision it asks for. "Green" in a message has the meaning `delegating-to-worker-models` gives it.
 - A lane's stop names the rule it hit and its evidence. Answer a stop with a decision, never with
   "try again".
-- Keep these files outside the repository, current at every decision rather than at the end: the
-  status file (what is in flight, who holds it, each lane's next step); the decisions file (the
+- Keep these files outside the repository, current at every decision rather than at the end, and
+  update every handoff the decision touches before anyone resumes from it: the status file (what is in flight, who holds it, each lane's next step); the decisions file (the
   user's words quoted, with the date and the scope); and one chapter per lane, written by that lane
   (its method, guards, traps and where it stands). A message is not a record.
 - Keep two running lists beside them, fed by the lanes in one line each: findings (each one ends as

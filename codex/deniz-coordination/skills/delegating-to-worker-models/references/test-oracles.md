@@ -22,13 +22,16 @@ reads this table as a checklist over-proves and burns the run.
 
 - **Name the mutant class** for every new bound ("a no-op that sends nothing", "a sort by the wrong key").
   Include the true no-op among them: a valid success shape with no effect. A mutant counts only when the
-  mutated build compiles; commit the change before you mutate, so reverting a mutant cannot wipe it.
+  mutated build compiles: one the compiler or an analyzer rejects is inconclusive, not a kill, so
+  compile every mutant before a run spends a slow or shared gate on it. Commit the change before you
+  mutate, so reverting a mutant cannot wipe it.
   Before you name a mutant, name what the oracle reads that the mutant changes. A mutant the oracle cannot
   see (a deduplicating set, a value captured before the change) proves nothing. Name no kill site narrower
   than the test: a mutant is killed when the test fails within its bound, at the operation or at the
-  oracle. A hang guard that fires and names the awaited event is reported as "detected by a bounded
-  wait", apart from kills, and never counts as a mutation proof. A run that never finishes is neither.
-  Run mutants on a host with no other heavy job: under load, a timeout reads as a kill.
+  oracle. A hang guard that fires and names the awaited event is inconclusive: report it as "detected
+  by a bounded wait", apart from kills, and it never counts as a mutation proof. A run that never
+  finishes is inconclusive too.
+  Run mutants on a host with no other heavy job: under load, tests time out, and a timeout is inconclusive.
 - **Inputs:** every concrete input the prompt names (a seed, a start value, an expected value, a
   mutant's target) changes what the oracle reads on the base. Check each once, through a read-only
   probe task or one run of an existing test, and paste the observed result into the prompt. A value

@@ -19,7 +19,7 @@
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
-  version: 0.15.4
+  version: 0.15.5
 items:
   # --- superpowers spine: brainstorm → plan → execute → finish ---
   - source: superpowers/skills/brainstorming
@@ -602,6 +602,7 @@ items:
       - migrate-dotnet10-to-dotnet11
       - migrate-nullable-references
       - migrate-static-to-wrapper
+      - model-profiles
       - modern-csharp-coding-standards
       - msbuild
       - msbuild-modernization

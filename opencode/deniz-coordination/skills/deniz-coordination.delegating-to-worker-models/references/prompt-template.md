@@ -1,6 +1,6 @@
 # Task prompt template
 
-The coordinator fills this in; the worker contract and the model's worker block go before it, prepended
+The coordinator fills this in; the worker contract and the worker block a loaded profile names go before it, prepended
 by your mechanism or pasted by you. Drop the
 sections a task type does not need. Keep every slot concrete: a slot left abstract is read in its
 strictest form.
@@ -80,7 +80,9 @@ not apply to this task on this point; the steps above are authorized.
 <target B>"; a requirement only implied by the verify list is skipped>
 
 ## Verify
-The verify step runs: <commands>. <Walls: command and limits, when present.>
+Checks you run after your last edit: <commands>.
+The coordinator's verify step also runs: <commands, such as the repository's full gate>; you do not run
+these. <Walls: command and limits, when present.>
 ```
 
 Coordinator checklist before sending (not part of the prompt): the verify commands ran once on the base
