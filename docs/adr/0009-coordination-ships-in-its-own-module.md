@@ -43,7 +43,8 @@ model.
 The first record also made `coordinator` a skill only the user starts and kept the curator's model
 profiles inside the craft. Claude Code renders such a skill as one the model cannot load, so a lane
 that a lead opened, or that resumed after a restart, could not load the coordinator from its brief;
-in a six-lane run the lanes coordinated from their own handoffs without it. And a craft that names
+in a six-lane run, one lane a lead opened coordinated from its handoff without it, and whether the
+others had loaded it could not be verified. And a craft that names
 models ships one curator's model choices, which go stale within weeks, to every user of an open
 source Module that other teams also use.
 

@@ -23,7 +23,7 @@ its first runs more strictly; its profile grows from evidence.
 |---|---|---|---|---|---|
 | Claude | none | none | coordinator, design, research, final review, implementer (not measured) | not measured | the coordinator's own judgement: check its plan against the request |
 | GPT Sol | `references/sol.md` | `references/sol-worker.md` | implementer, planner under an approved plan, second reviewer | 1x | overbuilding in new code; relocation that loses an error path; stale "passed" lines |
-| GPT Sol Fast | `references/sol.md` | `references/sol-worker.md` | as GPT Sol | metered against a subscription quota, so no money figure; one three-checkpoint child: 534 model calls, 238M input tokens, 99.4% of them cached | as GPT Sol; also a gate step reported done that was skipped |
+| GPT Sol Fast | `references/sol.md` | `references/sol-worker.md` | as GPT Sol | metered against a subscription quota, so no money figure; one three-checkpoint child, in one ~13 h window after a quota reset: 534 model calls, 238M input tokens, 99.4% of them cached | as GPT Sol; also a gate step reported done that was skipped |
 | GPT Astra | `references/astra.md` | none | coordinator only, never a worker | high | as a coordinator: drift from the request, decisions taken without the user |
 | Grok | none | `references/grok-worker.md`, review tasks only | reviewer only (concurrency) | about 8-9x | its "can't happen" verdicts: check them, never take them as final |
 

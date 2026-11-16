@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-coordination",
   "version": "0.3.0",
-  "digest": "sha256:69c7d1371d58d97af1266e449b4d1f0a3d2d46a9e0887583408cc457e8a12ba5",
+  "digest": "sha256:505fd9eac4b28a0662f0b01fc5b01c912396a2d59433e284751ff5aaf5113e4e",
   "requiredModules": [
     "deniz-process"
   ],
@@ -16,7 +16,7 @@
       "mode": "100644"
     },
     "skills/deniz-coordination.coordinator/SKILL.md": {
-      "sha256": "sha256:a2dcb3e7a1530cc943a2b1f679f85c8b3577016859f9e614e79ba676c3932ad1",
+      "sha256": "sha256:7a3d0713754d4c994b554af2457c757370a0ab97041863c8925bc62333a033a6",
       "mode": "100644"
     },
     "skills/deniz-coordination.coordinator/references/sessions.md": {
@@ -24,7 +24,7 @@
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/SKILL.md": {
-      "sha256": "sha256:7bfbde00020cf7082e28e91da972206381c504b9c665c22605e774c8d7d21794",
+      "sha256": "sha256:8a9efb5c4f95fd7eee8fdd0e01547a7a51b022f8694d504f81672dd780d2599e",
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/failure-modes.md": {
@@ -64,7 +64,7 @@
       "mode": "100644"
     },
     "skills/deniz-coordination.model-profiles/SKILL.md": {
-      "sha256": "sha256:a9a399c59cf12b154c952b86b04f154b62b8cb319f7039d959d7ba260df4f31b",
+      "sha256": "sha256:c4f9626e194178e4f682ba818f1bc28d2ec70d1348dffaa24b067f552fbdc72c",
       "mode": "100644"
     },
     "skills/deniz-coordination.model-profiles/references/astra.md": {
@@ -80,11 +80,11 @@
       "mode": "100644"
     },
     "skills/deniz-coordination.model-profiles/references/sol.md": {
-      "sha256": "sha256:9b3ac16b43242092618b93853ed349b08fa3d37ef16c2eb749c31e5a9b365c12",
+      "sha256": "sha256:eecfde331282eba45fe31d52e944069352e40a090c4b63748e21bc4f900aab41",
       "mode": "100644"
     },
     "skills/deniz-coordination.t3-delegation/SKILL.md": {
-      "sha256": "sha256:1bc24872285721caf49b554bcb67b5d3a434ee09066285707e49942d2807aa88",
+      "sha256": "sha256:078127af25b27dd1c04fab0fa69460a79e230ecb8dace4a2151f87c2de9e8e87",
       "mode": "100644"
     },
     "skills/deniz-coordination.verified-waves/SKILL.md": {

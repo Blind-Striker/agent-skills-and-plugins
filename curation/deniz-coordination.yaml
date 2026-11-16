@@ -13,9 +13,9 @@ original_skills:
   coordinator:
     invocation: both # it makes the agent own the goal, plan, hand work to other agents, and review it.
     # It was manual, but Claude Code renders manual as disable-model-invocation, so a lane that a lead
-    # opened, or that resumed after a restart, could not load it from its brief; lanes on Claude Code
-    # coordinated from their handoffs without it, and one kickoff used Codex's `$` spelling, which
-    # loads nothing there. So it is model-invocable with a description that fires only when the user
+    # opened, or that resumed after a restart, could not load it from its brief; one such lane
+    # coordinated from its handoff without it, and kickoffs that began with Codex's `$` spelling, which
+    # is not Claude Code's, could not be shown to load it. So it is model-invocable with a description that fires only when the user
     # or a lead's brief asks for a coordinator or lane lead, curator's call (ADR-0009). Loading it is
     # no longer the request for workers: the request text is (the user, or a coordinator the user
     # started, asked for a coordinated or delegated run), so a self-loaded coordinator authorizes

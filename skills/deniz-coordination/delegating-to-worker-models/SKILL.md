@@ -63,8 +63,8 @@ mechanism.
 2. **Verify the verify.** Run every verify command once on the base and see a non-empty, meaningful
    result; a test run that reports zero tests is never a pass. Check that every test filter, class, or path
    it names exists. A change to a type, a public name, or a shared fixture runs every test that reads
-   inventories or registries, not a filtered subset. Before a move, rename, or removal, grep the
-   tests for code they reach by name: reflection on each removed or renamed member, and source-text reads
+   shared state by name (for example, a registry or an inventory), not a filtered subset. Before a move, rename, or removal, grep the
+   tests for code they reach by name (for example, reflection on a removed or renamed member) and source-text reads
    (file reads, path literals, parses) of each moved or edited file; each hit's test joins the verify.
    Verify where the result is used: every
    operating system, drive, and path depth it meets, or tests that do not depend on them.

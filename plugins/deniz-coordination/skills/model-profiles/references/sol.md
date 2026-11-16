@@ -13,8 +13,9 @@ before it builds. Known readings:
 - It overbuilds new code: hand-written parsers, defensive code over its own inputs.
 - It stops cleanly on the stop conditions a brief names: a validator rule, a naming rule, a budget
   projection, a clone gate.
-- Resumed after a host restart, it keeps going on its own, and when its own final gate fails it starts
-  an unasked fix loop instead of stopping. Check after every restart whether its session still runs.
+- Resumed by its service after a restart, it carries its last task on unsupervised, including a
+  fix-and-amend loop after its own gate fails; nothing tells it the run has changed. Check after every
+  restart whether its session still runs.
 - The verification tools it writes count too much: a mutation runner that read any non-zero exit as a
   kill, and a watchdog over a whole generator run that reported a false hang. Read the tool before
   you trust a count it reports.

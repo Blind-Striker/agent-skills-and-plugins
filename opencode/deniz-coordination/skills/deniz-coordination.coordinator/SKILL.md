@@ -89,6 +89,9 @@ A lane is one stream of work: a subagent, or a separate session when the scale n
   that owns its queue end to end works as a lane lead: its brief tells it to load
   `deniz-coordination.coordinator`, and the model profiles when the run uses them. A lane that only
   runs workers needs the craft and its brief.
+- Relay the user's words to lanes with the referent you are sure of. A short word with two plausible
+  referents gets one question to the user before you send it on, and a relay never says the user
+  decided what they only mentioned.
 - A lane reads its own integration results (pushes, merges, and CI where the repository has one), and
   checks back on its own schedule, so its next step
   never waits on you as a relay.

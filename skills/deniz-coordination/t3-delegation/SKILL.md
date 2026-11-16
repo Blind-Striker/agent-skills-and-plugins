@@ -58,14 +58,19 @@ reply reports it, not as the route asked for it.
 - A stopped child: start a new child whose brief names the stop, takes the stopped child's head as its
   base, and carries the amendment.
 - A stop of your own turn stops your children too: relaunch the ones still needed.
-- After a restart of T3 or its machine, T3 can show a child as cancelled while its OpenCode session
-  still runs: a `session_message` row of `type` `synthetic` whose `data.metadata.notice` is `restart`,
-  followed by `assistant` rows after T3's cancel, shows it. Ask the machine's OpenCode service
-  `GET /api/session/active` before you start a replacement; a session listed there still runs. Its
-  owner ends it with `POST /api/session/<id>/interrupt`.
-- A settled child's worktree stays on disk until you remove it, about a gigabyte or more each. Remove
-  it with `git worktree remove <path>` once its work is landed, or it left no commits and a clean
-  working tree; one that holds work that is uncommitted or not landed stays, and its removal is a reserved action.
+- After a restart of the machine, of T3, or of the OpenCode service, T3 can show a child as cancelled
+  while its OpenCode session still runs: a `session_message` row of `type` `synthetic` whose
+  `data.metadata.notice` is `restart`, followed by `assistant` rows after T3's cancel, shows it. Before
+  you start a replacement, have the service's owner ask it `GET /api/session/active`, which needs the
+  service's credential; a session listed there still runs. An empty list does not prove that none runs
+  on another OpenCode server of that machine. The owner ends a running one with
+  `POST /api/session/<id>/interrupt`, which also ends its tool processes, so no process kill is needed.
+- A settled child's worktree stays until you remove it, and it can be large (a checkout plus a private
+  submodule store). Once its work is landed, or it left no commits and a clean working tree, remove it
+  with `git worktree remove <path>`, adding `--force` only after that check, because a worktree with
+  initialized submodules needs it. Deleting the folder alone leaves its store until
+  `git worktree prune`. One that holds work that is uncommitted or not landed stays, and its removal is
+  a reserved action.
 
 ## Lanes and other machines
 
