@@ -50,8 +50,8 @@ is pull request #33 (Coordination 0.3.0, Process 0.15.5). Both pull requests pas
 checks before merge. On `e4bd7b0`, the [`validate` run](https://github.com/Blind-Striker/agent-skills-and-plugins/actions/runs/43945839192)
 passed. In the [`dispatch` run](https://github.com/Blind-Striker/agent-skills-and-plugins/actions/runs/43945839119),
 five shards passed and the macOS shard 2 was cancelled because no hosted runner acquired it (a
-macOS arm64 capacity annotation), so it ran no test. A rerun of that shard was pending when this
-record was written.
+macOS arm64 capacity annotation), so it ran no test. A rerun of that shard passed, so all six shards
+passed on Windows, Linux and macOS.
 
 1. A build-only [candidate run](https://github.com/Blind-Striker/agent-skills-and-plugins/actions/runs/43945858111)
    of the manual [`release-package`](../../../.github/workflows/release-package.yml) workflow ran
