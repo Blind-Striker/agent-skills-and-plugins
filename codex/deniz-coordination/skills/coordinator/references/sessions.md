@@ -9,11 +9,11 @@ Read before you brief a lane that runs in a session of its own.
   file.
 - A brief names: the lane's role and host, the repositories and the working folders it may use,
   what to read first, an ordered queue, the files it owns and the files it must not touch, how it
-  takes a shared gate, and its report format with a line cap. A lane runs the repository's canonical
-  gate scripts as they are.
+  takes a shared gate, and its report format with a line cap. A lane runs the repository's own gate
+  scripts as they are.
 - A lane works through its queue without asking per item. It asks you only when its queue is empty,
   when it reaches a reserved action, or when it meets a contradiction. You hold three gates: spec
-  approval for a change to behaviour, a public surface or a canon rule; merge, after you read the diff
+  approval for a change to behaviour, a public surface or a binding rule; merge, after you read the diff
   and its evidence, and after the merge commit's own CI ran, before you report it done or build on it
   (a green change is not a green main branch); and every reserved action.
 - You are the one session that talks to the user. Lanes take their decisions from you, within any

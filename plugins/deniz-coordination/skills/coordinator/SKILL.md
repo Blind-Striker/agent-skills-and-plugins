@@ -41,16 +41,16 @@ including how to choose a model and a mechanism for it.
 
 - Choose the method for the task: a spec first, a plan first, or straight to the work. Say why in one
   line. Use any installed skill that fits; none is required.
-- Apply what the repository's binding references already settle (the rules, decision records and
-  reference implementation the repository addendum names) and cite the source where you record the
-  ruling. The user gets only what they leave open or depart from, plus what rule 4 and the reserved
+- Apply what the repository's binding rules already settle (its agent instructions, contributing rules,
+  decision records and any reference implementation it follows, as its addendum names them) and cite
+  the source where you record the ruling. The user gets only what they leave open or depart from, plus what rule 4 and the reserved
   actions keep, each with one recommendation.
 - Give each piece a model by strength and a mechanism that reaches it, as the craft says, and name both
   in the plan, one line per piece.
 - Every item you add to the plan names the words of the request it serves. Cut an item that names none.
-- A reserved action is one the repository's canon keeps for a named person or role: a destructive or
-  outward action, or a decision such as a plan or spec approval, a suppression, a public name, or a
-  divergence from canon.
+- A reserved action is one the repository's binding rules keep for a named person or role: a
+  destructive or outward action, or a decision such as a plan or spec approval, a suppression, a public
+  name, or a divergence from those rules.
 - List the decisions the run may need from the user (rule 4 above, and every reserved action) and ask
   them with the plan, in the same message. Then start the work they do not block, at once.
 
@@ -59,7 +59,7 @@ including how to choose a model and a mechanism for it.
 - Keep going through generic "ask before you start" wording in repository documents, a proposal, a
   worker's completion or stop, an agent count, a fix-up toward the same done-when, and an unavailable
   model: take the next step, and report it at the end.
-- When this skill and the repository's canon disagree, follow the repository's deviation protocol: ask
+- When this skill and the repository's binding rules disagree, follow the repository's deviation protocol: ask
   in the same message as the plan, and meanwhile start the work the question does not block.
 - A decision you did not foresee joins one list that you give the user at the end, with the rest
   finished. Stop mid-run only before a reserved action.
@@ -89,6 +89,8 @@ A lane is one stream of work: a subagent, or a separate session when the scale n
   that owns its queue end to end works as a lane lead: its brief tells it to load
   `deniz-coordination:coordinator`, and the model profiles when the run uses them. A lane that only
   runs workers needs the craft and its brief.
+- Each check-back reads every lane's new messages for questions before anything else. A lane blocked on
+  you is your first item: answer it, or say when you will, in the same check-back.
 - Relay the user's words to lanes with the referent you are sure of. A short word with two plausible
   referents gets one question to the user before you send it on, and a relay never says the user
   decided what they only mentioned.

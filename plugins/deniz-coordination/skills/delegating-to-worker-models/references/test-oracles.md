@@ -12,7 +12,8 @@ reads this table as a checklist over-proves and burns the run.
 | Risk class | Proof the prompt requires |
 |---|---|
 | A bug fix | A test that is red on the base and green after the fix |
-| A new bound or rule | A named mutant (below) that the new test kills |
+| A new rule | A test that is red on the base, or on a true no-op, and green after |
+| A new bound (a limit, a threshold, an order) | Also a named mutant (below) that moves the bound and that the new test kills: red on the base does not show which side of the bound the test checks |
 | A race or timing bug | A deterministic case as the oracle. A load loop before and after the fix is evidence, never the oracle. A manual or virtual clock never spends a real-time budget: advance it only after a real-time check of the same predicate, or a poll stepped on every armed timer burns its whole budget in zero real time |
 | A lifetime or leak fix | A resource probe (handles, processes, memory) before and after |
 | A change that ships to several targets | The proof runs on every target: operating system, runtime, target framework |
@@ -20,7 +21,8 @@ reads this table as a checklist over-proves and burns the run.
 
 ## What each test prompt names
 
-- **Name the mutant class** for every new bound ("a no-op that sends nothing", "a sort by the wrong key").
+- **Name the mutant class** for every new bound, and wherever red on the base cannot exist (a
+  characterization task, assertion strengthening, a test conversion) ("a no-op that sends nothing", "a sort by the wrong key").
   Include the true no-op among them: a valid success shape with no effect. A mutant counts only when the
   mutated build compiles: one the compiler or an analyzer rejects is inconclusive, not a kill, so
   compile every mutant before a run spends a slow or shared gate on it. Commit the change before you

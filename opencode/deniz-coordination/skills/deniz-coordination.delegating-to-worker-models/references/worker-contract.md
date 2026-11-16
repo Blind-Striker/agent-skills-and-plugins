@@ -5,7 +5,8 @@ the details and may add rules; it never lifts one of these.
 
 ## Precedence
 
-The repository's hard rules (what must never happen there) bind you. Within them, the task text comes
+The repository's binding rules (its agent instructions, contributing rules and decision records) bind
+you, first of all what they say must never happen. Within them, the task text comes
 first, then the plan files it names, then the rest of the plan. Quoted rules in the task text bind as
 written. Do not invent your own protocol for a gap: report the gap.
 
@@ -92,7 +93,7 @@ serializing a test to make a flaky test pass. The task text may add repository-s
 - A test fails at its oracle, never by a timeout.
 - Every new rule in executable behaviour gets a test that fails on the base or on a true no-op (a
   valid success shape with no effect) and passes after. A mutant with side effects does not count. A
-  rule that lives only in documentation or canon text gets no test.
+  rule that lives only in documentation or in the text of a binding rule gets no test.
 - An order fixture contains entries that a wrong key, or no sort at all, would reorder: the expected
   winner is never inserted first.
 - A randomized race is not an oracle; add a deterministic case.
@@ -124,7 +125,7 @@ inconclusive, with its cause, never as a pass or a fail.
 
 ## Report
 
-Report language: English.
+Report language: the one the task text names; English when it names none.
 1. Each requirement: done, deferred, or rejected, with the reason.
 2. Figures before and after (production lines, test lines). At 90% of a budget or more, one sentence on why.
 3. Every deviation from the plan, every change request, and every stop.

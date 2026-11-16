@@ -86,5 +86,7 @@ reply reports it, not as the route asked for it.
 - A send to another machine's thread names that machine's `environmentId`. A continuation sent to a
   child on another machine does not wake it: read its status. Right after that machine's T3 restarts,
   a send can answer "thread not found" once.
+- `t3_thread_read` pages from the start of a thread, so the first page of a long lane thread is old:
+  to read its latest items, start near its `itemCount` with `afterPosition`.
 - T3's tools can drop and come back mid-session: load them again before you conclude they are gone.
 - Every message to an idle lane starts a paid turn: batch what you send.

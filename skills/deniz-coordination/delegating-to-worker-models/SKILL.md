@@ -38,7 +38,7 @@ mechanism.
 ## What stays with you
 
 - Deciding whether something earns its place: whether a file, flag, check, or abstraction should exist.
-- Scope, ownership, cross-lane ordering, maintainer policy, and canon or decision wording.
+- Scope, ownership, cross-lane ordering, maintainer policy, and the wording of binding rules and decisions.
 - Suppressions, baseline, ratchet, and threshold decisions; baseline mappings without a mechanical oracle.
 - A choice between equally valid designs, API taste, and judging whether evidence supports a claim.
 - Pushes, merges, filing issues, and the words "verified" and "green". Green means the head SHA, its
@@ -99,7 +99,7 @@ mechanism.
    - A done-when that needs several commands at once says how to run them in the foreground.
    - Every prohibition traces to the request, the repository, or a measured hazard, never to a
      preference of yours or of an earlier plan.
-   - The mechanical fallout of a planned change (an analyzer limit, a moved member) is named in the plan as
+   - The mechanical fallout of a planned change (a limit of the repository's analyzers or linters, a moved member) is named in the plan as
      pre-approved, not left to the contract's out-of-plan stop.
    - Overriding an older document is an amendment that names the document and the point. A free-text
      exemption beside a binding rule is a contradiction, not an override.
@@ -191,7 +191,8 @@ mechanism.
      so a read through `head` or a line limit is no read.
    - **Sources:** a reviewer gets every source its claims depend on in a readable place (an initialized
      submodule, a fetched tag, a named path), and its report states what it could not read.
-   The merge queue and CI stay the last net for cross-change effects.
+   Where the repository has a merge queue or CI, it stays the last net for cross-change effects;
+   otherwise run the repository's gate at the merged head.
 5. **Fix-up loop.** Turn findings into a per-file cut list with line ranges and the replacement. A worker
    fix pass reports each item done or rejected with figures. Spot-check the blockers yourself. A fix pass
    toward the same done-when is not new scope. Its prompt names every existing expectation the fixes
