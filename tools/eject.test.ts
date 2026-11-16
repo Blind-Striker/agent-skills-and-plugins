@@ -661,7 +661,8 @@ test("R6 exec mode survives replay and cut", { skip: process.platform === "win32
   const r = eject(root, ["deniz-process", "delta", "--patch", "--rebase"]);
   assert.ok(r.ok, r.out);
   assert.match(r.out, /merged\s+scripts\/run\.sh/, "the mode is kept across a real 3-way merge");
-  assert.equal(statSync(join(deltaDir(root), "scripts", "run.sh")).mode & 0o777, 0o755);
+  // Git records only the owner's executable bit; the group and other bits follow the host's umask.
+  assert.equal(statSync(join(deltaDir(root), "scripts", "run.sh")).mode & 0o100, 0o100);
   const cut = eject(root, ["deniz-process", "delta", "--patch"]);
   assert.ok(cut.ok, cut.out);
   const patch = readFileSync(patchFile, "utf8");

@@ -27,4 +27,4 @@ continue. A task without a budget (a plan-only task, a review) has no checkpoint
 
 ## Your report is not evidence
 
-Run the verify commands after your last edit. A "passed" line from an earlier run is not a result.
+Run the checks your task names after your last edit. A "passed" line from an earlier run is not a result.

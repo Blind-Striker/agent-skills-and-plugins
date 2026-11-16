@@ -1,6 +1,6 @@
 # Task prompt template
 
-The coordinator fills this in; the worker contract and the model's worker block go before it, prepended
+The coordinator fills this in; the worker contract and the worker block a loaded profile names go before it, prepended
 by your mechanism or pasted by you. Drop the
 sections a task type does not need. Keep every slot concrete: a slot left abstract is read in its
 strictest form.
@@ -13,7 +13,7 @@ R1 <...>
 R2 <...>
 
 ## Read first
-<paths: the approved plan, the spec, the files to change, the binding documents>.
+<paths: the approved plan, the spec, the files to change, the binding rules that apply>.
 Binding rules, quoted: "<...>"
 Base: <SHA>. Confirm that HEAD equals it before you edit.
 
@@ -59,7 +59,8 @@ keeping order, arguments, and results; no new type, no suppression">
 <repository-specific additions to the contract's lists>
 
 ## Tests and oracles                       (tasks that write or change tests)
-<the mutant class for each new bound, e.g. "a no-op that sends nothing">; <any rule from the repository
+<for each new rule, the test that is red on the base; for each new bound, the mutant class, e.g. "a
+sort by the wrong key">; <any rule from the repository
 addendum or a language reference, quoted>
 Mutant proof (when the task requires one): a mutant is a temporary write, so authorize it here. Mutate
 only <files>, one mutant at a time, with a clean rebuild before and after each (a stale binary can pass
@@ -80,7 +81,9 @@ not apply to this task on this point; the steps above are authorized.
 <target B>"; a requirement only implied by the verify list is skipped>
 
 ## Verify
-The verify step runs: <commands>. <Walls: command and limits, when present.>
+Checks you run after your last edit: <commands>.
+The coordinator's verify step also runs: <commands, such as the repository's full gate>; you do not run
+these. <Walls: command and limits, when present.>
 ```
 
 Coordinator checklist before sending (not part of the prompt): the verify commands ran once on the base

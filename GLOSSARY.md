@@ -145,3 +145,9 @@ The means by which an agent starts another agent and gets its work back: the hos
 the dispatch harness, or an orchestrator such as T3. The coordinator role and the delegation craft
 name none; each mechanism has its own skill or notes.
 _Avoid_: harness (alone), worker tool, backend
+
+**Model profile**:
+What a coordinator knows about one model it delegates to: the roles it takes, its cost, how to brief
+it, the worker block it gets, and where to look when its work is reviewed. The delegation craft names
+no model; a profile list takes effect only when the user, a brief, or the repository addendum names it.
+_Avoid_: model file, model card

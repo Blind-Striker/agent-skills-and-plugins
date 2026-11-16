@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-11-15
+Date: 2026-11-16
 
 Operational document: current orientation, next work, open decisions, known gaps, and deferred work.
 It shrinks as work lands and is not a chronology. Current mechanics live in
@@ -12,15 +12,18 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 - The five current curation manifests pass through one common assembly and emit matching Claude
   Code Plugins, OpenCode Module Bundles, and native Codex Plugins plus both repository marketplaces.
-  Checkout Module versions are Process 0.15.4, General 0.19.0, Akka 0.5.0, Aspire 0.7.2, and
-  Coordination 0.2.0. Coordination holds the `coordinator` mode, `delegating-to-worker-models` and
-  `verified-waves`, both moved out of Process, the `harness` skill with its bundled .NET source, and
-  `t3-delegation` ([ADR-0009](adr/0009-coordination-ships-in-its-own-module.md)); `harnesses` narrows
+  Checkout Module versions are Process 0.15.5, General 0.19.0, Akka 0.5.0, Aspire 0.7.2, and
+  Coordination 0.3.0. Coordination holds the `coordinator` mode, `delegating-to-worker-models` and
+  `verified-waves`, both moved out of Process, `model-profiles`, the `harness` skill with its bundled
+  .NET source, and `t3-delegation` ([ADR-0009](adr/0009-coordination-ships-in-its-own-module.md)); `harnesses` narrows
   `harness` to Claude Code and Codex and `verified-waves` to OpenCode and Codex
   ([ADR-0010](adr/0010-per-harness-item-emission.md)). Every Release since `installer-v0.13.0`
   carries it. At 0.2.0 the coordinator names no delegation tool: the craft picks each piece's model
   and then any mechanism that reaches it, so in T3 Code no per-lane "ignore the dispatch harness"
-  paragraph is needed. Their
+  paragraph is needed. At 0.3.0 the craft names no model either: the curator's model profiles moved to
+  `model-profiles`, which takes effect only when named, and `coordinator` became model-invocable with
+  a narrow description, so a lane a lead opens can load it, while the request, not the load,
+  authorizes workers. Their
   item posture, source pins, transformations, exclusions, and reasons live in
   [`curation/*.yaml`](../curation/) and the generated [ledger](ledger.json), not in this roadmap.
 - OpenCode 2 is the only OpenCode target. Canon now states the decided OpenCode 2 rules: the runtime
@@ -321,15 +324,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Known Gaps
 
-- **`eject`'s exec-mode test depends on the umask:** `R6 exec mode survives replay and cut` in
-  [`tools/eject.test.ts`](../tools/eject.test.ts) asserts the replayed script's mode is exactly
-  `0755`, so it fails under umask `002` (`0775`), although Git records only the executable bit. The
-  fix is to assert the executable bit. Until then, run `npm test` under umask `022` on such a host.
-- **The worker contract's base-mismatch rule reads two ways:** in
-  [`worker-contract.md`](../skills/deniz-coordination/delegating-to-worker-models/references/worker-contract.md),
-  the last "Stop and report" item lists a HEAD that differs from the base as a stop, then says to
-  report the difference and go on when standing instructions name another base. A brief that pins
-  one base and says it is the only one avoids it; the contract text is unchanged.
+- **A Codex child's model record in T3 Code is unmeasured:** `t3-delegation` reads the model that ran
+  from T3's `executedModel`, filled for Claude runs, or from OpenCode's database for OpenCode
+  children. No method is measured for a Codex child, so its model counts as unverified and a review
+  of its work as one by an unknown family.
 - **A test-outcome comparison needs volatile values named:** a brief that settles a worker by
   comparing failing tests' first failure lines with the base must name what may differ besides
   approved literals (process ids, temporary paths). One worker stopped on a changed process id in

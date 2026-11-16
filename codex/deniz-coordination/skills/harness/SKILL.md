@@ -25,13 +25,13 @@ that result, and records every step in a ledger. This skill is the harness's con
 
 ## For a caller that follows the delegation craft
 
-How the steps of the delegation craft (its worker contract, model files and review rules) map onto
+How the steps of the delegation craft (its worker contract, the worker blocks of any loaded model profiles, and its review rules) map onto
 the harness:
 
 - The task file's `contracts` lists the absolute paths to the craft's `references/worker-contract.md`
-  and then the worker file that the craft's `references/models/README.md` names for the task's model
-  and role, taken from the craft's folder. A model or role without a worker file gets only
-  `worker-contract.md`.
+  and then the worker file that the model profiles the caller loaded name for the task's model and
+  role, taken from those profiles' folder. A model or role without a worker file, or a run with no
+  profiles loaded, gets only `worker-contract.md`.
 - After a worker stops, a new task with `continueOf: <run>/<task>` goes on from its collected work; its
   prompt is the amendment. `usage` sums runs, tokens, cost and duration across the ledgers; give tasks
   `tags` to group them by work item.

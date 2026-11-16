@@ -2,11 +2,11 @@
   "deniz-coordination/skill/coordinator": {
     "source": "skills/deniz-coordination/coordinator",
     "original": true,
-    "invocation": "manual",
+    "invocation": "both",
     "dependsOn": [
       "delegating-to-worker-models"
     ],
-    "description": "Work as the coordinator of a task or project. You own the user's goal, plan the work, hand it to other agents, review what comes back, and carry it through to verified completion with as few questions as possible.",
+    "description": "Use only when the user, or the brief of a lead the user started, asks you to work as the coordinator or as a lane lead of a task or project. You own the goal, plan the work, hand it to other agents, review what comes back, and carry it through to verified completion with as few questions as possible.",
     "claude": {
       "artifacts": [
         "skill"
@@ -16,9 +16,6 @@
           "deniz-coordination:delegating-to-worker-models"
         ],
         "pointer": []
-      },
-      "flags": {
-        "disable-model-invocation": true
       }
     },
     "opencode": {
@@ -26,7 +23,7 @@
         "skill"
       ],
       "identity": "deniz-coordination.coordinator",
-      "advertised": false,
+      "advertised": true,
       "edges": {
         "model": [
           "deniz-coordination.delegating-to-worker-models"
@@ -43,11 +40,9 @@
       "sourceKind": "skill",
       "resolvedKind": "skill",
       "emittedKind": "skill",
-      "implicit": "disabled",
+      "implicit": "enabled",
       "explicit": "available",
-      "policyFiles": [
-        "agents/openai.yaml"
-      ],
+      "policyFiles": [],
       "edges": {
         "model": [
           "$deniz-coordination:delegating-to-worker-models"
@@ -65,6 +60,7 @@
     "dependsOn": [
       "delegating-to-worker-models",
       "harness",
+      "model-profiles",
       "requesting-code-review",
       "t3-delegation"
     ],
@@ -75,7 +71,7 @@
         "opencode": "references/opencode-tools.md"
       }
     },
-    "description": "Use when you hand off implementation, a plan, research a decision will rely on, or a review, and you brief the worker and check what comes back. A subagent that searches, reads in parallel, or keeps your context small is ordinary tool use. Covers what stays with you, the mechanism, assigning work by strength, the walls preflight, prompts without contradictions, the worker contract and model profiles, evidence from your own run, review, and the fix-up loop.",
+    "description": "Use when you hand off implementation, a plan, research a decision will rely on, or a review, and you brief the worker and check what comes back. A subagent that searches, reads in parallel, or keeps your context small is ordinary tool use. Covers what stays with you, the mechanism, assigning work by strength, the walls preflight, prompts without contradictions, the worker contract, a worker's lifetime (size, usage, restarts, cleanup), evidence from your own run, review, and the fix-up loop.",
     "claude": {
       "artifacts": [
         "skill"
@@ -83,12 +79,11 @@
       "edges": {
         "model": [
           "deniz-coordination:harness",
+          "deniz-coordination:model-profiles",
           "deniz-coordination:t3-delegation",
           "deniz-process:requesting-code-review"
         ],
-        "pointer": [
-          "deniz-coordination:coordinator"
-        ]
+        "pointer": []
       }
     },
     "opencode": {
@@ -99,12 +94,11 @@
       "advertised": true,
       "edges": {
         "model": [
+          "deniz-coordination.model-profiles",
           "deniz-coordination.t3-delegation",
           "deniz-process.requesting-code-review"
         ],
-        "pointer": [
-          "@deniz-coordination.coordinator"
-        ]
+        "pointer": []
       },
       "dropped": []
     },
@@ -122,12 +116,11 @@
       "edges": {
         "model": [
           "$deniz-coordination:harness",
+          "$deniz-coordination:model-profiles",
           "$deniz-coordination:t3-delegation",
           "$deniz-process:requesting-code-review"
         ],
-        "pointer": [
-          "$deniz-coordination:coordinator"
-        ]
+        "pointer": []
       },
       "dropped": [],
       "bodyTransformations": []
@@ -165,6 +158,66 @@
       "edges": {
         "model": [],
         "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
+    }
+  },
+  "deniz-coordination/skill/model-profiles": {
+    "source": "skills/deniz-coordination/model-profiles",
+    "original": true,
+    "invocation": "both",
+    "dependsOn": [
+      "delegating-to-worker-models"
+    ],
+    "description": "Use when the user, a brief, or the repository addendum names these model profiles for delegated work. Says which model takes which role, how to brief it, the worker block it gets, and where to look when you review its work.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "deniz-coordination:delegating-to-worker-models"
+        ],
+        "pointer": [
+          "deniz-coordination:coordinator"
+        ]
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-coordination.model-profiles",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-coordination.delegating-to-worker-models"
+        ],
+        "pointer": [
+          "@deniz-coordination.coordinator"
+        ]
+      },
+      "dropped": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-coordination:model-profiles",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-coordination:delegating-to-worker-models"
+        ],
+        "pointer": [
+          "$deniz-coordination:coordinator"
+        ]
       },
       "dropped": [],
       "bodyTransformations": []
@@ -5298,6 +5351,7 @@
       "migrate-dotnet10-to-dotnet11",
       "migrate-nullable-references",
       "migrate-static-to-wrapper",
+      "model-profiles",
       "modern-csharp-coding-standards",
       "msbuild",
       "msbuild-modernization",
@@ -5341,8 +5395,10 @@
       ],
       "edges": {
         "model": [
+          "deniz-coordination:coordinator",
           "deniz-coordination:delegating-to-worker-models",
           "deniz-coordination:harness",
+          "deniz-coordination:model-profiles",
           "deniz-coordination:t3-delegation",
           "deniz-dotnet-akka:akka-hosting-actor-patterns",
           "deniz-dotnet-akka:akka-net-aspire-configuration",
@@ -5424,7 +5480,6 @@
           "deniz-process:verification-before-completion"
         ],
         "pointer": [
-          "deniz-coordination:coordinator",
           "deniz-dotnet-aspire:aspire-project-v2-migration",
           "deniz-dotnet-general:code-testing",
           "deniz-dotnet-general:convert-to-cpm",
@@ -5481,7 +5536,9 @@
       "advertised": true,
       "edges": {
         "model": [
+          "deniz-coordination.coordinator",
           "deniz-coordination.delegating-to-worker-models",
+          "deniz-coordination.model-profiles",
           "deniz-coordination.t3-delegation",
           "deniz-dotnet-akka.akka-hosting-actor-patterns",
           "deniz-dotnet-akka.akka-net-aspire-configuration",
@@ -5563,7 +5620,6 @@
           "deniz-process.verification-before-completion"
         ],
         "pointer": [
-          "@deniz-coordination.coordinator",
           "@deniz-coordination.verified-waves",
           "@deniz-dotnet-aspire.aspire-project-v2-migration",
           "@deniz-dotnet-general.code-testing",
@@ -5627,8 +5683,10 @@
       "policyFiles": [],
       "edges": {
         "model": [
+          "$deniz-coordination:coordinator",
           "$deniz-coordination:delegating-to-worker-models",
           "$deniz-coordination:harness",
+          "$deniz-coordination:model-profiles",
           "$deniz-coordination:t3-delegation",
           "$deniz-dotnet-akka:akka-hosting-actor-patterns",
           "$deniz-dotnet-akka:akka-net-aspire-configuration",
@@ -5710,7 +5768,6 @@
           "$deniz-process:verification-before-completion"
         ],
         "pointer": [
-          "$deniz-coordination:coordinator",
           "$deniz-coordination:verified-waves",
           "$deniz-dotnet-aspire:aspire-project-v2-migration",
           "$deniz-dotnet-general:code-testing",

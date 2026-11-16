@@ -5,8 +5,8 @@ description: Use when you hand off implementation, a plan, research a decision
   A subagent that searches, reads in parallel, or keeps your context small is
   ordinary tool use. Covers what stays with you, the mechanism, assigning work
   by strength, the walls preflight, prompts without contradictions, the worker
-  contract and model profiles, evidence from your own run, review, and the
-  fix-up loop.
+  contract, a worker's lifetime (size, usage, restarts, cleanup), evidence from
+  your own run, review, and the fix-up loop.
 ---
 
 # Delegating to worker models
@@ -14,29 +14,37 @@ description: Use when you hand off implementation, a plan, research a decision
 You keep the judgement; other agents do the work.
 
 **Model first, then mechanism.** Give each piece of work a model by strength: judgement to the
-strongest reasoner you can reach, implementation to the strongest implementer. `references/models/`
-says which model is strong at what, how to brief it, and where to look when you review it; a routing
-the user or the repository set up (a routing agent, a model named per role) chooses among equals. Then
-start the piece through a delegation mechanism, a tool that starts another agent and returns its work,
-that reaches that model:
+strongest reasoner you can reach, implementation to the strongest implementer. Which model that is
+comes from the user: a model they name, a routing they or the repository set up (a routing agent, a
+model named per role), or model profiles they name. When the user, a brief, or the repository
+addendum names `$deniz-coordination:model-profiles` or another profile list, load it: it says which
+model is strong at what, how to brief it, its worker block, and where to look when you review it.
+With none named, use the model your mechanism gives by default (its notes say how), and review the
+first runs of each model more strictly. Then start the piece through a delegation mechanism, a tool that starts another agent
+and returns its work, that reaches that model:
 
 - the mechanism the user, a calling skill, or the repository addendum's Worker mechanism names for this
   work, when one does;
 - otherwise any mechanism you have. Your host's own subagents are always there. A mechanism that
-  starts workers on other providers runs when the user asked for workers: they started a coordinator,
-  or named a worker, a model, or that mechanism.
+  starts workers on other providers runs when the request asks for workers: the user, or a lead (a
+  coordinator the user started), asked for a coordinated or delegated run, or named a worker, a model, or that
+  mechanism. Loading a skill is not that request.
+
+This craft cuts waste at the same quality. A choice that trades quality, coverage or speed for money
+(a cheaper model, fewer reviews, less parallelism, a lower service tier) is the user's.
 
 Before your first hand-off through a mechanism, read its notes: your host's subagents and the other
 mechanisms this host carries in `references/host-tools.md`; T3 Code in
 `$deniz-coordination:t3-delegation`, when T3's `delegate_task` is in your tool list. A mechanism's
-notes say how it starts a worker on a model, delivers the worker contract, records the model that ran,
-continues a stopped worker, isolates its writes, cancels and cleans up, reports cost, and reaches other
-sessions. The rules below hold for every mechanism.
+notes say how it starts a worker on a model, delivers the worker contract, records the model that ran
+and what it used, continues a stopped worker, isolates its writes, finds a worker still running after
+a restart, cancels and cleans up, and reaches other sessions. The rules below hold for every
+mechanism.
 
 ## What stays with you
 
 - Deciding whether something earns its place: whether a file, flag, check, or abstraction should exist.
-- Scope, ownership, cross-lane ordering, maintainer policy, and canon or decision wording.
+- Scope, ownership, cross-lane ordering, maintainer policy, and the wording of binding rules and decisions.
 - Suppressions, baseline, ratchet, and threshold decisions; baseline mappings without a mechanical oracle.
 - A choice between equally valid designs, API taste, and judging whether evidence supports a claim.
 - Pushes, merges, filing issues, and the words "verified" and "green". Green means the head SHA, its
@@ -60,9 +68,9 @@ sessions. The rules below hold for every mechanism.
    The thresholds are yours; record them, and any change, with a reason.
 2. **Verify the verify.** Run every verify command once on the base and see a non-empty, meaningful
    result; a test run that reports zero tests is never a pass. Check that every test filter, class, or path
-   it names exists. A change to a type, a public name, or a shared fixture runs the whole test project that
-   holds inventories or registries, not a filtered subset. Before a move, rename, or removal, grep the
-   tests for code they reach by name: reflection on each removed or renamed member, and source-text reads
+   it names exists. A change to a type, a public name, or a shared fixture runs every test that reads
+   shared state by name (for example, a registry or an inventory), not a filtered subset. Before a move, rename, or removal, grep the
+   tests for code they reach by name (for example, reflection on a removed or renamed member) and source-text reads
    (file reads, path literals, parses) of each moved or edited file; each hit's test joins the verify.
    Verify where the result is used: every
    operating system, drive, and path depth it meets, or tests that do not depend on them.
@@ -80,14 +88,14 @@ sessions. The rules below hold for every mechanism.
    approve a plan, cut what the request did not ask for: verification and one-off checks use the tools
    the repository already has, and a one-off check is a command in a step, not a new file.
 5. **Fill the prompt** from `references/prompt-template.md`. Write only the per-task fill-in. Every
-   worker gets `references/worker-contract.md` and its model's worker block verbatim (the contract's
-   status-line rule exempts a structured task): when your
+   worker gets `references/worker-contract.md` verbatim, and the worker block a loaded profile names
+   for its model and role (the contract's status-line rule exempts a structured task): when your
    mechanism prepends files, name them; otherwise paste them in yourself. An agent you start without the
    contract (a reviewer, a researcher) gets its memory rule, Report item 10, in the prompt. Every value the repository
    owns elsewhere comes in as an input, never as an anchor to a document. Every term gets an in-scope
    and an out-of-scope example.
 6. **No contradiction leaves your desk.** Read what the worker will read as one text: the contract, the
-   model block, the plan, every Read-first document, and your fill-in. A worker resolves a conflict
+   profile worker block, if any, the plan, every Read-first document, and your fill-in. A worker resolves a conflict
    toward the binding written text and stops, so close every path before you send:
    - Every case you can foresee has exactly one permitted path. Write a permission as a rule over what may
      change, never as line ranges or "as in an earlier task".
@@ -97,7 +105,7 @@ sessions. The rules below hold for every mechanism.
    - A done-when that needs several commands at once says how to run them in the foreground.
    - Every prohibition traces to the request, the repository, or a measured hazard, never to a
      preference of yours or of an earlier plan.
-   - The mechanical fallout of a planned change (an analyzer limit, a moved member) is named in the plan as
+   - The mechanical fallout of a planned change (a limit of the repository's analyzers or linters, a moved member) is named in the plan as
      pre-approved, not left to the contract's out-of-plan stop.
    - Overriding an older document is an amendment that names the document and the point. A free-text
      exemption beside a binding rule is a contradiction, not an override.
@@ -114,18 +122,53 @@ sessions. The rules below hold for every mechanism.
   files to the base and prove the diff is empty.
 - Cap concurrent heavy jobs to what the host's memory allows, and never run two builds in one
   working tree.
+- A check that is slow, costly or shared (one machine, paid CI time, a long run, a reviewer's time):
+  first run the cheap checks that can fail it, and never run it on a state that will change before its
+  result is used; order the work so the result stays valid. When others share it, tell its owner when
+  you start and stop, and check that it is really free instead of trusting a status note.
+- Act on a process or service that another session or the user owns only through that owner, and name
+  it by its exact identity (a process id with its start time, a session id, a path), never by a name
+  alone.
+
+## A worker's lifetime
+
+- **Size.** One worker covers at most one checkpoint of the plan, a step that ends in a verify; the
+  next checkpoint starts a fresh worker from the settled head. Its context grows with every step, so a
+  long worker pays more for each step and drifts. Heavy repeated runs (the full gate, a mutation run
+  beyond the task's own proofs) go in your verify step between workers, not into a worker's loop.
+  When your mechanism offers a step limit, set one; a worker that reaches it has stopped, and a fresh
+  worker goes on from its head.
+- **Usage.** Record what each worker used, as your mechanism reports it: the model and its options
+  (effort, variant, service tier) as the run reports them, not as you asked, the model calls, the peak
+  context, input and cached tokens, the cost when known, and the outcome. A model profile's cost, when
+  you keep one, comes from these records.
+- **Restarts.** After a restart of the host, the mechanism's service, or the machine, a worker shown as
+  stopped or cancelled can still run at its provider. Check the provider's own record before you start
+  a replacement, and have a worker that still runs ended through the owner of its service.
+- **Settle from records.** Never wake a stopped worker only to get its report: settle it from git, its
+  verify run and the mechanism's records.
+- **Clean up.** When a worker's work is landed, or it left no commits and a clean working tree, remove
+  its isolated checkout and branch in the same turn. A checkout with work that is uncommitted or not
+  landed stays, and your report lists it with its head SHA; removing it is a reserved action.
 
 ## After the run
 
 1. **Evidence is a run you or your tool made** on the committed tree. The worker's "passed" lines are
-   not. Rerun the gates at the branch head yourself before any local check.
+   not. Rerun the gates at the branch head yourself before any local check. A check counts only when it
+   passed or failed for the reason it was written to test: a timeout, a crash of the tool, or a build
+   or setup failure is inconclusive, so record it with its cause. This holds for tests, red-then-green
+   proofs, mutant runs and reviews alike.
 2. **A stop is the product working.** Read its reason. Most stops trace back to your prompt (an abstract
    slot, a coordinator duty pasted into the worker prompt, a name that does not exist): read the spec the
-   worker received first, and fix the prompt, not the model profile.
+   worker received first, and fix the prompt, not the model profile. A budget stop comes back as a
+   projection: answer it per row, raising where your own sizing was wrong and cutting where the worker
+   overbuilt. When scope changed inside a checkpoint, move budget between checkpoints before you raise
+   the total.
 3. **Prove the cause before you hand out a fix.** When the cause is unproven, the task is "reproduce,
    prove it with evidence, fix it where it lives". A raised timeout, a retry, or a serialized test is not
    a fix for a flaky test.
-4. **Review.** A worker never judges its own work; the worker's profile says where to look.
+4. **Review.** A worker never judges its own work; a loaded profile says where to look for the author's
+   model.
    - **When:** send a head to review only after its build, analyzers included, and the task's verify passed:
      a static review is not a build.
    - **Who:** your own read follows `$deniz-process:requesting-code-review`; low-risk scaffolding and mechanical
@@ -143,6 +186,9 @@ sessions. The rules below hold for every mechanism.
      reviews passed: it knows how the infrastructure is used.
    - **Until it converges:** code that deletes data or guards a boundary repeats review and fix-up until a
      pass finds nothing new; each fix of such code is new code to review.
+   - **What blocks:** after a fix-up round, a reread blocks only on a defect, a gap against the request,
+     a lost guard, or a proof that cannot fail. A low finding or a nit becomes a follow-up record, not
+     another round, and "nothing new" above means nothing new that blocks.
    - **Rubric:** defects first, then gaps against the request, then anything not asked for, then tests that
      pass for a reason production lacks. For a refactor, both reads compare the base and the new code
      behaviour by behaviour. After a move or an extraction, the old owner keeps no forwarding member; a
@@ -151,21 +197,26 @@ sessions. The rules below hold for every mechanism.
      so a read through `head` or a line limit is no read.
    - **Sources:** a reviewer gets every source its claims depend on in a readable place (an initialized
      submodule, a fetched tag, a named path), and its report states what it could not read.
-   The merge queue and CI stay the last net for cross-change effects.
+   Where the repository has a merge queue or CI, it stays the last net for cross-change effects;
+   otherwise run the repository's gate at the merged head.
 5. **Fix-up loop.** Turn findings into a per-file cut list with line ranges and the replacement. A worker
    fix pass reports each item done or rejected with figures. Spot-check the blockers yourself. A fix pass
    toward the same done-when is not new scope. Its prompt names every existing expectation the fixes
    change, or authorizes, within named test classes, the changes that follow necessarily from its items,
    each reported old -> new; a fix that needs an unnamed oracle change otherwise costs a stop.
 6. **Land.** When parallel tasks from one base conflict, a land task cherry-picks them onto the current
-   tip, says which side wins, resolves toward the newer behaviour, and reruns the suite.
+   tip, says which side wins, resolves toward the newer behaviour, and reruns the repository's gate.
+   - Gate the rebased head, not the head before the rebase.
+   - A slow or costly proof (a replay, a mutant run) runs again only when the rebase touched a file
+     it depends on: check the touched files against the proof's files.
+   - Merge the exact head you verified, and check before the merge what it starts on its own (issues
+     the forge closes, releases or deploys it triggers).
 
 ## References
 
 - `references/host-tools.md`: your host's own subagents and sessions, and the other mechanisms this
   host carries.
 - `references/worker-contract.md`: what every worker gets, verbatim.
-- `references/models/README.md`: the model index (roles, cost, review focus) and each model's profile.
 - `references/prompt-template.md`: the per-task fill-in, with sections by task type.
 - `references/work-types.md`: read when the task is new code, a refactor, or an evaluation.
 - `references/test-oracles.md`: read when the task writes or changes tests.

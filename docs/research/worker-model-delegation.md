@@ -1,9 +1,9 @@
 # Worker-model delegation evidence
 
-Date: 2026-11-14
+Date: 2026-11-16
 
 This dated note holds the evidence behind the original skill
-[`delegating-to-worker-models`](../../skills/deniz-dispatch/delegating-to-worker-models/SKILL.md). The
+[`delegating-to-worker-models`](../../skills/deniz-coordination/delegating-to-worker-models/SKILL.md). The
 skill carries the current rules; this note carries the runs, numbers, and calibration they came from.
 Facts are from runs on 2026-10-15 to 2026-10-17 in two repositories (an estate configuration
 repository and a .NET SDK); opinions are marked.
@@ -74,7 +74,7 @@ correct: three successive fix-ups each stopped on a real upstream fact, not on w
 recurred: a gate step reported as done that the worker had skipped, caught by the Claude review. The
 model index gives the route the Sol profile on this basis.
 
-## Pilot log (2026-10-17 to 2026-11-14)
+## Pilot log (2026-10-17 to 2026-11-16)
 
 Stops from the first day of running the shipped template in both repositories. Every one was
 coordinator-caused and every worker stop was correct (estate 7 of 7, SDK 8 of 8 over-triggers on the
@@ -98,7 +98,19 @@ pass, instead of one rule per case.
 | A bold `**Closes:** #N` in a PR body left the issue open after merge (twice) | n/a | logged only: workers do not file or close issues; a PR-body rule belongs to whatever drafts PR bodies |
 | Killing a dispatcher's wrapper process orphaned its child and private server; cancel then found no supervisor | n/a | logged only: dispatcher-specific; the dispatcher contract already requires collecting a killed run |
 | T3 Code lead with lanes on three machines (2026-11-14): the lead stepped into an issue a lane owned, and the user asked why it acted there | n/a | logged only, one repository: a coordinator leaves a lane's own issue to that lane and keeps cross-lane order and the user's decisions |
-| Same run: remote lanes waited idle on the lead, which polled every 45 minutes | lane hours idle | logged only, one repository: lanes read pushes, merges and CI themselves and check back on their own schedule; `t3-delegation` carries it as a T3 tip |
+| Same run: remote lanes waited idle on the lead, which polled every 45 minutes | lane hours idle | logged only, one repository: lanes read pushes, merges and CI themselves and check back on their own schedule; `t3-delegation` carries it as a T3 tip; the coordinator's Lanes section since 0.3.0 |
+| Six-lane T3 Code run (2026-11-16): one Sol Fast child on a 1M-context route ran three plan checkpoints, with mutant batches and the full gate inside its own loop | in one ~13 h window after a quota reset: 534 model calls, context peak about 788K tokens, 238M input tokens (99.4% cached), about half of the day's observed OpenAI input | one checkpoint per worker; heavy repeated runs in the coordinator's verify step ("A worker's lifetime") |
+| Same run: after a machine restart T3 showed that child cancelled, while its OpenCode session ran on for about six hours, held the only gate lock for about 70 minutes, and started an unasked fix loop when its own final gate failed | the six hours above | the restart check; `t3-delegation`'s measured method (a `synthetic` restart notice, `/api/session/active`, an interrupt through the service's owner) |
+| Same run: 58 settled delegate worktrees, 1-2 GB each, filled a machine's disk and took T3 down for about 2 h 45 min | one lane stalled for that time | settled checkouts are removed in the same turn ("A worker's lifetime") |
+| Same run: two mutant replays on a shared gate blocked on mutant spellings no compiler had checked, about 10 minutes of the lock each, and two more stopped on conflicts with newly merged changes | four replays | compile every mutant before a shared gate (`test-oracles.md`); never run a shared check on a state that will change |
+| Same run: a worker-written mutation runner counted 4 analyzer rejections among 7 kills, and a watchdog over a whole generator run reported a false hang | one false proof caught in review | evidence by its cause: a timeout, a crash, or a build failure is inconclusive |
+| Same run: one issue's budget moved between checkpoints four times, each from the coordinator's sizing when scope changed inside a checkpoint; the issue total held | four stops, each cheap | a budget stop is answered per row, and budget moves between checkpoints before the total |
+| Same run: a lane's handoff written before the user's decision still said "do not merge" | one lane resumed on stale state | handoffs are updated with every decision they touch (`sessions.md`) |
+| Same run: lanes on Claude Code that a lead opened could not load the user-started coordinator from their briefs; one lane the lead opened had no invocation in its kickoff and coordinated from its handoff, and whether the lanes whose kickoffs began with Codex's invocation spelling had loaded it could not be verified | n/a | `coordinator` model-invocable with a narrow description; the request, not the load, authorizes workers |
+| Same run: a status word relayed to five lanes as another provider's return | five lanes misinformed | relays keep the referent the coordinator is sure of, and a short word with two readings gets one question first (coordinator, Lanes) |
+| Same run: a leading "tamam" taken as approval moved four issues between milestones; a lane's T3 project deleted from the UI with its thread | n/a | logged only: instances of the short-word approval and records-outside-the-mechanism rules |
+| Same run: the lead left lanes' questions unanswered three times, about 1.5 hours each, and read a long lane thread from its start, taking old items for its latest report | lane hours blocked | the coordinator answers a blocked lane first at each check-back (coordinator, Lanes); `t3-delegation` reads a long thread from near its end |
+| Earlier in the same family: a mutant run without a watchdog held a gate lock for 18 hours; a documentation-only change skipped the documentation gates and broke the main branch | n/a | logged only: instances of the bounded-wait rule and of the repository's gate as the coordinator's verify step |
 
 Reading (opinion): the STOP list makes coordinator defects cheap and visible, so a single pilot stop is
 not by itself a reason for a new rule.

@@ -9,11 +9,11 @@ Read before you brief a lane that runs in a session of its own.
   file.
 - A brief names: the lane's role and host, the repositories and the working folders it may use,
   what to read first, an ordered queue, the files it owns and the files it must not touch, how it
-  takes a shared gate, and its report format with a line cap. A lane runs the repository's canonical
-  gate scripts as they are.
+  takes a shared gate, and its report format with a line cap. A lane runs the repository's own gate
+  scripts as they are.
 - A lane works through its queue without asking per item. It asks you only when its queue is empty,
   when it reaches a reserved action, or when it meets a contradiction. You hold three gates: spec
-  approval for a change to behaviour, a public surface or a canon rule; merge, after you read the diff
+  approval for a change to behaviour, a public surface or a binding rule; merge, after you read the diff
   and its evidence, and after the merge commit's own CI ran, before you report it done or build on it
   (a green change is not a green main branch); and every reserved action.
 - You are the one session that talks to the user. Lanes take their decisions from you, within any
@@ -26,6 +26,11 @@ Read before you brief a lane that runs in a session of its own.
 
 - Files that several lanes change (changelogs, generated baselines, registries, build lock files)
   get an order from you: name which change lands first, and the later one rebases once on its merge.
+- When two lanes must change the same product file, name one owner of its meaning and one shared
+  interface, and tell both lanes.
+- Act on a process or service that another session or the user owns only through that owner, and name
+  it by its exact identity (a process id with its start time, a session id, a path), never by a name
+  alone.
 - A heavy job (a full gate, a benchmark, a mutant run, a workspace preparation) takes the machine's lock and
   announces its start and end to you. A lock is a handle the job holds (an open file handle on
   Windows, `flock` on POSIX), never a file whose existence is the lock. Nobody frees a lock by
@@ -37,8 +42,8 @@ Read before you brief a lane that runs in a session of its own.
   decision it asks for. "Green" in a message has the meaning `delegating-to-worker-models` gives it.
 - A lane's stop names the rule it hit and its evidence. Answer a stop with a decision, never with
   "try again".
-- Keep these files outside the repository, current at every decision rather than at the end: the
-  status file (what is in flight, who holds it, each lane's next step); the decisions file (the
+- Keep these files outside the repository, current at every decision rather than at the end, and
+  update every handoff the decision touches before anyone resumes from it: the status file (what is in flight, who holds it, each lane's next step); the decisions file (the
   user's words quoted, with the date and the scope); and one chapter per lane, written by that lane
   (its method, guards, traps and where it stands). A message is not a record.
 - Keep two running lists beside them, fed by the lanes in one line each: findings (each one ends as

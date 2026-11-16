@@ -191,7 +191,8 @@ Applies only when the `deniz-coordination` Module is installed.
 
 | Skill | For |
 |---|---|
-| **`@deniz-coordination.coordinator`** | You want the agent to own a task or project end to end: plan it, hand the work to other agents, review what comes back, and finish with as few questions as possible. A mode you start per task. |
+| `deniz-coordination.coordinator` | You want the agent to own a task or project end to end: plan it, hand the work to other agents, review what comes back, and finish with as few questions as possible. Model-reachable, but it loads only when you, or a lead's brief, ask for a coordinator or a lane lead. |
+| `deniz-coordination.model-profiles` | One curator's profiles of the models they delegate to: roles, cost, how to brief each model, its worker block, review focus. Model-reachable; it takes effect only when you, a brief, or the repository addendum name it. |
 | `deniz-coordination.delegating-to-worker-models` | Handing one piece of work to another agent: what stays with you, the model and then the mechanism that reaches it, the prompt, the worker contract, evidence from your own run, review. Model-reachable; it arrives when another agent's prompt is being written. |
 | `deniz-coordination.t3-delegation` | Handing work to other agents inside T3 Code: `delegate_task` children, lane threads, other machines, and the record of the model that ran. Model-reachable; the craft loads it when T3's tools are in the tool list. |
 

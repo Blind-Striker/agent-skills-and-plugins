@@ -10,7 +10,7 @@ Read when you review, and after any surprise. Severity is the harm when the fail
 | 2 | Self-reported verification is wrong | "93/93" on a final tree that was red | High / repeated | verify log on the committed tree; coordinator reruns gates |
 | 3 | Existing test rewritten to fit a wrong spec | a positive fixture changed so an unquoted literal secret is missed; gates green, report "Done" | High / seen without a STOP list | contract: an existing test is an oracle |
 | 4 | Weak mutant, tautological tests | a mutant that still emitted the event hid a stall; order fixtures a wrong key would not reorder | High / repeated | test-oracles.md |
-| 5 | Test-design concurrency races | ambient-context holds on unrelated continuations; "next created timer" reads; a released port rebound by a parallel test | High / repeated in concurrency work | the language module's race rules, quoted; deterministic case; full suite |
+| 5 | Test-design concurrency races | ambient-context holds on unrelated continuations; "next created timer" reads; a released port rebound by a parallel test | High / repeated in concurrency work | the language module's race rules, quoted; deterministic case; the repository's gate |
 | 6 | Overbuilding new code | hand-written parsers, several process trackers, defensive code over its own inputs | Medium / common in open-ended new code | plan-first, budget, named constructs, concrete hazards |
 | 7 | Relocation loses an error path | parsing moved from a shell pipeline into the host language: a tab-split regression and a dead "empty output" error | Medium / seen without the model file | "change code where it is" |
 | 8 | Invented policy, flags, modes, protocol | a "GET-only" rule that blocked most checks; a protocol that skipped the clone gate | Medium / common | nothing unnamed; precedence; STOP |
@@ -19,7 +19,7 @@ Read when you review, and after any surprise. Severity is the harm when the fail
 | 11 | Environment edges unstated | path semantics changed in a newer runtime; a default shell timeout killed a long command; a bare shell name resolved to another system | Medium / common | environment section; absolute paths and OS skips in tests |
 | 12 | Loose words read strictly | an abstract definition stopped a task; "touched" undefined | Medium / occasional | in-scope and out-of-scope examples |
 | 13 | Stop rule over-triggers | the same benign conflict stopped a task three times; each stop costs a rerun | Low / occasional | do-not-stop list |
-| 14 | Cross-change interaction invisible per change | a clone between two sibling changes | Medium / rare | merge queue and CI |
+| 14 | Cross-change interaction invisible per change | a clone between two sibling changes | Medium / rare | the merge queue and CI where the repository has them; otherwise the gate at the merged head |
 | 15 | Report in the wrong language | a report written in the user's chat language | Low / occasional | "Report language: English" in the contract |
 
 ## Coordinator failure modes

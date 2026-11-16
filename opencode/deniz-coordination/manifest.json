@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-coordination",
-  "version": "0.2.0",
-  "digest": "sha256:3acae617744593c426278ec43a2ec9ae7f7052588534435868a4e4864fc1dd3b",
+  "version": "0.3.0",
+  "digest": "sha256:ef7aa33eaa856b21e107f12b092b281dc58631dd5c961240f34439fc34fc100c",
   "requiredModules": [
     "deniz-process"
   ],
@@ -16,55 +16,35 @@
       "mode": "100644"
     },
     "skills/deniz-coordination.coordinator/SKILL.md": {
-      "sha256": "sha256:a29461c89f28284d02252ade0db5730825f18b979b842cefa355b4a38c41572c",
+      "sha256": "sha256:5e11fc49ceb764e69a9a38dae42ce05866f09bd1e2052e9f46408295bc9c575b",
       "mode": "100644"
     },
     "skills/deniz-coordination.coordinator/references/sessions.md": {
-      "sha256": "sha256:e40b15146cfb517cdfa7b45b7cc88a418c0b4d777177f60e5b42fc36b72559f9",
+      "sha256": "sha256:07705bb1424a7c6e4f924829883db26334a2e9367a7654b0f1c18b463672f09f",
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/SKILL.md": {
-      "sha256": "sha256:59b3b2525eb2d4626e1671b0c44b8ed5e4d5678487567956ee2edcc5249e2aef",
+      "sha256": "sha256:498dd82501804738de1b4a2c825cd6d3bd0d43e2b345ed9ef6f064eb1820ab41",
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/failure-modes.md": {
-      "sha256": "sha256:078a060f8a3d91393b0efed20e2394f769661320f6ffb08122183f18e6408e07",
+      "sha256": "sha256:c04c6a739051ecfc68f5ff82c5e4502acd22cfe228e2d761dc630182720ae3c9",
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/host-tools.md": {
       "sha256": "sha256:f962263c38a4d2b69c46b0fb73d41aaa2cf96197759cfb028cdaa0d3e92b1612",
       "mode": "100644"
     },
-    "skills/deniz-coordination.delegating-to-worker-models/references/models/README.md": {
-      "sha256": "sha256:0fb010d5f6f1042f0e0487d6965609608f335de863dd8adc295c14e788127919",
-      "mode": "100644"
-    },
-    "skills/deniz-coordination.delegating-to-worker-models/references/models/astra.md": {
-      "sha256": "sha256:bc6eb33a801eb83968aced1d9db7ad80c3a793b2d54d43c1b3e62597c6f0b9b3",
-      "mode": "100644"
-    },
-    "skills/deniz-coordination.delegating-to-worker-models/references/models/grok-worker.md": {
-      "sha256": "sha256:94f022d2975c27acf469edcb00d0e6e3d35383b1c12ac71071b422d0c0b9f7f7",
-      "mode": "100644"
-    },
-    "skills/deniz-coordination.delegating-to-worker-models/references/models/sol-worker.md": {
-      "sha256": "sha256:bc6cc08f0de5e90a803f3ce81e49a8a3e67601a0d345c6c12a6f095e3072e053",
-      "mode": "100644"
-    },
-    "skills/deniz-coordination.delegating-to-worker-models/references/models/sol.md": {
-      "sha256": "sha256:747c44be0da6eab6a0d89cc7aca0698891210bf799b56279c4c6ceeef2cca4cb",
-      "mode": "100644"
-    },
     "skills/deniz-coordination.delegating-to-worker-models/references/prompt-template.md": {
-      "sha256": "sha256:b72eed81e50041a50e3ec21073f48fd1f69a62651b2c773adce5e3d7b3013d7d",
+      "sha256": "sha256:37d65ae36cd5ad96c8791029ec07cda0897d0c1043b4e775c7ffe6c5c72f30e7",
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/repo-addendum-template.md": {
-      "sha256": "sha256:f107d79e0af4e9012e19c88963891d6e08eae3ef8ef53b00d857bd3876569056",
+      "sha256": "sha256:97a0d268ea50807a0930c6f754dc762c8ff39c21fb1631be7ce4fdb21a4fd048",
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/test-oracles.md": {
-      "sha256": "sha256:7827a9c90edead7094b13dc57eae95eb5b372fcf85e1f1b5af24d91edee2044b",
+      "sha256": "sha256:0a17ce344d9f341eac42bcfe875baee0c01089e83b40ed5096b9ad28970e6748",
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/walls/README.md": {
@@ -80,11 +60,31 @@
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/worker-contract.md": {
-      "sha256": "sha256:6378a49b3602e3f9442e104fef263d558e5738e0d0e9ff4ed9dcf2ad59f3a520",
+      "sha256": "sha256:7bfd566aead040dd2f0eaaee5ddac874b85d02ba70d90f1e9da0804d4e9cac74",
+      "mode": "100644"
+    },
+    "skills/deniz-coordination.model-profiles/SKILL.md": {
+      "sha256": "sha256:c4f9626e194178e4f682ba818f1bc28d2ec70d1348dffaa24b067f552fbdc72c",
+      "mode": "100644"
+    },
+    "skills/deniz-coordination.model-profiles/references/astra.md": {
+      "sha256": "sha256:bc6eb33a801eb83968aced1d9db7ad80c3a793b2d54d43c1b3e62597c6f0b9b3",
+      "mode": "100644"
+    },
+    "skills/deniz-coordination.model-profiles/references/grok-worker.md": {
+      "sha256": "sha256:94f022d2975c27acf469edcb00d0e6e3d35383b1c12ac71071b422d0c0b9f7f7",
+      "mode": "100644"
+    },
+    "skills/deniz-coordination.model-profiles/references/sol-worker.md": {
+      "sha256": "sha256:3c6d9576e9efe537d858ca195d04889a8e161c46421718489060b1666ded8f97",
+      "mode": "100644"
+    },
+    "skills/deniz-coordination.model-profiles/references/sol.md": {
+      "sha256": "sha256:eecfde331282eba45fe31d52e944069352e40a090c4b63748e21bc4f900aab41",
       "mode": "100644"
     },
     "skills/deniz-coordination.t3-delegation/SKILL.md": {
-      "sha256": "sha256:afc7c109b9c56084249555cfc2aeceb5fc44af77aeab97504e5314d60f5940cc",
+      "sha256": "sha256:429fd6480810489fb86b57806041d78fd39aa708ab07a17d81e2d942f4e82a9e",
       "mode": "100644"
     },
     "skills/deniz-coordination.verified-waves/SKILL.md": {

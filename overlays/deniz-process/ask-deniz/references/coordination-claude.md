@@ -6,4 +6,4 @@ Applies only when the `deniz-coordination` Module is installed.
 
 | Skill | For |
 |---|---|
-| `deniz-coordination:harness` | Running worker models out of process through OpenCode or Codex: task files, runs, asks, settlement, the ledger. It runs when you ask for it or start the coordinator. |
+| `deniz-coordination:harness` | Running worker models out of process through OpenCode or Codex: task files, runs, asks, settlement, the ledger. It runs when you, or a coordinator you started, ask for workers. |

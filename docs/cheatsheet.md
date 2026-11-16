@@ -1,6 +1,6 @@
 # Skills cheatsheet: which skill, when
 
-Date: 2026-11-15
+Date: 2026-11-16
 
 Convenience routing map for the four curated Modules. This is not an authorship claim or a new
 methodology: it describes how upstream work is selected, combined, renamed, and invoked in this
@@ -21,7 +21,7 @@ emitted as a command. Each target's identity rules live in
 | [`deniz-dotnet-general`](../curation/deniz-dotnet-general.yaml) | [dotnet-skills](https://github.com/Aaronontheweb/dotnet-skills) by Aaron Stannard; [dotnet/skills](https://github.com/dotnet/skills) by .NET Foundation contributors; [Blazing Fast .NET](https://github.com/EgorBo/BlazingFastDotnet) by Egor Bogatov | Selects the .NET areas used here, merges a few overlapping skills, adapts manual ceremonies, and adds the original `writing-tunit-tests` and `dotnet-walls` skills and the verbatim third-party `csharp-15` skill by Nick Chapsas / Dometrain (outside the MIT license; see [notices](../THIRD_PARTY_NOTICES.md#unlicensed-third-party-files)); requires the Aspire and Process Modules, Process for two reasons: `code-testing` hands a repair or flaky-test request to `systematic-debugging`, and `writing-tunit-tests` hands what to test, and in what order, to `test-driven-development` |
 | [`deniz-dotnet-akka`](../curation/deniz-dotnet-akka.yaml) | [dotnet-skills](https://github.com/Aaronontheweb/dotnet-skills) | Keeps the Akka specialist and reference set together, repairs/localizes handoffs, and links the cross-Module Aspire and General dependencies |
 | [`deniz-dotnet-aspire`](../curation/deniz-dotnet-aspire.yaml) | [Microsoft Aspire skills](https://github.com/microsoft/aspire-skills); selected Aspire material from [dotnet-skills](https://github.com/Aaronontheweb/dotnet-skills) | Packages the official Aspire workflow closure, localizes its internal routes, and adds the selected testing and ServiceDefaults specialists |
-| [`deniz-coordination`](../curation/deniz-coordination.yaml) | none; original work | Holds coordination ([ADR-0009](adr/0009-coordination-ships-in-its-own-module.md)): the original `coordinator` mode, the original `delegating-to-worker-models` craft, the `harness` dispatcher shipped as .NET source for Claude Code and Codex, the original `t3-delegation` notes for delegating inside T3 Code, and the original `verified-waves` orchestration skill for OpenCode and Codex ([ADR-0010](adr/0010-per-harness-item-emission.md)); requires Process, whose `requesting-code-review` is the coordinator's review read |
+| [`deniz-coordination`](../curation/deniz-coordination.yaml) | none; original work | Holds coordination ([ADR-0009](adr/0009-coordination-ships-in-its-own-module.md)): the original `coordinator` mode, the original `delegating-to-worker-models` craft, the original `model-profiles` list a user may name for it, the `harness` dispatcher shipped as .NET source for Claude Code and Codex, the original `t3-delegation` notes for delegating inside T3 Code, and the original `verified-waves` orchestration skill for OpenCode and Codex ([ADR-0010](adr/0010-per-harness-item-emission.md)); requires Process, whose `requesting-code-review` is the coordinator's review read |
 
 Install a Module's required Modules beside it. OpenCode's installer refuses a Selection that has
 General without Aspire and Process, Akka without Aspire and General, or Coordination without Process; Claude Code and Codex
@@ -75,8 +75,9 @@ Cross-cutting routes:
 - `diagnosing-superpowers`: a session went wrong (repeated work, an ignored plan, a skill that did not fire, too slow or too costly) and you want the evidence; it drafts an upstream issue only when you approve the text. It gives no advice; `retro` is the one that proposes environment changes.
 - `dispatching-parallel-agents` / `using-git-worktrees`: independent tasks or branches can proceed in parallel.
 - `verified-waves` (Coordination; OpenCode and Codex only): run one task as waves of sub-agents with every finding checked by a fresh skeptic; `manual`, so you start it.
-- `coordinator` (Coordination): make the agent own a task end to end, plan it, hand the work to other agents, review what comes back, and finish with as few questions as possible; `manual`, so you start it per task.
-- `delegating-to-worker-models`: hand one piece of work to another agent: pick the model first, then any delegation mechanism that reaches it, with what stays with you, the worker contract and model profiles, evidence from your own run, and review.
+- `coordinator` (Coordination): make the agent own a task end to end, plan it, hand the work to other agents, review what comes back, and finish with as few questions as possible; it loads only when you, or a lead's brief, ask for a coordinator or a lane lead.
+- `delegating-to-worker-models`: hand one piece of work to another agent: pick the model first, then any delegation mechanism that reaches it, with what stays with you, the worker contract, a worker's lifetime, evidence from your own run, and review. It names no model.
+- `model-profiles` (Coordination): one curator's profiles of the models they delegate to (roles, cost, briefing, worker blocks, review focus); it takes effect only when you, a brief, or the repository addendum name it.
 - `t3-delegation` (Coordination): hand work to other agents inside T3 Code, through `delegate_task` children, lane threads, or another machine, with the record of the model that ran.
 - `triage`: move issues and external PRs through the repository's intake state machine.
 - `wizard`: generate a human-operated setup script for credentials, infrastructure, or CI steps; it is deliberately manual.

@@ -26,7 +26,7 @@ and this file differ, T3's win. This file maps the steps of
 
 A child starts with only its task text, and T3 prepends nothing. Its task text holds, in this order:
 
-1. The worker contract, verbatim, then the model's worker block when the model has one.
+1. The worker contract, verbatim, then the worker block a loaded profile names for the model and role.
 2. The base: `git checkout --detach <BASE_SHA>`, and "if HEAD is not <BASE_SHA>, stop and report". A
    worktree starts from the parent checkout's HEAD, which can be behind the base.
 3. The per-task fill-in from the craft's prompt template.
@@ -45,17 +45,33 @@ line, read the diff, and rerun the verify commands yourself on its committed tre
    `session_v2`, the row whose `title` is the child's task title and whose `directory` is its
    checkout; its `model` column holds `id`, `providerID` and `variant`, and its `cost` column the
    session's cost. Table `session_message`, rows whose `type` is `assistant`, carries the same `model`
-   per reply. Read those two tables only.
+   per reply in its `data` column. Read those two tables only.
 3. Otherwise the model that ran is unverified. The report says so, and a review of that work counts
    as a review by an unknown family.
 
-## Continue and clean up
+The same `session_message` rows hold the child's usage: each `assistant` row whose `data` has `tokens`
+is one model call, with `tokens.input` (fresh input, cache excluded), `tokens.cache.read`,
+`tokens.output` and `tokens.reasoning`. A request option such as a service tier is recorded as the
+reply reports it, not as the route asked for it.
+
+## Continue, restart and clean up
 
 - A stopped child: start a new child whose brief names the stop, takes the stopped child's head as its
   base, and carries the amendment.
 - A stop of your own turn stops your children too: relaunch the ones still needed.
-- A worktree child's checkout stays until it is removed. Removing a checkout that holds unmerged work
-  is a reserved action.
+- After a restart of the machine, of T3, or of the OpenCode service, T3 can show a child as cancelled
+  while its OpenCode session still runs: a `session_message` row of `type` `synthetic` whose
+  `data.metadata.notice` is `restart`, followed by `assistant` rows after T3's cancel, shows it. Before
+  you start a replacement, have the service's owner ask it `GET /api/session/active`, which needs the
+  service's credential; a session listed there still runs. An empty list does not prove that none runs
+  on another OpenCode server of that machine. The owner ends a running one with
+  `POST /api/session/<id>/interrupt`, which also ends its tool processes, so no process kill is needed.
+- A settled child's worktree stays until you remove it, and it can be large (a checkout plus a private
+  submodule store). Once its work is landed, or it left no commits and a clean working tree, remove it
+  with `git worktree remove <path>`, adding `--force` only after that check, because a worktree with
+  initialized submodules needs it. Deleting the folder alone leaves its store until
+  `git worktree prune`. One that holds work that is uncommitted or not landed stays, and its removal is
+  a reserved action.
 
 ## Lanes and other machines
 
@@ -68,5 +84,10 @@ line, read the diff, and rerun the verify commands yourself on its committed tre
 - A send reaches another machine only over a full-access link, and only a thread whose runtime mode is
   no broader than yours. When a send is refused, the sender ends its turn with its report and the other
   side reads its thread.
+- A send to another machine's thread names that machine's `environmentId`. A continuation sent to a
+  child on another machine does not wake it: read its status. Right after that machine's T3 restarts,
+  a send can answer "thread not found" once.
+- `t3_thread_read` pages from the start of a thread, so the first page of a long lane thread is old:
+  to read its latest items, start near its `itemCount` with `afterPosition`.
 - T3's tools can drop and come back mid-session: load them again before you conclude they are gone.
 - Every message to an idle lane starts a paid turn: batch what you send.

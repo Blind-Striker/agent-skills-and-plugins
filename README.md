@@ -27,10 +27,11 @@ and ASD-STE100 contributes one additional controlled-English skill. Exact item d
 [`curation/deniz-process.yaml`](curation/deniz-process.yaml).
 
 `deniz-coordination` holds coordination
-([ADR-0009](docs/adr/0009-coordination-ships-in-its-own-module.md)): `coordinator`, the mode you start
-to make the agent own a task and hand its work to other agents; `delegating-to-worker-models`,
-written from the field runs and controlled comparison in the
-[worker-model delegation research](docs/research/worker-model-delegation.md); `harness`, a dispatcher
+([ADR-0009](docs/adr/0009-coordination-ships-in-its-own-module.md)): `coordinator`, the mode you or a
+lead's brief ask for to make the agent own a task and hand its work to other agents;
+`delegating-to-worker-models`, written from the field runs and controlled comparison in the
+[worker-model delegation research](docs/research/worker-model-delegation.md), which names no model;
+`model-profiles`, one curator's profiles of the models they delegate to, used only when you name it; `harness`, a dispatcher
 shipped as the source of a .NET file-based app, for Claude Code and Codex; `t3-delegation`, how the
 craft runs on T3 Code's delegation tools; and `verified-waves`,
 written here from the approaches in the
