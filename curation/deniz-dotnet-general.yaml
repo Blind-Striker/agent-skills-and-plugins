@@ -32,7 +32,7 @@
 plugin:
   name: deniz-dotnet-general
   description: "Deniz's curated general .NET skills"
-  version: 0.19.0
+  version: 0.19.1
 original_skills:
   writing-tunit-tests:
     invocation: auto # fires while a TUnit test is being written; code-testing loads it through a
@@ -549,7 +549,13 @@ items:
     # asks before it installs the tool, creates or updates the baseline, or commits the baseline or
     # the tool manifest, because each of those changes the repository or the machine, and an unasked
     # `--update-baseline` would let the model approve its own slop. The commit names its objects, so
-    # an executor that commits every task does not read it as a question before each of its commits
+    # an executor that commits every task does not read it as a question before each of its commits.
+    # The same guard covers `[SlopwatchSuppress]` and config suppressions. The patch also carries
+    # slopwatch 0.5.0, which upstream's body predates: run the repository's pinned tool
+    # (`dotnet tool run slopwatch`) when its tool manifest lists slopwatch, because a plain call runs
+    # the global tool and a version gap stops on the baseline; the version-2 baseline and its
+    # regeneration; SW021 (`dynamic`); and the generated-code default. Shrink the patch when upstream
+    # covers 0.5.0
   # --- diagnostics & performance ---
   - source: dotnet-agent-skills/plugins/dotnet-diag/skills/microbenchmarking
     invocation: auto # BenchmarkDotNet design/run/interpret — won the benchmark job outright
