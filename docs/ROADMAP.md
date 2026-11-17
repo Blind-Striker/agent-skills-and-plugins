@@ -13,7 +13,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 - The five current curation manifests pass through one common assembly and emit matching Claude
   Code Plugins, OpenCode Module Bundles, and native Codex Plugins plus both repository marketplaces.
   Checkout Module versions are Process 0.15.5, General 0.19.1, Akka 0.5.0, Aspire 0.7.2, and
-  Coordination 0.3.0. Coordination holds the `coordinator` mode, `delegating-to-worker-models` and
+  Coordination 0.3.1. Coordination holds the `coordinator` mode, `delegating-to-worker-models` and
   `verified-waves`, both moved out of Process, `model-profiles`, the `harness` skill with its bundled
   .NET source, and `t3-delegation` ([ADR-0009](adr/0009-coordination-ships-in-its-own-module.md)); `harnesses` narrows
   `harness` to Claude Code and Codex and `verified-waves` to OpenCode and Codex

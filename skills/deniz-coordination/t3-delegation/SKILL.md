@@ -83,8 +83,9 @@ reply reports it, not as the route asked for it.
 - A send reaches another machine only over a full-access link, and only a thread whose runtime mode is
   no broader than yours. When a send is refused, the sender ends its turn with its report and the other
   side reads its thread.
-- A message to another session carries your own `environmentId` and `threadId` (`t3_thread_list` shows
-  `currentThreadId`) and asks it to reply with `t3_thread_send`. Reading its thread instead is the
+- A message to another session carries your own `environmentId` and `threadId` (`t3_environment_read`
+  shows your `environmentId`, `t3_thread_list` shows `currentThreadId`) and asks it to reply with
+  `t3_thread_send`. Reading its thread instead is the
   fallback only after a refused send. A session that `ListAgents` does not list may still be a T3
   thread: try `t3_thread_send` before calling it unreachable.
 - A send to another machine's thread names that machine's `environmentId`. A continuation sent to a
