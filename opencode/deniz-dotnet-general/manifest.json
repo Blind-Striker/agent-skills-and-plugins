@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-dotnet-general",
-  "version": "0.19.0",
-  "digest": "sha256:c37c1b950b99016b1a5e0a785db5cb4cef26408a55c6fc8d5b6ce4708431aaa5",
+  "version": "0.19.1",
+  "digest": "sha256:a18755e9eaf6a6cf180dbc209a77cfb5ebe1be5f46f77a6ba0c65cfdc638ce08",
   "requiredModules": [
     "deniz-dotnet-aspire",
     "deniz-process"
@@ -293,7 +293,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.dotnet-slopwatch/SKILL.md": {
-      "sha256": "sha256:0ebe174a3a328ecba9824abd5e43730c20187cc818294567055b58fe60082cd9",
+      "sha256": "sha256:6b2e969c154f68bbc2d3473a4fab36ca1d2b43c463e39825b8bf51d3a7e81bbc",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.dotnet-trace-collect/SKILL.md": {
