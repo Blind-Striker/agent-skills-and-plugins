@@ -274,6 +274,13 @@ retrying.
 
 ### OpenCode from a Release Package
 
+Package 0.21.0 is being prepared with Process 0.15.5, General 0.19.1, Akka 0.5.0, Aspire 0.7.2, and
+Coordination 0.3.1. `dotnet-slopwatch` runs a repository's pinned slopwatch and knows slopwatch 0.5.0,
+and `t3-delegation` says how another session replies. The verified recipe below remains on the last
+published Release until the new asset passes publication checks. For the current recipe after
+publication, use the
+[repository README](https://github.com/Blind-Striker/agent-skills-and-plugins#opencode-from-a-release-package).
+
 The current Package is attached to GitHub Release `installer-v0.20.0`, targeting commit `e4bd7b0`.
 It carries OpenCode 2 Bundles: Process 0.15.5, General 0.19.0, Akka 0.5.0, Aspire 0.7.2, and
 Coordination 0.3.0. `delegating-to-worker-models` and `verified-waves` moved from Process into
