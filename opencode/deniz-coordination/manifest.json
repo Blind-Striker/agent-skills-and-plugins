@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-coordination",
-  "version": "0.3.0",
-  "digest": "sha256:ef7aa33eaa856b21e107f12b092b281dc58631dd5c961240f34439fc34fc100c",
+  "version": "0.3.1",
+  "digest": "sha256:816ed4d69e7da1a904d7a6b7c81569d92bac544f9734ec6396f8cfc482d0f9f2",
   "requiredModules": [
     "deniz-process"
   ],
@@ -84,7 +84,7 @@
       "mode": "100644"
     },
     "skills/deniz-coordination.t3-delegation/SKILL.md": {
-      "sha256": "sha256:429fd6480810489fb86b57806041d78fd39aa708ab07a17d81e2d942f4e82a9e",
+      "sha256": "sha256:ffd0aa2db62b6c54dc81f0ca0654e259cf908f438c5a5ff5866b7ca48cf0efcf",
       "mode": "100644"
     },
     "skills/deniz-coordination.verified-waves/SKILL.md": {
