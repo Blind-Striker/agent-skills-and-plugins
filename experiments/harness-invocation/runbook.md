@@ -15,6 +15,28 @@ Run the free, deterministic checks before using either harness:
 pwsh -NoProfile -File experiments/harness-invocation/selftest.ps1 -SkipLab
 ```
 
+For Antigravity, inspect the no-process plan and run the read-only structural panel:
+
+```powershell
+pwsh -NoProfile -File experiments/harness-invocation/antigravity-matrix.ps1 -Mode all -DryRun
+pwsh -NoProfile -File experiments/harness-invocation/antigravity-matrix.ps1 -Mode structural
+```
+
+The live panel uses the current `agy` login and temporarily replaces the real discovery manifest.
+Close other Antigravity sessions and do not edit that manifest while it runs; its byte backup is
+held until `finally` restores the file or removes it if it was absent. Keep an independent backup
+beforehand for process termination or machine failure. Raw results go to a fresh directory below
+the external lab; pass `-Lab <lab-root>` to choose it. The default is `antigravity-probe-lab` at the
+repository drive root. This command runs structural and model probes with the pinned default model:
+
+```powershell
+pwsh -NoProfile -File experiments/harness-invocation/antigravity-matrix.ps1 -Mode all
+```
+
+The returned JSON names the raw record and per-probe status; an observation failure exits nonzero.
+Behavioral discovery is model-reported, and the remaining real profile configuration can affect it.
+The method and its limits are in the [protocol](protocol.md#antigravity-plugin-discovery-and-invocation).
+
 Walk the Codex runner without changing state, then run its credential-free structural panel. The
 real run creates a fresh `CODEX_HOME` below the external lab, exercises the nonsense-control
 marketplace, and installs all four generated repository plugins:

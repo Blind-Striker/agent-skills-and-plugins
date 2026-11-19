@@ -24,6 +24,28 @@ $script:RepoRoot = $(
 )
 $script:HereRoot = $PSScriptRoot
 
+function Invoke-WithAntigravityManifest {
+    <# agy 1.5.13 ignores GEMINI_HOME: replace the real discovery manifest only for the
+       duration of Body, then restore its exact bytes (or its prior absence), even on failure. #>
+    param(
+        [Parameter(Mandatory)] [string] $Path,
+        [Parameter(Mandatory)] [string[]] $PluginPaths,
+        [Parameter(Mandatory)] [scriptblock] $Body
+    )
+    $existed = Test-Path -LiteralPath $Path -PathType Leaf
+    [byte[]] $original = @()
+    if ($existed) { $original = [IO.File]::ReadAllBytes($Path) }
+    try {
+        $entries = @($PluginPaths | ForEach-Object { @{ path = $_ } })
+        $json = @{ entries = $entries } | ConvertTo-Json -Depth 4
+        [IO.File]::WriteAllText($Path, $json, [Text.UTF8Encoding]::new($false))
+        & $Body
+    } finally {
+        if ($existed) { [IO.File]::WriteAllBytes($Path, $original) }
+        elseif (Test-Path -LiteralPath $Path) { Remove-Item -LiteralPath $Path -Force -ErrorAction Stop }
+    }
+}
+
 function Get-LabRoot {
     <#  Where the isolated harness homes and the raw transcripts live. NEVER inside the repository,
         and never under the user profile: OpenCode discovery walks up from the working directory

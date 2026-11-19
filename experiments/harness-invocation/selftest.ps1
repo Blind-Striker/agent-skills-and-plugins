@@ -84,6 +84,38 @@ function Invoke-InstallerProcess {
 
 Write-Host "`n=== common.ps1 ===" -ForegroundColor Cyan
 
+Test-That "temporary Antigravity manifest restores exact bytes after a failure" {
+    # A failed probe must not leave either a replacement manifest or a newly-created one behind.
+    $dir = Join-Path ([IO.Path]::GetTempPath()) ("agy-restore-" + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Path $dir | Out-Null
+    $path = Join-Path $dir "plugins.json"
+    $original = [byte[]](0, 255, 13, 10, 42)
+    try {
+        [IO.File]::WriteAllBytes($path, $original)
+        try { Invoke-WithAntigravityManifest -Path $path -PluginPaths @("example") -Body { throw "probe failed" } }
+        catch { if ($_.Exception.Message -ne "probe failed") { return "unexpected failure: $($_.Exception.Message)" } }
+        if (-not [Linq.Enumerable]::SequenceEqual([byte[]][IO.File]::ReadAllBytes($path), $original)) { return "existing bytes changed" }
+        Remove-Item -LiteralPath $path
+        try { Invoke-WithAntigravityManifest -Path $path -PluginPaths @("example") -Body { throw "probe failed" } }
+        catch { if ($_.Exception.Message -ne "probe failed") { return "unexpected failure: $($_.Exception.Message)" } }
+        if (Test-Path -LiteralPath $path) { return "previously absent manifest remains" }
+        $true
+    } finally { Remove-Item -LiteralPath $dir -Recurse -Force }
+}
+
+Test-That "temporary Antigravity manifest restores an empty existing file" {
+    $dir = Join-Path ([IO.Path]::GetTempPath()) ("agy-empty-" + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Path $dir | Out-Null
+    $path = Join-Path $dir "plugins.json"
+    try {
+        [IO.File]::WriteAllBytes($path, [byte[]]@())
+        Invoke-WithAntigravityManifest -Path $path -PluginPaths @("example") -Body { }
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return "empty original was removed" }
+        if ((Get-Item -LiteralPath $path).Length -ne 0) { return "empty original acquired bytes" }
+        $true
+    } finally { Remove-Item -LiteralPath $dir -Recurse -Force }
+}
+
 Test-That "RepoRoot is the repository" {
     (Test-Path (Join-Path $script:RepoRoot "AGENTS.md")) -and (Test-Path (Join-Path $script:RepoRoot "tools"))
 }
@@ -470,6 +502,35 @@ Test-That "reference audit keeps global identities and scans both harness output
 
 Write-Host "`n=== fixture ===" -ForegroundColor Cyan
 
+Test-That "Antigravity dry run plans six validations and both discovery manifests without profile writes" {
+    $manifest = Join-Path ([Environment]::GetFolderPath("UserProfile")) ".gemini\config\plugins.json"
+    $before = if (Test-Path -LiteralPath $manifest -PathType Leaf) { (Get-FileHash -LiteralPath $manifest).Hash } else { "absent" }
+    $output = & pwsh -NoProfile -File (Join-Path $PSScriptRoot "antigravity-matrix.ps1") -Mode all -DryRun 2>&1
+    if ($LASTEXITCODE -ne 0) { return "dry run exited $LASTEXITCODE`: $output" }
+    $plan = $output | ConvertFrom-Json
+    $after = if (Test-Path -LiteralPath $manifest -PathType Leaf) { (Get-FileHash -LiteralPath $manifest).Hash } else { "absent" }
+    if ($before -ne $after) { return "dry run changed plugins.json" }
+    if (@($plan.structural).Count -ne 6) { return "expected six validations" }
+    if (@($plan.behavior).Count -ne 4) { return "expected four behavior probes" }
+    if ($plan.behavior[0].plugins.Count -ne 1 -or $plan.behavior[3].plugins.Count -ne 5) { return "incorrect discovery manifest plan" }
+    $structural = & pwsh -NoProfile -File (Join-Path $PSScriptRoot "antigravity-matrix.ps1") -Mode structural -DryRun | ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0 -or @($structural.structural).Count -ne 6 -or @($structural.behavior).Count -ne 0) { return "structural plan includes behavior or omits a plugin" }
+    $true
+}
+
+Test-That "Antigravity fixture has independent auto, manual, and native agent controls" {
+    $root = Join-Path $PSScriptRoot "fixtures\antigravity-probe-plugin"
+    $manifest = Get-Content (Join-Path $root "plugin.json") -Raw | ConvertFrom-Json
+    if ($manifest.name -cne "probe-plugin" -or $manifest.'$schema' -cne "https://antigravity.google/schemas/v1/plugin.json") { return "unexpected plugin manifest" }
+    $auto = Get-Content (Join-Path $root "skills\probe-auto\SKILL.md") -Raw
+    $manual = Get-Content (Join-Path $root "skills\probe-manual\SKILL.md") -Raw
+    $agent = Get-Content (Join-Path $root "agents\probe-specialist.md") -Raw
+    if ($auto -notmatch 'AGY-AUTO-CANARY' -or $auto -match 'disable-model-invocation:[ \t]*true') { return "automatic control is invalid" }
+    if ($manual -notmatch 'AGY-MANUAL-CANARY' -or $manual -notmatch 'disable-model-invocation:[ \t]*true') { return "manual control is invalid" }
+    if ($agent -notmatch '(?m)^mainAgent: false\s*$' -or $agent -notmatch '(?m)^subagent: true\s*$' -or $agent -notmatch '(?m)^model: inherit\s*$') { return "native subagent control is invalid" }
+    $true
+}
+
 Test-That "the Codex fixture has invocation, handoff, reference, and negative controls" {
     $fixture = Join-Path $PSScriptRoot "fixtures\codex-marketplace"
     try {
@@ -664,7 +725,10 @@ Test-That "the ledger derivation reproduces the round's hand-verified numbers" {
     # beside the new harness skill (both): one more skill in the estate and one fewer Process model
     # entry, since the count reads only deniz-process. The blazing-fast-dotnet intake took one skill
     # into General as both: one more skill, and no Process model entry.
-    $want = @{ skills = 120; agents = 2; model = 22 }
+    # Since the last baseline, HEAD added two Coordination, one Aspire, ten General and one
+    # Process OpenCode skills; writing-skills also moved into the Process model-visible set.
+    # The checked-in OpenCode module directories independently total 5 + 5 + 10 + 69 + 45 = 134.
+    $want = @{ skills = 134; agents = 2; model = 23 }
     $bad = @($want.Keys | Where-Object { $got[$_] -ne $want[$_] } | ForEach-Object { "$_=$($got[$_]) want $($want[$_])" })
     if ($bad) { $bad -join "; " } else { $true }
 }
