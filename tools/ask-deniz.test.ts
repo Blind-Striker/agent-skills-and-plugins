@@ -115,3 +115,20 @@ test("ask-deniz says when to load it and keeps the .NET map out of its body", ()
   assert.doesNotMatch(text, /smallest fitting route/);
   assert.match(text, /Only when you are genuinely torn, ask once/);
 });
+
+test("ask-deniz routes Antigravity users to both coordination mechanisms", () => {
+  const { item, dotnet } = estate();
+  assert.equal(
+    item.harness_files?.["references/coordination.md"]?.antigravity,
+    "references/coordination-antigravity.md",
+  );
+  const notes = readFileSync(
+    join(root, "overlays", "deniz-process", "ask-deniz", "references", "coordination-antigravity.md"),
+    "utf8",
+  );
+  assert.match(notes, /Applies only when the `deniz-coordination` Module is installed\./);
+  assert.match(notes, /`deniz-coordination:harness`/);
+  assert.match(notes, /`\/deniz-coordination:verified-waves`/);
+  assert.match(dotnet, /`roslyn-incremental-generator-specialist`: an agent in Claude Code, OpenCode, and Antigravity/);
+  assert.match(dotnet, /`akka-net-specialist` is the Module's agent in Claude Code, OpenCode, and Antigravity/);
+});

@@ -1,16 +1,16 @@
 # ADR-0002: Harness-native output instead of a common format
 
-Date: 2026-10-08
+Date: 2026-11-20
 Status: Accepted
 
 ## Context
 
-Claude Code, OpenCode, and Codex share the `SKILL.md` convention but differ in packaging, artifact
+Claude Code, OpenCode, Codex, and Antigravity share the `SKILL.md` convention but differ in packaging, artifact
 shape, invocation controls, namespacing, and supported metadata. A common output format would either
 leak harness-specific fields or reduce the targets to their lowest common denominator.
 
-The harnesses also differ in how a user or model addresses an installed artifact. Claude Code and
-Codex address plugin content through a plugin namespace that the harness supplies. OpenCode 2
+The harnesses also differ in how a user or model addresses an installed artifact. Claude Code, Codex, and
+Antigravity address plugin content through a plugin namespace that the harness supplies. OpenCode 2
 discovers files in a flat config tree and derives each ID from the file path alone: a skill's ID is
 the name of the folder that directly holds its `SKILL.md`, and skills with the same ID replace each
 other, last source wins ([OpenCode 2 evidence](../research/opencode-2-target.md)).
@@ -25,7 +25,7 @@ emitters or a shape that fits neither line well.
 ## Decision
 
 - One neutral authored source produces separate harness-native Claude Plugin, OpenCode Bundle, and
-  Codex Plugin output. There is no common emitted format that any harness must interpret.
+  Codex Plugin, and Antigravity Plugin output. There is no common emitted format that any harness must interpret.
 - The OpenCode target is OpenCode 2 only. OpenCode 1 is not a target, and no compatibility layer
   serves it.
 - Each target receives only shapes and metadata it understands. An unrepresentable feature is
@@ -35,7 +35,7 @@ emitters or a shape that fits neither line well.
   reviewable beside the authored intent.
 - Every output tree is ready native content, not input to a runtime adapter. Installation may
   compose emitted files, but it does not reinterpret bodies, invocation, metadata, or references.
-- Every target addresses an artifact inside its Module. Claude Code and Codex supply that namespace
+- Every target addresses an artifact inside its Module. Claude Code, Codex, and Antigravity supply that namespace
   natively, so their output names stay concise and carry no Module prefix. OpenCode 2 has no
   namespace for file-discovered artifacts, so every OpenCode ID is `<plugin>.<name>`, for example
   `deniz-process.brainstorming`. The ID is the skill folder name, the command or agent file name
@@ -46,7 +46,8 @@ emitters or a shape that fits neither line well.
   dependency resolution, linking, and required-Module derivation stay keyed by bare name. Identity
   is also checked in each target's native namespace: Claude Code keeps artifact kinds apart,
   OpenCode 2 offers skills and agents in one `@` list, and Codex flattens every resolved kind to a
-  plugin-local skill and therefore rejects same-name cross-kind collisions within that plugin.
+  plugin-local skill. Antigravity flattens commands to skills and keeps native agents; collisions
+  are checked against each target’s resulting artifact paths.
 
 A common target format and runtime adaptation were rejected because both would move harness
 differences out of the emitter and either leak unsupported concepts or reduce the outputs to their
@@ -54,7 +55,7 @@ lowest common denominator. Support for OpenCode 1 beside OpenCode 2 was rejected
 reason: the two lines disagree on skill, command, and invocation shape, so a compatibility layer is
 either a second emitter or a common denominator of the two.
 
-A universal Module prefix in Claude Code and Codex output names remains rejected: it would tax every
+A universal Module prefix in Claude Code, Codex, and Antigravity output names remains rejected: it would tax every
 user-facing name with a namespace that those harnesses already supply. For OpenCode, these
 alternatives to `<plugin>.<name>` were rejected:
 

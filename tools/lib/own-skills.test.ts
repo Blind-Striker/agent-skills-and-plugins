@@ -91,7 +91,7 @@ test("an original skill authors no harness's invocation posture: the declaration
   mkdirSync(join(dir, "agents"), { recursive: true });
   writeFileSync(
     join(dir, "SKILL.md"),
-    "---\nname: posed\ndescription: d\nmetadata:\n  opencode/autoinvoke: false\n  team: docs\n---\n\nBody.\n",
+    "---\nname: posed\ndescription: d\ndisable-model-invocation: true\nmetadata:\n  opencode/autoinvoke: false\n  team: docs\n---\n\nBody.\n",
   );
   writeFileSync(join(dir, "agents", "openai.yaml"), "policy:\n  allow_implicit_invocation: false\n");
   mkdirSync(join(root, "skills", "deniz-general", "plain"), { recursive: true });
@@ -101,6 +101,7 @@ test("an original skill authors no harness's invocation posture: the declaration
   );
 
   assert.deepEqual(collectOriginalSkillProblems(root, [generalManifest(["plain", "posed"])]), [
+    "skills/deniz-general/posed/SKILL.md: disable-model-invocation is owned by original_skills.posed.invocation in curation/deniz-general.yaml — remove it",
     "skills/deniz-general/posed/SKILL.md: metadata.opencode/autoinvoke is owned by original_skills.posed.invocation in curation/deniz-general.yaml — remove it",
     "skills/deniz-general/posed/agents/openai.yaml: the Codex invocation policy is owned by original_skills.posed.invocation in curation/deniz-general.yaml — remove the file",
   ]);

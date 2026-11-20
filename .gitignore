@@ -7,6 +7,7 @@ docs/superpowers/
 experiments/**/*.txt.text
 experiments/**/.claude-home/
 experiments/**/.opencode-home/
+experiments/**/.antigravity-home/
 
 # Build output of the dispatch harness's tests. The harness itself builds into dotnet's own cache, so
 # bin/ or obj/ under skills/ is a mistake and stays visible.

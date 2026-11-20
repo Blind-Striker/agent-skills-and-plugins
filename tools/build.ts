@@ -12,6 +12,15 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, relative, sep } from "node:path";
 import { pathToFileURL } from "node:url";
+import {
+  adaptAntigravityDocument,
+  ANTIGRAVITY_CONTINUATION,
+  antigravityArtifactPath,
+  antigravityDisablesModel,
+  collectAntigravityEmissionProblems,
+  createAntigravityPluginManifest,
+  splitAntigravitySkillBody,
+} from "./lib/antigravity-plugin.ts";
 import { type AssembledItem, assembleItems, overlayBodyFile } from "./lib/assemble.ts";
 import {
   loadAttributions,
@@ -22,6 +31,7 @@ import {
 import { CLAUDE_INVOCATION_KEYS, claudeInvocation } from "./lib/claude-target.ts";
 import {
   adaptCodexSkillDocument,
+  type CodexPublisherMetadata,
   collectCodexEmissionProblems,
   createCodexMarketplace,
   createCodexPluginManifest,
@@ -39,6 +49,7 @@ import {
   type CurationManifest,
   collectCoverageProblems,
   emitsTo,
+  type Harness,
   loadManifest,
   UNKNOWN_SOURCE_RULE,
 } from "./lib/manifest.ts";
@@ -149,6 +160,11 @@ export function buildAll(root: string): string[] {
           : "";
       throw new Error(header + harnessFileProblems.join("\n"));
     }
+    const publisher = loadCodexPublisherMetadata(root);
+    const antigravityProblems = collectAntigravityEmissionProblems(manifests, assembled, publisher, rewriteMap);
+    if (antigravityProblems.length) {
+      throw new Error(`Invalid Antigravity emission, nothing deleted:\n${antigravityProblems.join("\n")}`);
+    }
     const descriptionProblems = collectDescriptionProblems(assembled, rewriteMap);
     if (descriptionProblems.length) {
       const header =
@@ -167,6 +183,11 @@ export function buildAll(root: string): string[] {
         }
         if (harness === "codex") {
           return serializeDoc(adaptCodexSkillDocument(item.outName, neutral).document);
+        }
+        if (harness === "antigravity") {
+          return serializeDoc(
+            adaptAntigravityDocument(item.outType, item.outName, neutral, item.intent.invocation).document,
+          );
         }
         return serializeDoc(
           (item.outType === "skill"
@@ -199,6 +220,27 @@ export function buildAll(root: string): string[] {
             target.outType === "skill"
               ? adaptOpenCodeSkillDocument(openCodeId(target.plugin, target.outName), neutral, target.intent.invocation)
               : undefined;
+          const antigravitySkill = target.outType !== "agent";
+          const modelReach: Record<Harness, boolean> = {
+            claude:
+              target.outType === "command" ||
+              (target.outType === "skill" && claude["disable-model-invocation"] !== true),
+            opencode: oc?.advertised === true,
+            codex: target.intent.invocation !== "manual",
+            antigravity:
+              antigravitySkill &&
+              !antigravityDisablesModel(
+                target.outType,
+                target.intent.invocation,
+                neutral.frontmatter["disable-model-invocation"],
+              ),
+          };
+          const userReach: Record<Harness, boolean> = {
+            claude: target.outType !== "skill" || claude["user-invocable"] !== false,
+            opencode: true,
+            codex: true,
+            antigravity: antigravitySkill,
+          };
           for (const harness of file.harnesses) {
             if (!emitsTo(target.intent, harness)) {
               issues.push(
@@ -206,15 +248,7 @@ export function buildAll(root: string): string[] {
               );
               continue;
             }
-            const reachable =
-              ref.kind === "model"
-                ? harness === "claude"
-                  ? target.outType === "command" ||
-                    (target.outType === "skill" && claude["disable-model-invocation"] !== true)
-                  : harness === "opencode"
-                    ? oc?.advertised === true
-                    : target.intent.invocation !== "manual"
-                : harness !== "claude" || target.outType !== "skill" || claude["user-invocable"] !== false;
+            const reachable = (ref.kind === "model" ? modelReach : userReach)[harness];
             if (!reachable) {
               issues.push(
                 `${file.path}: ${ref.kind === "model" ? "model-edge" : "pointer"} to ${ref.address}: ${harness} audience cannot reach target`,
@@ -232,6 +266,7 @@ export function buildAll(root: string): string[] {
     rmSync(join(root, "plugins"), { recursive: true, force: true });
     rmSync(join(root, "opencode"), { recursive: true, force: true });
     rmSync(join(root, "codex"), { recursive: true, force: true });
+    rmSync(join(root, "antigravity"), { recursive: true, force: true });
     // `.agents/` may later contain authored repository configuration. Remove only this generator's
     // owned file, never the broad tree.
     rmSync(join(root, ".agents", "plugins", "marketplace.json"), { force: true });
@@ -259,10 +294,13 @@ export function buildAll(root: string): string[] {
         notices.get(manifest.plugin.name) ?? [],
       );
     }
-    emitCodex(root, manifests, assembled, notices, report);
+    emitCodex(root, manifests, assembled, publisher, notices, report);
+    emitAntigravity(root, manifests, assembled, publisher, notices, report);
     rewriteTree(join(root, "plugins"), rewriteMap, "claude");
     rewriteOpenCodeTree(root, manifests, rewriteMap, openCodeSkillIds(assembled));
     rewriteTree(join(root, "codex"), rewriteMap, "codex");
+    rewriteTree(join(root, "antigravity"), rewriteMap, "antigravity");
+    finalizeAntigravitySkillBodies(root, assembled, report);
     finalizeCodexSkillMetadata(root, assembled);
     // Manifests come last so they hash the final bytes: post-rewrite, and with the manifest itself
     // excluded from the walk.
@@ -274,15 +312,30 @@ export function buildAll(root: string): string[] {
   }
 }
 
+function finalizeAntigravitySkillBodies(root: string, assembled: AssembledItem[], report: string[]): void {
+  for (const item of assembled.filter(
+    (candidate) => candidate.outType !== "agent" && emitsTo(candidate.intent, "antigravity"),
+  )) {
+    const skill = join(root, "antigravity", item.plugin, antigravityArtifactPath(item.outType, item.outName));
+    const doc = parseDoc(readFileSync(skill, "utf8"));
+    const split = splitAntigravitySkillBody(doc.body);
+    if (split) {
+      writeFileSync(skill, serializeDoc({ ...doc, body: split.body }));
+      writeFileSync(join(dirname(skill), ANTIGRAVITY_CONTINUATION), split.continuation);
+      report.push(`antigravity skill ${item.outName}: moved overflow to ${ANTIGRAVITY_CONTINUATION}`);
+    }
+  }
+}
+
 /** Emit the common assembled estate as native Codex Plugins with one flat skill namespace. */
 function emitCodex(
   root: string,
   manifests: CurationManifest[],
   assembled: AssembledItem[],
+  publisher: CodexPublisherMetadata,
   notices: Map<string, ReturnType<typeof manifestAttributions>>,
   report: string[],
 ): void {
-  const publisher = loadCodexPublisherMetadata(root);
   for (const manifest of manifests) {
     const pluginRoot = join(root, "codex", manifest.plugin.name);
     for (const item of assembled
@@ -329,6 +382,51 @@ function emitCodex(
   const marketplacePath = join(root, ".agents", "plugins", "marketplace.json");
   mkdirSync(join(root, ".agents", "plugins"), { recursive: true });
   writeFileSync(marketplacePath, serializeCodexJson(createCodexMarketplace(manifests)));
+}
+
+function emitAntigravity(
+  root: string,
+  manifests: CurationManifest[],
+  assembled: AssembledItem[],
+  publisher: CodexPublisherMetadata,
+  notices: Map<string, ReturnType<typeof manifestAttributions>>,
+  report: string[],
+): void {
+  for (const manifest of manifests) {
+    const plugin = manifest.plugin.name;
+    const pluginRoot = join(root, "antigravity", plugin);
+    const items = assembled
+      .filter((candidate) => candidate.plugin === plugin && emitsTo(candidate.intent, "antigravity"))
+      .sort((left, right) => left.outName.localeCompare(right.outName));
+    for (const item of items) {
+      const path = join(pluginRoot, antigravityArtifactPath(item.outType, item.outName));
+      const destination = dirname(path);
+      if (item.outType === "agent") {
+        mkdirSync(destination, { recursive: true });
+      } else {
+        cpSync(item.dir, destination, { recursive: true });
+        placeHarnessFiles(item.dir, destination, item.intent.harness_files, "antigravity");
+      }
+      const doc = parseDoc(readFileSync(join(item.dir, "SKILL.md"), "utf8"));
+      const adapted = adaptAntigravityDocument(item.outType, item.outName, doc, item.intent.invocation);
+      writeFileSync(path, serializeDoc(adapted.document));
+      if (adapted.dropped.length) {
+        report.push(
+          `antigravity ${item.outType} ${item.outName}: dropped frontmatter keys: ${adapted.dropped.join(", ")}`,
+        );
+      }
+      for (const transformation of adapted.transformations) {
+        report.push(`antigravity ${item.outName}: ${transformation}`);
+      }
+    }
+    writeDistributionNotices(root, pluginRoot, notices.get(plugin) ?? []);
+    writeFileSync(
+      join(pluginRoot, "plugin.json"),
+      serializeCodexJson(createAntigravityPluginManifest(manifest, publisher)),
+    );
+    const agents = items.filter((item) => item.outType === "agent").length;
+    report.push(`antigravity/${plugin}: ${items.length - agents} skills, ${agents} agents`);
+  }
 }
 
 /**
@@ -381,6 +479,12 @@ function collectDescriptionProblems(assembled: AssembledItem[], rewriteMap: Map<
     }
     if (emitsTo(item.intent, "codex")) {
       emitted.push([`codex/${item.plugin}/skills/${item.outName}/SKILL.md`, localize(neutral, rewriteMap, "codex")]);
+    }
+    if (item.outType !== "agent" && emitsTo(item.intent, "antigravity")) {
+      emitted.push([
+        `antigravity/${item.plugin}/${antigravityArtifactPath(item.outType, item.outName)}`,
+        localize(neutral, rewriteMap, "antigravity"),
+      ]);
     }
     for (const [path, text] of emitted) {
       const problem = descriptionLengthProblem(path, String(parseDoc(text).frontmatter.description ?? ""));

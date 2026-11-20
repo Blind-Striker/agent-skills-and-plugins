@@ -1,10 +1,16 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
+import {
+  adaptAntigravityDocument,
+  ANTIGRAVITY_CONTINUATION,
+  ANTIGRAVITY_CONTINUATION_LINK,
+  antigravityArtifactPath,
+} from "./antigravity-plugin.ts";
 import type { AssembledItem } from "./assemble.ts";
 import { CLAUDE_INVOCATION_KEYS } from "./claude-target.ts";
 import { adaptCodexSkillDocument, resolveCodexInvocation } from "./codex-plugin.ts";
-import { parseDoc } from "./frontmatter.ts";
+import { parseDoc, serializeDoc } from "./frontmatter.ts";
 import { mappedSources, treeMarkdown } from "./harness-files.ts";
 import {
   type ComponentType,
@@ -22,6 +28,7 @@ import {
   openCodeId,
 } from "./opencode-target.ts";
 import { listFiles } from "./overlay.ts";
+import { assembledReferenceFiles } from "./optional-refs.ts";
 import { ownSkillIdentities } from "./own-skills.ts";
 import { extractRefs, type RefKind } from "./refs.ts";
 import { declaredItems } from "./resolve.ts";
@@ -64,6 +71,14 @@ interface LedgerEntry {
   description: string;
   claude?: HarnessState;
   opencode?: OpenCodeState;
+  antigravity?: {
+    artifacts: ["agent" | "skill"];
+    identity: string;
+    advertised?: boolean;
+    edges: Record<RefKind, string[]>;
+    droppedKeys: string[];
+    transformations: string[];
+  };
   codex?: {
     artifacts: ["skill"];
     identity: string;
@@ -314,6 +329,36 @@ export function writeLedger(
             }
           : {}),
       };
+      if (emitsTo(intent, "antigravity")) {
+        const adapted = adaptAntigravityDocument(outType, outName, neutralDoc, intent.invocation);
+        const files = assembledReferenceFiles(neutral, rewriteMap, () => serializeDoc(adapted.document), [
+          "antigravity",
+        ]);
+        const edges = edgesInTexts(
+          files.map((file) => file.text),
+          ownNs,
+          self,
+        );
+        if (
+          outType !== "agent" &&
+          readFileSync(
+            join(root, "antigravity", m.plugin.name, antigravityArtifactPath(outType, outName)),
+            "utf8",
+          ).endsWith(ANTIGRAVITY_CONTINUATION_LINK)
+        ) {
+          adapted.transformations.push(`skill body overflow -> ${ANTIGRAVITY_CONTINUATION}`);
+        }
+        entry.antigravity = {
+          artifacts: [outType === "agent" ? "agent" : "skill"],
+          identity: self,
+          ...(outType === "agent"
+            ? {}
+            : { advertised: adapted.document.frontmatter["disable-model-invocation"] !== true }),
+          edges: { model: edges.model, pointer: edges.pointer.map((address) => `/${address}`) },
+          droppedKeys: adapted.dropped,
+          transformations: adapted.transformations,
+        };
+      }
       ledger[ledgerId] = entry;
     }
   }

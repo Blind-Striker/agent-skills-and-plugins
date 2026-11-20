@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-process",
-  "version": "0.15.5",
-  "digest": "sha256:7d3bb7d69641e798943b13e1ce45244f3100697d3fc6d0d2a89056c8cfed6281",
+  "version": "0.15.6",
+  "digest": "sha256:c8c8d7bbe6bb0ca62ce8bc115e9fab82b7dae939fdb54afed16523bed83de383",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -46,7 +46,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.ask-deniz/references/dotnet.md": {
-      "sha256": "sha256:df87095a8aef8e4d346a1d46924b475c45d6aa0a01e3f938ddc126764e7a7500",
+      "sha256": "sha256:a01fde2435fe467440418f06cb80d29c7a091dd6cbe9e50cff7e2c1ef61648ec",
       "mode": "100644"
     },
     "skills/deniz-process.brainstorming/SKILL.md": {
@@ -298,7 +298,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.setup-matt-pocock-skills/SKILL.md": {
-      "sha256": "sha256:c730c48eb9287919f1ac9d15383e39f454a6a3d5e8e15de8d1d330e8dc4983b3",
+      "sha256": "sha256:f69e40e2169f75a49d75eb478a2a7d45fe8a6fad4613158d24df08b87ca9b3fc",
       "mode": "100644"
     },
     "skills/deniz-process.setup-matt-pocock-skills/domain.md": {
@@ -514,7 +514,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.writing-for-agents/SKILL-MECHANICS.md": {
-      "sha256": "sha256:885d883cb0464df8d6a06bd1de654fc877826e1ed1124297a57155114370199e",
+      "sha256": "sha256:e91425b81e59fdc6a2781b7c523ce3da405fc2374bb60599f4eeb35562d5687c",
       "mode": "100644"
     },
     "skills/deniz-process.writing-for-agents/SKILL.md": {

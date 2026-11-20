@@ -1,6 +1,6 @@
 # References and linking
 
-Date: 2026-10-12
+Date: 2026-11-20
 
 ## Responsibility
 
@@ -81,9 +81,10 @@ back with the same grammar and judged by the bare name the ID carries.
   such as `skills/testing/` names nothing and stays prose.
 
 No path, whether a claim or a Markdown link, may reach the body of another skill whose Claude
-output carries `disable-model-invocation: true`: its `SKILL.md`, or its folder itself, which leads
-there. An agent is not such an item, even where Codex emits it as a skill folder. A path is a read,
-so it would let the model read a body that Claude forbids it to load. Point the human at such an
+output carries `disable-model-invocation: true`; in the Antigravity tree, the rule instead checks
+its Antigravity manual posture. The body is its `SKILL.md` or its folder, which leads there. An
+agent is not such an item, even where Codex emits it as a skill folder. A path is a read and can
+bypass the intended invocation boundary. Point the human at such an
 item with a `/ns:name` user-pointer. A path to that item's other bundled files, such as a
 `references/` note, is allowed: reading one does not invoke the skill. An item's own folder is
 exempt.
@@ -93,7 +94,7 @@ when their segment names an emitted skill: `../<name>/` becomes `../<plugin>.<na
 `skills/<name>/` becomes `skills/<plugin>.<name>/`, using the target item's own Module, in every
 bundled text file of a skill folder. A file is rewritten only when its bytes change, and its
 executable mode carries through. The respelled path addresses the installed layout, in which every
-Module's skills share one `skills/` directory. Claude Code and Codex keep the bare folder name,
+Module's skills share one `skills/` directory. Claude Code, Codex, and Antigravity keep the bare folder name,
 which is their folder name. The linker then checks the respelled path like any other. These checks
 are the relative-path rules (L8, R1, R2, and the path-claim rule P) in
 [`validateRepo`](../../tools/validate.ts); a landing climb inside a Markdown link is judged once, by
@@ -161,6 +162,7 @@ Each harness renders the same neutral fact in its own spelling:
 | Claude Code | `<plugin>:<output-name>` | `/<plugin>:<output-name>` |
 | OpenCode | `<plugin>.<output-name>` | `@<plugin>.<output-name>` for a skill or agent target; `/<plugin>.<output-name>` for a command target |
 | Codex | `$<plugin>:<output-name>` | `$<plugin>:<output-name>` |
+| Antigravity | `<plugin>:<output-name>` | `/<plugin>:<output-name>` |
 
 OpenCode attaches skills and agents with `@` and runs only commands with `/`, so the pointer's
 neutral leading slash becomes the prefix that matches the target's kind. Codex rendering consumes a
@@ -170,7 +172,7 @@ semantic facts even though their final spelling converges. The map and in-place 
 fact, and a rendered skill description must still fit the shared 1,024-character limit
 ([Description length](transformation-and-emission.md#description-length)).
 
-All three trees are rewritten from their own pre-localized copies. OpenCode and Codex are not
+All four trees are rewritten from their own pre-localized copies. OpenCode, Codex, and Antigravity are not
 produced by adapting already localized Claude text. Codex output is rejected when it holds a
 dangling, unrendered, or `/$` reference; the OpenCode checks follow.
 
@@ -182,22 +184,24 @@ last item; the warning is not a proof that the ambiguity is harmless.
 
 Three phrasings name a harness tool, so localization renders each as a unit around its neutral
 facts, before the facts themselves are rendered: the skill-tool call, the subagent-dispatch words,
-and, in OpenCode alone, a phrase that names a todo. Authors write upstream's Claude
+and, in OpenCode and Antigravity, a phrase that names a todo. Authors write upstream's Claude
 Code wording, and the Claude Code rendering is identity. Every other sentence is left as written. The renderer and its
 closed tables are `localize` in [`tools/lib/rewrite.ts`](../../tools/lib/rewrite.ts); the skill-tool
 call grammar is the template in [Handoff templates](#handoff-templates). Phrasing is rendered in
 Markdown files only.
 
 The skill-tool call keeps its verb in Claude Code and OpenCode. Codex maps `Call`, `call`, `calls`,
-and `calling` to `Invoke`, `invoke`, `invokes`, and `invoking`. Shown after fact rendering:
+and `calling` to `Invoke`, `invoke`, `invokes`, and `invoking`; Antigravity uses the same verbs
+with its own reference spelling. Shown after fact rendering:
 
-| Form | Claude Code | OpenCode 2 | Codex |
-|---|---|---|---|
-| with | `Call the Skill tool with "deniz-process:grilling"` | ``Call the `skill` tool with "deniz-process.grilling"`` | ``Invoke `$deniz-process:grilling` `` |
-| twice | `call the Skill tool twice, for "deniz-process:grilling" and "deniz-process:domain-modeling"` | ``call the `skill` tool twice, for "deniz-process.grilling" and "deniz-process.domain-modeling"`` | ``invoke `$deniz-process:grilling` and `$deniz-process:domain-modeling` `` |
-| generic | `call the Skill tool for` | ``call the `skill` tool for`` | `invoke` |
+| Form | Claude Code | OpenCode 2 | Codex | Antigravity |
+|---|---|---|---|---|
+| with | `Call the Skill tool with "deniz-process:grilling"` | ``Call the `skill` tool with "deniz-process.grilling"`` | ``Invoke `$deniz-process:grilling` `` | ``Invoke `deniz-process:grilling` `` |
+| twice | `call the Skill tool twice, for "deniz-process:grilling" and "deniz-process:domain-modeling"` | ``call the `skill` tool twice, for "deniz-process.grilling" and "deniz-process.domain-modeling"`` | ``invoke `$deniz-process:grilling` and `$deniz-process:domain-modeling` `` | ``invoke `deniz-process:grilling` and `deniz-process:domain-modeling` `` |
+| generic | `call the Skill tool for` | ``call the `skill` tool for`` | `invoke` | `invoke` |
 
-Subagent dispatch words are a closed table, matched exactly:
+Subagent dispatch words are a closed table, matched exactly. Antigravity uses the same
+tool-free dispatch wording as Codex:
 
 | Claude Code (upstream) | OpenCode 2 | Codex |
 |---|---|---|
@@ -207,7 +211,7 @@ Subagent dispatch words are a closed table, matched exactly:
 | `` `Agent` call `` or `` `Agent` calls `` | `` `subagent` call `` or `` `subagent` calls `` | `subagent call` or `subagent calls` |
 
 So "Dispatch a fresh general-purpose subagent" reads "Dispatch a fresh `general` subagent" in
-OpenCode and "Dispatch a fresh subagent" in Codex. The same words anywhere inside an inline code
+OpenCode and "Dispatch a fresh subagent" in Codex and Antigravity. The same words anywhere inside an inline code
 span, as in `` `dispatch a general-purpose subagent` ``, are left alone in every harness, because a
 backtick inserted there would break the span; the vocabulary check rejects them instead. A span is
 found as CommonMark finds it: a run of backticks closed by the next run of the same length within
@@ -227,17 +231,20 @@ for messaging, waiting on, and closing a child differ between the V1 and V2 mult
 model preset selects (`codex-rs/core/src/tools/spec_plan.rs`). The Codex rendering names no tool and
 no agent type; `using-superpowers`' Codex tool notes name the tools.
 
+Antigravity has neither a skill tool nor a todo tool; its observed native subagent tools and the
+version-bounded evidence are in the [Antigravity research](../research/antigravity-native-plugin-and-skill-surfaces.md).
+
 OpenCode 2 has no todo tool: its pull request `anomalyco/opencode#35989` removed OpenCode 1's
 `todowrite` with no replacement, and its built-in Plan agent is a read-only mode, not a tracker.
-Upstream superpowers' own OpenCode plugin tracks the plan in a Markdown file instead. OpenCode
-therefore renders each todo phrase as Markdown-checklist wording, from a closed table matched
+Upstream superpowers' own OpenCode plugin tracks the plan in a Markdown file instead. OpenCode and Antigravity
+therefore render each todo phrase as Markdown-checklist wording, from a closed table matched
 exactly, outside inline code spans; Claude Code and Codex keep upstream's words. A skill that keeps
 a ledger, `executing-plans` and `subagent-driven-development`, keeps the checklist there. Setup runs
 again on a resume, so it adds the checklist only when the ledger has none yet, and a task's line
 stays unticked until the task is recorded, because a checkbox has no in-progress state. Every other
 skill keeps a visible Markdown checklist and ticks each line as it is done:
 
-| Claude Code and Codex (upstream) | OpenCode 2 |
+| Claude Code and Codex (upstream) | OpenCode 2 and Antigravity |
 |---|---|
 | `create a todo per task` | `add a Markdown checklist with one line per task to the ledger, unless the ledger already has one` |
 | `[Create todos for all tasks]` | `[Add a checklist of all tasks to the ledger]` |
@@ -297,9 +304,8 @@ skills.
 
 ## Harness vocabulary check
 
-`validate` rejects each harness's tool vocabulary in every Markdown file under the other two
-harnesses' trees: Claude Code's words under `opencode/` and `codex/`, OpenCode's under `plugins/`
-and `codex/`, and Codex's under `plugins/` and `opencode/`. The three word sets are:
+`validate` rejects each harness's exclusive tool vocabulary in Markdown under the other harnesses'
+trees. The four word sets are:
 
 - **Claude Code.** `skill tool` in any letter case, `Subagent (general-purpose)`,
   `` `general-purpose` ``, `general-purpose` followed by whitespace and `agent` or `subagent`, with
@@ -312,22 +318,25 @@ and `codex/`, and Codex's under `plugins/` and `opencode/`. The three word sets 
   backticks, and `subagent_depth`, its depth setting. The Codex rendering's unbackticked
   `subagent call` does not match.
 - **Codex.** The multi-agent tools of V1 and V2 alike: `spawn_agent`, `wait_agent`, `close_agent`,
-  `send_input`, `resume_agent`, `followup_task`, `send_message`, `list_agents`, and
-  `interrupt_agent`.
+  `send_input`, `resume_agent`, `followup_task`, `list_agents`, and `interrupt_agent`.
+- **Antigravity.** `invoke_subagent`, `define_subagent`, `manage_subagents`, and `manage_task`.
+
+`send_message` is shared by Codex and Antigravity, and is rejected in Claude Code and OpenCode
+output only.
 
 The check reads code spans too, so it rejects the words the phrasing leaves whole there, and a code
 sample that uses one of these identifiers fails until review resolves it. The patterns sit beside
 the phrasing tables in [`tools/lib/rewrite.ts`](../../tools/lib/rewrite.ts)
 (`HARNESS_ONLY_VOCABULARY`), and every harness's rendering in those tables must be free of the other
-two harnesses' words.
+harnesses' exclusive words.
 
 Each word set has its own remedy. The phrasing tables render Claude Code's dispatch words, so a new
 upstream phrasing fails the build instead of reaching a harness that has no such tool; the fix is a
-curated rewording or a new table row. No table renders an OpenCode or Codex tool word, so its fix
+curated rewording or a new table row. No table renders an OpenCode, Codex, or Antigravity tool word, so its fix
 is to move the sentence into the item's [`harness_files`](../../curation/SCHEMA.md#harness_files)
 notes for that harness, which only that harness's tree ships.
 
-Every Markdown file under `opencode/` is also checked for a todo word: `todo` or `todos`, written
+Every Markdown file under `opencode/` and `antigravity/` is also checked for a todo word: `todo` or `todos`, written
 joined or with any hyphen or dash between `to` and `do` (`to-do`, `to‑do`, `to–do`), and the names of
 OpenCode 1's removed todo tools, `todowrite` and `todoread`, in any letter case and not inside a
 longer word (`openCodeTodoWords`). OpenCode 2 has neither tool, so a body that names one in prose
@@ -340,9 +349,10 @@ ends with its container and a fence that never closes runs to the end of the fil
 blocks; and HTML `<code>` elements. A URL with a scheme, such as `https://example.com/to-do`, is
 skipped whole. The all-caps `TODO` marker follows the same rule: written as code, as in
 ``insert a `// TODO: guard` comment``, it is code, while "Create a TODO per step" in prose fails.
-Other bundled files are code and are not read. One file is exempt: `using-superpowers`'
-OpenCode tool notes, `references/harness-tools.md`, which must name the todo tool OpenCode 2 removed
-(`OPENCODE_TODO_NOTES`). Every OpenCode rendering in the todo table must pass the check, so a todo
+Other bundled files are code and are not read. The `using-superpowers` tool notes
+`references/harness-tools.md` are exempt in each of those trees (`OPENCODE_TODO_NOTES` and
+`ANTIGRAVITY_TODO_NOTES`). Every OpenCode and Antigravity rendering in the todo table must pass the
+check, so a todo
 phrase no row renders fails instead of shipping. Codex keeps upstream's todo words and is not
 checked.
 
@@ -351,7 +361,7 @@ checked.
 `depends_on` is the manifest-side declaration of mandatory model-edge facts only. It contains resolved output
 names, while bodies keep neutral namespaced addresses. The linker derives model targets from all
 Markdown that each non-excluded manifest item and each declared original skill ships in any of the
-three trees, read in the Claude tree's spelling before rendering, and enforces exact agreement in
+four trees, read in the Claude tree's spelling before rendering, and enforces exact agreement in
 both directions: a mandatory model fact no declaration names and a declaration no tree's fact names are both errors.
 A model fact that names the item itself, such as the "Part of" line that opens an upstream reference
 file with the item's own namespaced address, is no dependency and no model-edge: the linker derives no target from
@@ -379,7 +389,9 @@ invocation flags and artifact posture. OpenCode model reachability comes from an
 one without the `opencode/autoinvoke: false` hiding key; OpenCode user reachability comes from any
 skill or agent, which the user attaches with `@`, or a command, which the user runs with `/`. Codex
 emits every item as a skill: the model reaches it unless its `agents/openai.yaml` sets
-`allow_implicit_invocation: false`, and explicit invocation remains available for every skill. This
+`allow_implicit_invocation: false`, and explicit invocation remains available for every skill.
+Antigravity skill reachability is user-available when the skill exists and model-available unless
+`disable-model-invocation: true` is present. A native agent is not a skill target for this check. This
 is a generated-estate link, not a runtime call graph (the reference-linking section of
 [`validateRepo`](../../tools/validate.ts)).
 
@@ -405,7 +417,7 @@ namespace ownership, and audience requirements, and do not bypass path or dangli
 `buildAll` checks prospective assembled and harness-adapted Markdown, with `treeMarkdown` selecting
 each `harness_files` variant, before any output deletion; no old generated file is preflight truth.
 `validateRepo` independently checks canonical current facts, their effective audiences, and guards
-in each native emitted tree. Shared files check all three audiences and harness-only files only
+in each native emitted tree. Shared files check all four audiences and harness-only files only
 their own. Code and quoted guard/heading imitations establish no scope; frontmatter is outside every
 section. The guard is a runtime condition in shipped instructions, not installer feature detection
 or a guarantee that a model obeys it.
@@ -418,7 +430,7 @@ in the committed [records](../../experiments/harness-invocation/records/README.m
 
 ## Ledger semantics
 
-`docs/ledger.json` is regenerated after all three trees have their final reference spelling. Each
+`docs/ledger.json` is regenerated after all four trees have their final reference spelling. Each
 non-excluded manifest item and each original skill declared under `original_skills` has one key
 shaped `<plugin>/<resolved-output-kind>/<output-name>`; an original skill's key is
 `<plugin>/skill/<directory>`. The key keeps the bare output name; the OpenCode ID is not part of
@@ -435,14 +447,16 @@ respelled from the known neutral facts rather than rediscovered from final text.
 `harness_files` also records that mapping, and each tree's edges come from the Markdown that tree
 ships: the shared files plus its own harness's sources, read in their neutral form from the
 assembly. An item narrowed by `harnesses` records its sorted tree list and has no `claude`,
-`opencode`, or `codex` object for a tree that does not ship it; when the Claude tree is one of
+`opencode`, `codex`, or `antigravity` object for a tree that does not ship it; when the Claude tree is one of
 those, its description and shared Markdown are read from the assembly in Claude spelling. An
 original skill's entry records its `skills/<plugin>/<directory>` source followed by
 `original: true`, a marker no curated entry carries, and has no body mode or merge sources; its
 invocation, dependencies, optional references, and harness files come from its declaration. Optional
 facts remain recorded separately in the ordinary model/pointer edge projections; the declaration
-does not erase an edge or add an install dependency. A converted command or agent's bundled Markdown
-ships only in Codex, so its facts enter only Codex's edge projection and audience checks.
+does not erase an edge or add an install dependency. A converted command or agent's bundled Markdown ships in Codex; a command's bundled Markdown also
+ships in Antigravity. Its Antigravity projection records artifact kind, identity, skill advertisement,
+model and pointer edges, dropped keys, and command or continuation transformations. Native agent
+projection has no skill advertisement field.
 
 The ledger is deterministic but intentionally incomplete. It does not serialize complete emitted
 files, path-tier findings, candidates, overlay stamp filenames, or Module install dependencies.
@@ -451,7 +465,7 @@ Bundle integrity and installation state have their own manifests and are owned b
 
 ## Proof boundary and current limits
 
-- `validate` links the complete generated Claude Plugin, Codex Plugin, and OpenCode Module estate.
+- `validate` links the complete generated Claude Plugin, Codex Plugin, Antigravity Plugin, and OpenCode Module estate.
   An installer Selection is a later, independent boundary. Full-estate linking does not prove that
   every subset is a valid Selection or
   that selected Bundles are item/API compatible. The installer separately presence-checks recorded

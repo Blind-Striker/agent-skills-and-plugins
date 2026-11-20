@@ -1,6 +1,6 @@
 # ADR-0005: The manifest states invocation intent; each emitter picks the mechanism
 
-Date: 2026-10-08
+Date: 2026-11-20
 Status: Accepted
 
 ## Context
@@ -8,7 +8,8 @@ Status: Accepted
 A curated skill may be passive knowledge the model selects or a ceremony the user starts
 deliberately. Claude Code expresses that distinction with skill frontmatter. OpenCode 2 can withhold
 a skill from the list it offers the model while the user can still attach it, and Codex skills can
-disable implicit selection while remaining explicitly addressable. The manifest needs one
+disable implicit selection while remaining explicitly addressable. Antigravity can hide a skill
+from the model list while retaining explicit slash invocation. The manifest needs one
 harness-neutral statement of required and forbidden initiation capabilities rather than
 target-specific keys or a promise that every harness exposes the same surface.
 
@@ -36,13 +37,15 @@ must not offer the item for implicit model selection and must provide an explici
 requires both paths. A capability marked unspecified may remain available when that is the target's
 native artifact surface.
 
-On Codex and OpenCode 2, `manual` means the same thing: the item is **not offered to the model** for
+On Codex, OpenCode 2, and Antigravity, `manual` means: the item is **not offered to the model** for
 implicit selection, and the user invokes it explicitly. Codex sets `allow_implicit_invocation:
 false`; OpenCode 2 keeps the item one skill, its native setting keeps it out of the skill list the
 model is offered, and the user attaches it. If the model learns the ID some other way, the OpenCode
 skill tool can still load it; a measured OpenCode 2 panel observed all three behaviors
 ([record](../../experiments/harness-invocation/records/2026-10-09-opencode2-manual-skill.md)).
-Claude Code is stricter: `disable-model-invocation` blocks model invocation. Each harness's
+Antigravity uses `disable-model-invocation: true`; its observed boundary is hiding and explicit
+invocation, not a general prohibition on model reads. Claude Code is stricter:
+`disable-model-invocation` blocks model invocation. Each harness's
 native meaning is accepted as it is, so shipped text may name a `manual` item's ID, for example to
 point the user at it. `auto` and `both` both emit one advertised skill that the user can also
 attach; `both` adds no separate command.
@@ -86,7 +89,7 @@ could also remove the explicit path `manual` requires.
   default after unsupported metadata is dropped and reported. These are emitter limits, not a reason
   to make absence a hidden default.
 - `both` produces one skill on every harness. `auto` and `both` produce the same physical artifact
-  on OpenCode 2 and Codex, whose native skills are always explicitly addressable. The result still
+  on OpenCode 2, Codex, and Antigravity, whose native skills are explicitly addressable. The result still
   satisfies both declarations because `auto` leaves that capability unspecified; target projections
   must show the resolved surface rather than imply a universal model-only guarantee.
 - On Codex and OpenCode, `manual` withholds the item from implicit selection, and nothing
@@ -102,7 +105,7 @@ could also remove the explicit path `manual` requires.
   items that choose `as: command`. An item whose ceremony depends on command arguments loses that
   argument surface while it stays a skill; whether `as: command` is worth its cost is a per-item
   curation decision.
-- One assembled body currently feeds all three harnesses; the overlay mechanism has no per-harness body
+- One assembled body currently feeds all four harnesses; the overlay mechanism has no per-harness body
   ownership, and `harness_files` only selects whole assembled files per harness at one path. That
   capability limit can make target-specific prose or paths costly, and remains visible rather than
   narrowing the accepted neutral intent.

@@ -2,8 +2,22 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
+import { loadManifest } from "./lib/manifest.ts";
 
 const skillDir = join(import.meta.dirname, "..", "skills", "deniz-coordination", "verified-waves");
+
+test("verified-waves tracks Antigravity children by completion message", () => {
+  const manifest = loadManifest(join(import.meta.dirname, "..", "curation", "deniz-coordination.yaml"));
+  const waves = manifest.original_skills?.["verified-waves"];
+  assert.equal(waves?.invocation, "manual");
+  assert.ok(waves.harnesses?.includes("antigravity"));
+  assert.equal(waves.harness_files?.["references/harness-tools.md"]?.antigravity, "references/antigravity-tools.md");
+  const notes = readFileSync(join(skillDir, "references", "antigravity-tools.md"), "utf8");
+  assert.match(notes, /`invoke_subagent`.*`TypeName`\s+to `self`.*`research`/);
+  assert.match(notes, /`model: "inherit"`/);
+  assert.match(notes, /completion\s+message wakes you/);
+  assert.match(notes, /avoid polling loops/);
+});
 
 function between(text: string, start: string, end: string): string {
   const from = text.indexOf(start);

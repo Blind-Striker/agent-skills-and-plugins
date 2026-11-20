@@ -74,7 +74,7 @@ Let them edit before writing.
 
 ### 4. Write
 
-**Write the block to `AGENTS.md`**, creating it if missing: OpenCode and Codex read `AGENTS.md` and never `CLAUDE.md`, and Claude Code reads it through an `@AGENTS.md` line in `CLAUDE.md`. If an `## Agent skills` block already exists in `AGENTS.md`, update its contents in-place rather than appending a duplicate. Don't overwrite user edits to the surrounding sections.
+**Write the block to `AGENTS.md`**, creating it if missing. OpenCode and Codex read `AGENTS.md` directly. Antigravity reads `AGENTS.md` and `GEMINI.md`. Claude Code reads `AGENTS.md` through an `@AGENTS.md` line in `CLAUDE.md`. If an `## Agent skills` block already exists in `AGENTS.md`, update its contents in-place rather than appending a duplicate. Don't overwrite user edits to the surrounding sections.
 
 If the user approved the `@AGENTS.md` line, add it to `CLAUDE.md` on a line of its own, creating `CLAUDE.md` when none exists.
 

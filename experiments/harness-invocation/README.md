@@ -22,6 +22,12 @@ placed in the isolated Codex home or supplied through `OPENAI_API_KEY`. Behaviou
 bundled-reference loading, uninstalled-plugin isolation, and generated-plugin execution under the
 full catalog.
 
+The Antigravity leg uses `antigravity-matrix.ps1`. Its default structural mode validates the
+fixture and five generated plugins without changing the profile. The opt-in behavioral mode runs
+model probes and temporarily replaces the real `~/.gemini/config/plugins.json`: `agy 1.5.13`
+ignores `GEMINI_HOME`. The runner restores its exact bytes or prior absence in `finally`; see the
+[protocol](protocol.md#antigravity-plugin-discovery-and-invocation) before running it.
+
 The OpenCode leg targets OpenCode 2 only. `oc2-discovery.ps1` starts an isolated `opencode serve`
 (every root, including `OPENCODE_CONFIG_DIR`, below the lab; project walk and managed background
 service off) and reports registered skills, commands, and agents with no model call. The OpenCode 1

@@ -268,7 +268,9 @@ test("harness-only optional files check only their effective audience and never 
       remote.invocation = "auto";
     });
     const body = guarded.replace("Use deniz-general:remote", "Use /deniz-general:remote");
-    const mapping = { "references/notes.md": { claude: null, opencode: null, codex: "references/codex.md" } };
+    const mapping = {
+      "references/notes.md": { claude: null, opencode: null, antigravity: null, codex: "references/codex.md" },
+    };
     let source: string;
     if (original) {
       addOriginalSkill(root, "router", {
@@ -294,14 +296,14 @@ test("harness-only optional files check only their effective audience and never 
   }
 });
 
-test("validateRepo checks optional guards in current native OpenCode and Codex output too", () => {
-  for (const harness of ["opencode", "codex"] as const) {
+test("validateRepo checks optional guards in native OpenCode, Codex, and Antigravity output", () => {
+  for (const harness of ["opencode", "codex", "antigravity"] as const) {
     const root = optionalRepo(guarded);
     buildAll(root);
     const path =
       harness === "opencode"
         ? opencodeIdPath(root, "deniz-process", "skill", "alpha", "SKILL.md")
-        : join(root, "codex", "deniz-process", "skills", "alpha", "SKILL.md");
+        : join(root, harness, "deniz-process", "skills", "alpha", "SKILL.md");
     writeFileSync(
       path,
       readFileSync(path, "utf8").replace("Applies only when the `deniz-general` Module is installed.", "Always."),
@@ -382,7 +384,9 @@ test("unshipped Markdown variants cannot satisfy an optional declaration", () =>
   changeManifest(root, "deniz-process", (manifest) => {
     const item = manifest.items[0];
     assert.ok(item);
-    item.harness_files = { "references/literal.txt": { claude: null, opencode: null, codex: "references/variant.md" } };
+    item.harness_files = {
+      "references/literal.txt": { claude: null, opencode: null, antigravity: null, codex: "references/variant.md" },
+    };
   });
   assert.throws(() => buildAll(root), /stale optional_refs: remote/);
 });

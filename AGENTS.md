@@ -8,8 +8,8 @@ below. Current state and next steps live in `docs/ROADMAP.md`.
 
 Personal multi-harness skill/plugin marketplace. Upstream repos are vendored as git submodules in
 `external/`; `curation/*.yaml` decides what is packaged into the `deniz-*` Claude Code plugins
-(`plugins/`), same-named OpenCode Module Bundles (`opencode/`), and same-named Codex Plugins
-(`codex/`).
+(`plugins/`), same-named OpenCode Module Bundles (`opencode/`), Codex Plugins (`codex/`), and
+Antigravity Plugins (`antigravity/`).
 
 Selection is the cheapest thing here; the product is **transformation and control**, not fidelity to
 upstream. Each item is resolved per harness for trigger, artifact shape, and target fit. Source kind
@@ -19,7 +19,7 @@ curator's working style, and heavy modification is a normal outcome
 [ADR-0007](docs/adr/0007-control-beats-fidelity.md)).
 
 The product crosses three phases: **compile-time transformation** into separate harness-native
-Claude Plugin, OpenCode Bundle, and Codex Plugin output, **install-time byte-preserving composition**
+Claude Plugin, OpenCode Bundle, Codex Plugin, and Antigravity Plugin output, **install-time byte-preserving composition**
 of selected OpenCode Bundles or native marketplace installation of Plugins, and
 **skill runtime** after a harness discovers or invokes an artifact. Compilation must make runtime
 needs resolve where the artifact lands, but curation changes upstream runtime behavior only when it
@@ -27,7 +27,7 @@ contradicts recorded item intent; it never re-solves a runtime problem upstream 
 
 ## Always-on rules
 
-- Never hand-edit `external/`, `plugins/`, `opencode/`, `codex/`, `dist/`,
+- Never hand-edit `external/`, `plugins/`, `opencode/`, `codex/`, `antigravity/`, `dist/`,
   `.claude-plugin/marketplace.json`, `.agents/plugins/marketplace.json`, `docs/inventory.md`, or
   `docs/ledger.json`. `external/` is read-only upstream evidence; the others are generated,
   committed review surfaces.

@@ -38,7 +38,7 @@ bold pointers are user-started ceremonies, while the reference skills support au
 | LLM change guardrail | `dotnet-skills:slopwatch` runs after .NET code changes. Baseline/tool installation still needs the skill's own approval; the audit does not authorize approving its own baseline. `deniz-dotnet-general:dotnet-walls` supplies pinned, ephemeral analyzer, format and clone gates for a worker's verify step in a repository without its own. |
 
 For delegated Roslyn incremental-generator diagnosis/design, the Module also supplies
-`roslyn-incremental-generator-specialist`: an agent in Claude Code/OpenCode, a skill in Codex.
+`roslyn-incremental-generator-specialist`: an agent in Claude Code, OpenCode, and Antigravity. In Codex, it is a skill.
 Use the specialist surface the harness actually offers, not a fabricated slash command.
 
 ## Aspire work
@@ -66,5 +66,5 @@ Applies only when the `deniz-dotnet-akka` Module is installed.
 `dotnet-skills:akka-management` covers discovery/bootstrap/health;
 `dotnet-skills:akka-testing-patterns` covers actor tests; and
 `dotnet-skills:akka-aspire-configuration` owns the Akka/Aspire cookbook. For delegated diagnosis,
-`akka-net-specialist` is the Module's agent in Claude Code/OpenCode and a skill in Codex: use the
+`akka-net-specialist` is the Module's agent in Claude Code, OpenCode, and Antigravity. In Codex, it is a skill. Use the
 actual specialist surface rather than a fake slash command.

@@ -12,6 +12,7 @@ import { scanRefs } from "./lib/refs.ts";
 import {
   addOriginalHarnessNotes,
   addOriginalSkill,
+  antigravityPluginPath,
   codexPluginPath,
   makeHarnessFilesRepo,
   makeRepo,
@@ -1144,7 +1145,7 @@ test("a relative path into a sibling item that no longer has the file is an erro
   buildAll(root);
   // OpenCode respells the climb onto the ID folder (../deniz-process.beta/...), so match the tail.
   const hits = validateRepo(root).filter((f) => f.level === "error" && f.message.includes("beta/references/notes.md"));
-  assert.equal(hits.length, 3, `all three trees, once each — ${JSON.stringify(hits, null, 2)}`);
+  assert.equal(hits.length, 4, `all four trees, once each — ${JSON.stringify(hits, null, 2)}`);
 });
 
 // R2 (L8): the noise this rule exists to not make. Upstream bodies are full of illustrative paths
@@ -1172,8 +1173,8 @@ test("a link to a file the build dropped is an error; a path upstream never had 
   const findings = validateRepo(root);
   assert.equal(
     findings.filter((f) => f.level === "error" && f.message.includes("references/notes.md")).length,
-    3,
-    `dropped by omit, in all three trees — ${JSON.stringify(findings, null, 2)}`,
+    4,
+    `dropped by omit, in all four trees — ${JSON.stringify(findings, null, 2)}`,
   );
   for (const quiet of ["FORMS.md", "GLOSSARY.md"]) {
     assert.equal(
@@ -1488,8 +1489,8 @@ test("H1: a skill-tool handle must be a namespaced fact; stray skill-tool prose 
   );
   assert.equal(
     stray.filter((m) => m.includes('Claude-only vocabulary "Skill tool"')).length,
-    2,
-    "opencode/ and codex/",
+    3,
+    "opencode/, codex/, and antigravity/",
   );
 });
 
@@ -1548,7 +1549,7 @@ test("V: a general-purpose subagent inside a code span ships whole and is reject
   assert.ok(!errors.some((m) => m.includes("`general` subagent")), errors.join("\n"));
 });
 
-test("V: OpenCode renders a known todo phrase and rejects any other todo word outside code", () => {
+test("V: OpenCode and Antigravity render known todo phrases and reject other todo words outside code", () => {
   const errors = ocErrors(
     [
       "Create a todo per step.",
@@ -1564,9 +1565,22 @@ test("V: OpenCode renders a known todo phrase and rejects any other todo word ou
     ["  - source: sp/skills/alpha"],
   );
   const todo = errors.filter((m) => m.includes("todo word"));
-  const message = (line: number, word: string): string =>
-    `opencode/deniz-process/skills/deniz-process.alpha/SKILL.md:${line}: todo word "${word}" outside code in opencode/ — OpenCode 2 has no todo tool: reword it, write a code marker as code, or add a row to the OpenCode todo table (references-and-linking.md Harness phrasing)`;
-  assert.deepEqual(todo, [message(8, "todo"), message(8, "to-do"), message(10, "TODO")], errors.join("\n"));
+  for (const [tree, skill] of [
+    ["opencode", "deniz-process.alpha"],
+    ["antigravity", "alpha"],
+  ] as const) {
+    const prefix = `${tree}/deniz-process/skills/${skill}/SKILL.md:`;
+    const relevant = todo.filter((message) => message.startsWith(prefix));
+    assert.deepEqual(
+      relevant.map((message) => message.slice(prefix.length).split(" — ")[0]),
+      [
+        `8: todo word "todo" outside code in ${tree}/`,
+        `8: todo word "to-do" outside code in ${tree}/`,
+        `10: todo word "TODO" outside code in ${tree}/`,
+      ],
+      errors.join("\n"),
+    );
+  }
   assert.ok(!errors.some((m) => m.includes("codex/") && m.includes("todo")), "Codex keeps upstream's todo words");
   const root = makeRepo();
   writeFileSync(
@@ -1584,9 +1598,13 @@ test("V: OpenCode renders a known todo phrase and rejects any other todo word ou
     "Keep a visible Markdown checklist with one line per step, and tick each line as it is done.",
   );
   assert.equal(line(codexPluginPath(root, "deniz-process", "skills", "delta", "SKILL.md")), "Create a todo per step.");
+  assert.equal(
+    line(antigravityPluginPath(root, "deniz-process", "skills", "delta", "SKILL.md")),
+    "Keep a visible Markdown checklist with one line per step, and tick each line as it is done.",
+  );
 });
 
-test("V: only using-superpowers' OpenCode tool notes may name the removed todo tool", () => {
+test("V: the using-superpowers OpenCode and Antigravity tool notes can name the lack of a todo tool", () => {
   const root = makeRepo();
   const notes = "# OpenCode notes\n\nOpenCode 2 has no todo tool. The OpenCode 1 `todowrite` tool was removed.\n";
   const skill = join(root, "external", "sp", "skills", "using-superpowers");
@@ -1600,22 +1618,85 @@ test("V: only using-superpowers' OpenCode tool notes may name the removed todo t
   const todo = validateRepo(root)
     .filter((f) => f.level === "error" && f.message.includes("todo word"))
     .map((f) => f.message.slice(0, f.message.indexOf(":", f.message.indexOf(".md"))));
-  assert.deepEqual(todo, ["opencode/deniz-process/skills/deniz-process.delta/references/notes.md"]);
+  assert.deepEqual(todo, [
+    "opencode/deniz-process/skills/deniz-process.delta/references/notes.md",
+    "antigravity/deniz-process/skills/delta/references/notes.md",
+  ]);
 });
 
 /** ocErrors for alpha with `line` appended to its emitted SKILL.md in each named tree. */
-function vocabularyErrors(line: string, trees: readonly ("plugins" | "opencode" | "codex")[]): string[] {
+function vocabularyErrors(
+  line: string,
+  trees: readonly ("plugins" | "opencode" | "codex" | "antigravity")[],
+): string[] {
   return ocErrors("Body.", ["  - source: sp/skills/alpha"], (root) => {
     const files = {
       plugins: join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"),
       opencode: opencodeIdPath(root, "deniz-process", "skill", "alpha", "SKILL.md"),
       codex: codexPluginPath(root, "deniz-process", "skills", "alpha", "SKILL.md"),
+      antigravity: antigravityPluginPath(root, "deniz-process", "skills", "alpha", "SKILL.md"),
     };
     for (const tree of trees) {
       writeFileSync(files[tree], `${readFileSync(files[tree], "utf8")}\n${line}\n`);
     }
   });
 }
+
+test("V: Antigravity tools and shared send_message are restricted to their native trees", () => {
+  const errors = vocabularyErrors("Call invoke_subagent and send_message.", [
+    "plugins",
+    "opencode",
+    "codex",
+    "antigravity",
+  ]);
+  for (const tree of ["plugins", "opencode", "codex"]) {
+    assert.ok(errors.some((message) => message.includes(`Antigravity-only vocabulary "invoke_subagent" in ${tree}/`)));
+  }
+  for (const tree of ["plugins", "opencode"]) {
+    assert.ok(
+      errors.some((message) => message.includes(`Codex and Antigravity vocabulary "send_message" in ${tree}/`)),
+    );
+  }
+  assert.ok(
+    !errors.some(
+      (message) => /vocabulary .* in (?:antigravity|codex)\//.test(message) && message.includes('"send_message"'),
+    ),
+  );
+});
+
+test("V: Antigravity rejects prose about a todo outside its tool notes", () => {
+  const errors = vocabularyErrors("Use a todo.", ["antigravity"]);
+  assert.ok(errors.some((message) => message.includes('todo word "todo" outside code in antigravity/')));
+});
+
+test("Antigravity integrity reports manifest, invocation, agent, and attribution drift", () => {
+  const root = makeRepo();
+  buildAll(root);
+  const plugin = antigravityPluginPath(root, "deniz-process");
+  const mutate = (path: string, transform: (text: string) => string): void => {
+    const file = join(plugin, path);
+    writeFileSync(file, transform(readFileSync(file, "utf8")));
+  };
+  mutate("plugin.json", (text) => text.replace('"keywords":', '"unexpected": true, "keywords":'));
+  mutate("skills/deniz-beta/SKILL.md", (text) =>
+    text.replace("disable-model-invocation: true", "user-invocable: false"),
+  );
+  mutate("agents/beta-agent.md", (text) => text.replace("mainAgent: false", "mainAgent: true"));
+  rmSync(join(plugin, "third_party", "sp", "LICENSE"));
+  const errors = errorsOf(root);
+  for (const expected of [
+    "plugin.json does not match the Antigravity manifest schema",
+    "deniz-beta/SKILL.md has unsupported frontmatter: user-invocable",
+    "deniz-beta/SKILL.md: disable-model-invocation must be true",
+    "agents/beta-agent.md must use exactly name, description, mainAgent: false, subagent: true, and model: inherit",
+    "third_party/sp/LICENSE is missing or differs from its source license",
+  ]) {
+    assert.ok(
+      errors.some((message) => message.includes(expected)),
+      errors.join("\n"),
+    );
+  }
+});
 
 test("V: a Codex-only tool word in plugins/ or opencode/ is an error", () => {
   const errors = vocabularyErrors("Call spawn_agent.", ["plugins", "opencode"]);
@@ -1756,6 +1837,7 @@ test("P: a landing climb fails closed, and a path to a manual item's body fails"
     plugins: "../beta/references/",
     opencode: "../deniz-process.beta/references/",
     codex: "../beta/references/",
+    antigravity: "../beta/references/",
   };
   for (const [tree, path] of Object.entries(spelled)) {
     assert.ok(
@@ -1768,7 +1850,7 @@ test("P: a landing climb fails closed, and a path to a manual item's body fails"
     );
   }
   const body = errors.filter((m) => m.includes("reaches manual item beta's body"));
-  assert.equal(body.length, 6, `SKILL.md and the folder itself, in three trees\n${errors.join("\n")}`);
+  assert.equal(body.length, 8, `SKILL.md and the folder itself, in four trees\n${errors.join("\n")}`);
   assert.ok(!body.some((m) => m.includes("references/")), "a bundled file is not the body");
   assert.ok(!errors.some((m) => m.includes("references/notes.md")), "a resolving climb passes");
 });
@@ -1816,7 +1898,7 @@ test("P: an item-root path resolves in every tree once OpenCode respells it", ()
     ),
     errors.join("\n"),
   );
-  assert.equal(errors.filter((m) => m.includes("missing.md does not resolve")).length, 3);
+  assert.equal(errors.filter((m) => m.includes("missing.md does not resolve")).length, 4);
 });
 
 test("P: a script's landing climb fails closed like a Markdown one", () => {
@@ -2098,7 +2180,7 @@ test("linker: a shared fact naming an item a tree does not ship is an error in t
   buildAll(root);
   const errors = narrowedErrors(root);
   const expected =
-    "plugins/deniz-process/skills/caller/SKILL.md: model-edge to delta: the opencode and codex trees do not ship it (harnesses in curation/deniz-process.yaml) — name it only from files those trees do not ship";
+    "plugins/deniz-process/skills/caller/SKILL.md: model-edge to delta: the opencode and codex and antigravity trees do not ship it (harnesses in curation/deniz-process.yaml) — name it only from files those trees do not ship";
   assert.ok(errors.includes(expected), errors.join("\n"));
 });
 
@@ -2109,7 +2191,7 @@ test("linker: a fact naming a narrowed item from a file only its trees ship is c
       invocation: "auto",
       depends_on: ["delta"],
       harness_files: {
-        "references/tools.md": { claude: "references/claude.md", codex: null, opencode: null },
+        "references/tools.md": { claude: "references/claude.md", codex: null, opencode: null, antigravity: null },
       },
     },
     body: "Mine.\n",
@@ -2150,7 +2232,12 @@ test("harness files: a link or path claim to an output path this tree's harness 
     declaration: {
       invocation: "both",
       harness_files: {
-        "references/tools.md": { claude: "references/claude.md", codex: null, opencode: "references/opencode.md" },
+        "references/tools.md": {
+          claude: "references/claude.md",
+          codex: null,
+          opencode: "references/opencode.md",
+          antigravity: "references/claude.md",
+        },
       },
     },
     body: "Read [tools](references/tools.md).\nThen read ../delta/references/tools.md.\n",
@@ -2376,6 +2463,7 @@ function ownNotesRepo(
           claude: "references/claude.md",
           codex: "references/codex.md",
           opencode: "references/opencode.md",
+          antigravity: null,
         },
       },
     },

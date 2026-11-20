@@ -1,0 +1,727 @@
+Read for each command's arguments, output and exit codes.
+
+# Command line
+
+Run from the installed harness skill folder. Its `global.json` selects stable SDK 10.0.404 or a
+later compatible feature band. The entry file uses this shebang on Linux and macOS:
+`#!/usr/bin/env -S dotnet --`.
+
+```text
+dotnet build dispatch.cs
+dotnet dispatch.cs -- <command> [arguments]
+```
+
+Build before every command. A nonzero build exit means no harness command ran. Concurrent builds
+can contend on the file-based app cache; retry a failed build before invoking the command. The
+`--` separates application arguments from `dotnet` arguments, including flags such as `--force`.
+
+Command-line file and directory paths must be absolute, including `--contract` file paths.
+Resolution, errors, hashing and ordering follow [Contracts](task-file.md#contracts). In PowerShell, form paths from
+`$PWD.ProviderPath`. Paths inside a task file follow [task-file rules](task-file.md).
+`DISPATCH_HOME` relocates configuration and state; [configuration](config.md) describes its layout
+and the platform defaults. Backend executable overrides are user config fields, not environment
+variables.
+
+## Flags
+
+Options use separate tokens, such as `--max 2`, not an equals sign. Repeat only `--route` and
+`--contract`. The current parser does not reject arbitrary unknown options, so acceptance alone
+does not mean a flag has an effect. Use the flags below with their owning commands.
+
+| Flag | Type | Default | Commands and validation |
+|---|---|---|---|
+| `--repo <path>` | absolute directory | Task-file `repo` for plan/run and selfcheck | Target repository, or recorded-repository filter for `usage`. Required by `routes` (`routes needs --repo`); optional for `selfcheck`, which skips repository checks without one. Relative: `--repo must be an absolute path`. |
+| `--dir <path>` | absolute directory | None | Parsed but not used by `routes`. It does not set a task's in-place directory. |
+| `--ledger <path>` | absolute directory | User location, then state default | Overrides ledger root for run-addressing commands and run creation. Relative: `--ledger must be an absolute path`. |
+| `--policy <path>` | absolute config-shaped file | No added CLI policy | Plan/run/selfcheck and routes load it. Only restrictions and instructions; recovery uses frozen policy. Relative: `--policy must be an absolute path`. |
+| `--contract <path>` | repeatable absolute file path | None | Plan/run, prepended whole to every task after file contracts. Relative paths: `--contract must be an absolute path`. Validation: [Contracts](task-file.md#contracts). |
+| `--allow-version-drift` | flag | Off | Plan, run, selfcheck and Codex `routes` accept an opencode server or Codex CLI off its pin with a warning, for this command only. See [version pins](backends.md#version-pins). |
+| `--run <name>` | string | Task-file `run`, then task filename without extension and a trailing `.tasks`; no filter for `usage` | Run creation name; must match `^[a-z0-9][a-z0-9-]{0,40}$`. The harness adds a UTC day prefix. Plan uses it when checking generated workspace names. For `usage`, a wildcard matching recorded run ids instead. |
+| `--since <yyyy-MM-dd>`, `--until <yyyy-MM-dd>` | UTC calendar date | No boundary | `usage` only; inclusive run-creation date filters. Bad values exit 2 and name the value. |
+| `--by <dimensions>` | comma-separated dimension names | `kind,route` | `usage` only; names and grouping semantics below. Unknown names exit 2 and name the value. |
+| `--json` | switch | Off | `usage` prints one JSON document instead of its text table. |
+| `--max <n>` | integer | Layered parallelism, tool default `3` | Plan/run; range 1 through 8. Non-integer: `--max needs an integer`; out of range names `maxParallel` and source. |
+| `--backend <name>` | enum | None | Plan/run preference. For `routes` and `selfcheck` it limits the check to that backend; without it they cover every backend the task file and configuration layers use. Task-file-free `selfcheck` checks every installed backend when the configuration selects none, and names the installed ones it skips otherwise. `opencode` or `codex`. |
+| `--route <entry>` | repeatable qualified route | Effective task or configured route | Plan/run; one per backend, such as `codex:<model>` or `opencode:<provider>/<model>`. Duplicate backend: `--route may be given once per backend`. Invalid qualification fails normalization. |
+| `--effort <value>` | non-empty string | Layered effort | Plan/run; same-layer suffix disagreement is an error. Must exist in the live catalog. |
+| `--timeout-minutes <n>` | integer | Layered timeout, tool default `60` | Plan/run; 1 through 720. Non-integer: `--timeout-minutes needs an integer`. |
+| `--timeout <minutes>` | positive whole number | `60` | Wait only; invalid value: `--timeout needs a positive whole number of minutes`. Other commands refuse it with exit 2: `--timeout is only for wait; use timeoutMinutes in the task file or --timeout-minutes for worker timeouts`. Separate from worker `--timeout-minutes`. |
+| `--profile <value>` | enum | `clean` for every task kind | Plan/run; `clean` or `full`. |
+| `--project <value>` | enum | Kind default | Plan/run; `on` or `off`. |
+| `--access <value>` | enum | Kind default | Plan/run; `read-only`, `workspace`, `full`; cannot exceed policy ceiling. |
+| `--network <value>` | enum | `on`, subject to policy | Plan/run; `on` or `off`; Codex full access with off is refused. |
+| `--workspace <value>` | enum | `worktree` | Plan/run; `worktree` or `in-place`. |
+| `--commit <value>` | enum | `none` in-place, `harness` worktree | Resolver preference for plan/run; `none` or `harness`. In-place runtime uses the effective recorded value. Prefer setting it in the task entry so the planning dirty check sees it too. |
+| `--raw-prompt <value>` | boolean text | `false` | Plan/run; literal `true` or `false`, otherwise `--raw-prompt needs true or false`. Contracts, instructions and structured input conflict. |
+| `--all` | switch | Off | opencode routes includes disabled catalog models. |
+| `--message <text>` | string | Default decline feedback | Reply with `reject` only: `--message goes with reject: it is the feedback the model sees`. |
+| `--continue` | switch | Off | Resume also starts unprompted tasks and re-prompts interrupted opencode sessions. |
+| `--force` | switch | Off | Clean removes dirty or unmerged worktrees and branches too. |
+
+A missing value at the end of a value option produces `--<flag> needs a value`. Missing positional
+arguments produce `missing <argument>`. Invalid preference choices name the value, layer and choices.
+
+## Commands
+
+Every command that takes `<run>` (`status`, `wait`, `asks`, `reply`, `cancel`, `collect`, `resume`,
+`clean`) accepts the full run id or the bare run name. A ledger folder named exactly as given wins;
+otherwise a bare name resolves when exactly one ledger is named `<yyyy-MM-dd>-<name>`. With several
+matches the command refuses with exit 2 and lists their run ids.
+
+### Codex plugin cache warning
+
+When the harness's source folder is under `<CODEX_HOME or ~/.codex>/plugins/cache/`, `selfcheck`,
+`plan` and `run` print this advisory warning to stderr and continue normally:
+
+```text
+this harness runs from Codex's plugin cache, which keeps one version and may replace it during a run; start it from a stable copy outside that cache
+```
+
+The check resolves filesystem links on both paths, respects directory boundaries and uses Windows
+case-insensitivity, not the compiled assembly's cache location. File-based apps use the runtime's
+entry-file path; other hosts fall back to the source filename captured at compilation. Empty
+`CODEX_HOME` uses `~/.codex`. An unresolvable path skips the advisory check without failing the command.
+
+### `selfcheck [<tasks.jsonc>] [--repo <path>] [--backend <name>] [--policy <file>]`
+
+Sends no prompt. Prints the allow-list and policy, the state, worktree and control folders, and on
+Windows a warning when git's `core.longpaths` is not true and when the user PATH in the registry
+exceeds 8,000 characters. The backends checked are `--backend`, else every backend the task file and
+the configuration layers name (preferred backend, default routes, allow-list, task backends, then
+configured backends). Without `--backend` and without a task file: when the configuration selects
+nothing, it discovers and checks every installed backend, `opencode` then `codex`; when it selects
+some, it checks those and prints
+`SKIP  backend <name>: installed but not configured; selfcheck --backend <name> checks it` for each
+other installed backend. Installed means the executable resolves
+through that backend's launch lookup, not that its version, sign-in or server readiness has passed.
+OpenCode retains native npm-shim
+selection and the pinned SDK's PATH/PATHEXT lookup, including relative PATH entries; Codex uses
+the shared resolution described below. Each unresolved candidate prints exactly
+`SKIP  backend <name>: not installed (<name> on PATH)`; skips are not failed checks. If neither
+resolves, stderr prints `dispatch: no backend installed; install opencode or Codex, or set backends.<name>.executable`
+and the command exits 2. A supplied task file retains the empty-selection refusal:
+`dispatch: no backend configured; set preferences.backend, defaultRoutes or --backend`.
+With `--backend` or a task file, named backends are never skipped: a missing executable remains a
+failed check (exit 1).
+Resolved executables undergo every existing probe and launch check; version, login and launch
+failures remain failures and do not prevent checking the next backend.
+An executable that resolves but is unusable, including PowerShell-only Codex, is installed for
+discovery purposes and fails its backend check with the resolver's diagnostic, rather than being skipped.
+Each backend gets its own `backend <name>` section. opencode
+checks its server pin, event bus, catalog, stored permissions and the creation and removal of an
+idle session; Codex probes version, sign-in and catalog and reports the sandbox mode a task would
+request. Both backends also perform a `launch` check: build a synthetic code task through the same
+launch builder as real tasks, create its worker, then release it without a prompt or model call
+(no Codex `turn/start` or opencode prompt request). `PASS  launch: <worker id>` is printed only after
+release succeeds; otherwise `FAIL  launch: <exception message>` makes the exit code 1, and checks
+continue for other backends. Synthetic task temporary folders and backend-owned homes are cleaned up.
+With `--repo` or a task-file `repo`, it also creates a detached test worktree at HEAD and
+removes it afterwards; without one it prints `repository checks skipped`. Its temporary folder is
+removed on exit. Check lines use `PASS`, `WARN`, `FAIL` or discovery's `SKIP`; not every output line
+has one of those prefixes. The headers and context lines `state folder:`, `worktree root:`,
+`control root:`, `backend <name>`, `control folder:`, `hardlink volume:` and `sandbox:` are unprefixed
+(`hardlink volume:` and `sandbox:` describe Codex). A successful clean-profile validation
+that falls back to `clean-partial` is `WARN`, including the profile reason; validation errors remain
+`FAIL`. With no failures, the closing line is `selfcheck passed (<n> warning(s))`, counting only
+`WARN` check lines, not free-form advisory warnings. Otherwise it prints `selfcheck: <n> check(s) failed`.
+
+The opencode fence is an [accident guard](backends.md#opencode-accident-guard), not a security boundary.
+Each opencode section prints exactly one fence check: `PASS  opencode fence: bwrap` on ready Linux,
+`PASS  opencode fence: sandbox-exec` on ready macOS, or
+`WARN  opencode fence: unfenced on Windows`. A failed readiness check prints
+`FAIL  opencode fence: opencode fence unavailable (<detail>)`, appending the Linux installation and
+AppArmor prerequisite below, and fails selfcheck. The Windows line contributes one warning.
+
+With a repository on Windows, `worktree path depth` measures
+`<resolved worktree root>\<yyyy-MM-dd>-selfcheck\selfcheck` (today's UTC date) plus the longest tracked
+path at HEAD: `PASS` below 248 characters, `WARN` at 248 or more, never `FAIL`. A passing line carries
+only `worktree paths reach <n> characters (<file>)`; the short-root advice, including
+`Set locations.worktreeRoot`, appears only on the depth `WARN` line. A measurement error
+prints `WARN` with its reason and checks continue; cancellation still propagates.
+See [worktree root configuration](config.md#files-and-locations) for the trade-off.
+
+On Windows only, a successful Codex probe also prints exactly one
+`PASS  windows sandbox: mode <mode>; readiness <status>` check. Mode comes from the user's Codex
+home configuration: `elevated`, `unelevated`, `mxc`, or `not set` when unset. Readiness is the raw
+`windowsSandbox/readiness` status (`ready`, `notConfigured`, or `updateRequired`), not the requested
+task sandbox. Any status other than `ready` makes this line `WARN`, never `FAIL`; it contributes
+only to the warning count, not a failure exit. Existing sandboxed-access readiness validation can
+still fail. This line is absent on Linux/macOS and from OpenCode sections.
+
+| Exit | Type | Meaning |
+|---|---|---|
+| `0` | integer | No performed check failed; warnings and automatic-discovery skips are allowed. |
+| `1` | integer | A reported check failed, including worktree preparation or a caught live backend failure. |
+| `2` | integer | No installed backend was discovered, checks could not start, or an uncaught setup/configuration error occurred. |
+
+### Configured backend coverage
+
+`selfcheck` and `routes` cover every configured backend, each in its own labelled section, unless
+`--backend` limits selection. Without `--backend`, task-file-free `selfcheck` additionally discovers
+installed backends as described above; `routes` retains the empty-selection refusal above. A task
+route may carry its backend prefix, such as `codex:<model>#<effort>`, when it matches the task's
+resolved `backend`; a prefix naming another backend is a plan error that names both.
+
+Codex executable resolution is shared by version/login commands, clean-home probes and worker
+launches. A configured absolute `backends.codex.executable` takes precedence over PATH. On Windows,
+PATH discovery skips relative directories and prefers supported `.exe`, `.cmd`, `.bat` and `.com`
+shims over `.ps1`, preserving PATH and PATHEXT order among supported candidates. It remembers the
+first `.ps1` only to diagnose a lookup with no supported candidate. A configured `.ps1` is also
+rejected, without falling back to PATH. Both cases report:
+`codex resolves only to a PowerShell script (<path>); set backends.codex.executable to its .cmd or .exe`.
+
+### Windows user PATH guard
+
+Selfcheck warns when the user PATH in the Windows registry exceeds 8,000 characters. Run refuses
+above 16,000 characters with exit 2. Run records a `warning` event if the user PATH changes.
+Environment isolation does not isolate registry state; avoid assigning a new `DOTNET_CLI_HOME`.
+Configure SDK tools-path appends and certificate behaviour explicitly through
+[`environment`](config.md#configured-environment); see the [cookbook](cookbook.md#net).
+The warning event carries `reason: user-path-changed`, both lengths, and the added and removed
+entries. Inspect the value with `reg query HKCU\Environment /v Path`.
+
+### `routes --repo <path> [--backend <name>] [--all]`
+
+Lists the selected backend's catalog at the location. opencode prints server version, agents,
+manual/hidden/allowed flags, model variants and allow-list diagnostics. `--all` also prints disabled
+models. Codex prints its version, qualified model names and supported efforts, plus whether a route
+restriction applies. With `--backend` it lists that backend; without it, every configured backend,
+each in its own labelled section. No prompt is sent.
+
+| Exit | Type | Meaning |
+|---|---|---|
+| `0` | integer | Catalog read successfully; opencode listing can include unusable routes. |
+| `2` | integer | Missing location, invalid config/arguments, failed probe or catalog read. |
+
+### `plan <tasks.jsonc> [--repo <path>] [--contract <path>]... [--policy <file>]`
+
+Applies preference flags, checks task fields, contracts, structured schemas, repository refs,
+workspace collisions, writer scopes, route allow-list and live catalogs. Every advisory line
+starts with its level: `INFO`, `WARN` or `ERROR`; any `ERROR` refuses the plan. Then it prints
+`plan ok: <count> task(s) against <repo>` or `plan refused: <count> error(s)`. Sends no prompt and
+creates no recorded run.
+
+Nonempty prepare prints `INFO <task>: prepare <n> command(s) in <shell>`, where `<shell>` is the resolved
+executable path. Empty/unset prepare adds no line; missing or unsupported shells refuse planning with
+`prepare shell:` when there are no verify or advisory-verify commands, otherwise `verify shell:`.
+
+For each task with contracts, `plan` prints
+`INFO <task>: contracts <resolved path> (<version line>); ...` in prepend order, after path
+deduplication. The version is the recorded first line described under [Contracts](task-file.md#contracts).
+The caller owns contract selection; planning does not warn about missing contracts.
+
+A valid `continueOf` prints `INFO <task>: continues <resolved-run>/<task> from <12 hex digits>` in
+task-file order. Source checks repeat at workspace preparation using frozen new-task settings;
+planning takes no source lock or lease, and a final target may belong to a still-supervised run.
+Grammar, eligibility, replay and diagnostics: [Continuations](task-file.md#continuations).
+
+When no preference layer set a profile and a task's own `prompt` or `promptFile` text contains
+the case-insensitive whole word `skill` or `skills`, or a backticked `<name>:<name>` token whose
+names contain only letters, digits and hyphens, plan prints:
+
+```text
+WARN <task>: the prompt mentions a skill, and the task defaults to profile clean, which loads no plugins or skills; set profile full if the worker needs them
+```
+
+Contracts and standing instructions do not trigger this warning. Explicit `clean` or `full` at any
+layer suppresses it. The warning does not change the profile or refuse the plan.
+
+Same-backend live checks for a `reviewOf` task sharing its author's model lineage print
+`INFO <task>: reviewer and author share lineage <lineage>`. This is never an error or warning;
+review policy belongs to the caller. Cross-backend checks do not compare lineage.
+
+For each read-only or workspace opencode task on ready Linux/macOS, live planning prints
+`INFO <task>: write-fenced (bwrap; accident guard)` or
+`INFO <task>: write-fenced (sandbox-exec; accident guard)` and records access enforcement
+as `sandbox`; this means only the [accident guard](backends.md#opencode-accident-guard). If not ready, it refuses with
+`ERROR <task>: opencode fence unavailable (<detail>)`; Linux appends
+`; install bubblewrap, and on Ubuntu 24.04 set kernel.apparmor_restrict_unprivileged_userns=0 (root)`.
+There is no unfenced fallback. On Windows it prints
+`WARN <task>: opencode runs unfenced on Windows; access <value> is enforced by permission rules only`,
+and result capability notes include `opencode runs unfenced on Windows`. Full access gets no fence line.
+
+For every non-structured task, in task-file order, `plan` also prints
+`INFO <task>: temp <resolved folder> (tempRoot from <layer>)`, or
+`INFO <task>: temp <resolved folder> (default)` when unset. It creates no temporary folder.
+`tempRoot` is a layered preference, not a CLI option; see
+[configuration](config.md#temporary-folders) and [layouts](task-file.md#scope-and-workspaces).
+
+The live check adds, per task, the model's context window when the backend's catalog lists it:
+`INFO <task>: context window <n> tokens (opencode:<route>)`. Codex's catalog lists none, so a Codex
+task prints `INFO <task>: context window of codex:<model> is known after the run (result.json contextWindow)`.
+
+Remote-tracking bases are recognised by the repository's configured remote names, even without a local
+tracking ref. They are fetched before resolution with `git fetch --quiet <remote> <branch>`, once per
+distinct remote and branch per planning call. Trailing revision suffixes (`~n`, `^n`, `^{...}`) are
+removed for the fetch; the full base is then resolved as written. Fetch uses the operator's process
+environment, with the harness's per-call git overrides and `GIT_TERMINAL_PROMPT=0`; worker and verify
+git calls remain scrubbed. A failed fetch refuses the plan without retry:
+`base <base>: fetch from <remote> failed: <first line of git's stderr>`.
+Before warnings, plan and run print `INFO <task>: base <base> resolves to <12 hex digits>` for each
+base, appending ` (fetched from <remote>)` for remote-tracking bases. Local branches, tags and SHAs
+are not fetched.
+
+For a worktree using `base` (neither `reviewOf` nor `continueOf`), plan reads the task's own prompt line by line.
+On lines matching case-insensitive `(?<![0-9A-Za-z])base(?:[_-]?(?:sha|commit))?(?![0-9A-Za-z])`
+(including `base_sha` and `baseSha`), it checks tokens matching
+`(?<![0-9A-Za-z./:_-])[0-9a-fA-F]{7,64}(?![0-9A-Za-z])` with at least one digit and at least one
+letter. Range heads followed by `..`, digest values after `sha256:`, branch suffixes after a hyphen,
+all-digit numbers and all-letter tokens such as `defaced` do not count. Each token is lowercased and compared
+with the start of the resolved full commit id. A mismatch prints, once per distinct lowercased token
+in first-occurrence order:
+
+```text
+WARN <task>: the prompt names base commit <lower-case token>, but base <base> resolves to <12 hex digits>
+```
+
+This is advisory, not a plan error. No matching token means no warning; in-place, `reviewOf` and `continueOf`
+tasks do not get this check.
+
+On Windows, plan measures worktree path depth once per distinct repository and HEAD and reports each
+task's resulting depth when it reaches 248 characters. A measurement failure is advisory:
+`WARN <task>: worktree path depth not measured (<reason>)`; it does not refuse the plan.
+
+| Exit | Type | Meaning |
+|---|---|---|
+| `0` | integer | All checks passed; warnings are allowed. |
+| `2` | integer | Any planning or setup error. |
+
+### Read-only shell lines in plan
+
+For each read-only task, an `INFO` line states its shell, per backend, with the resolved
+`readOnlyShell` value and its layer. A `workspace` or `full` task gets no such line.
+
+| Backend | `decline` | `escalate` |
+|---|---|---|
+| Codex | `INFO <task>: sandboxed shell; escalations declined (readOnlyShell decline, from <layer>)` | `INFO <task>: sandboxed shell; escalations reach the operator through a matching rule (readOnlyShell escalate, from <layer>)` |
+| opencode Linux/macOS | `INFO <task>: sandboxed shell; escalations declined (readOnlyShell decline, from <layer>)` | `INFO <task>: sandboxed shell; escalations reach the operator through a matching rule (readOnlyShell escalate, from <layer>)` |
+| opencode Windows | `INFO <task>: no shell for a read-only task (readOnlyShell decline, from <layer>)` | `INFO <task>: shell asks reach the operator through a matching rule (readOnlyShell escalate, from <layer>)` |
+
+### Inherited Codex rules on read-only tasks
+
+The pinned Codex app-server cannot be told to ignore exec-policy rules, and an explicit allow rule
+can run a matching command outside the sandbox without asking. For every read-only Codex task, plan
+prints a `WARN` line and `result.json` records it in `capabilityNotes`, worded by profile: with
+`full`, the user's and the system's rules apply; with `clean`, only system-level rules do. A clean
+profile that fell back to `clean-partial` counts as `full`.
+
+### `run <tasks.jsonc> [--repo <path>] [--run <name>] [--max <n>] [--contract <path>]... [--policy <file>]`
+
+Performs plan and live checks, prints each plan warning once, locks and claims a new run, freezes
+inputs, queues tasks, supervises workers, settles results and runs verification. Once it claims the
+run it prints `run <run id>: ledger <folder>`. It blocks until the scheduler ends and prints a status summary.
+Ledger writes also print event lines. The `run` process is the supervisor and owns the backend
+processes: never kill it (use `cancel`). To keep working while it runs, start it from a
+background shell and watch with `status <run>` from another shell; when a run's own process ends
+without settling every task, `resume <run>` settles what it left. Watch a run through its ledger
+(`status`, `events.jsonl`), not through the shell that started it: a host under memory pressure
+can end that shell while the supervisor keeps working.
+
+A recorded id cannot run again. The refusal names `collect` and `resume` as recovery commands.
+Use a new name for a new run rather than editing or deleting recorded input.
+
+| Exit | Type | Meaning |
+|---|---|---|
+| `0` | integer | Every task is done, with valid scope, verification and structured deliverable as applicable. |
+| `1` | integer | Any task is not done, or an exception/abort occurs after the run claim. |
+| `2` | integer | Refusal before claim, including invalid plan, existing id, invalid max, backend or configuration failure. |
+
+### `status [<run>] [--ledger <dir>]`
+
+With no run, lists directories in the ledger root and counts their task states, or prints `no runs`.
+With a run, prints state, outcome, cost/tokens if known, changed-file and scope counts, asks,
+escalations and verify results. Verify entries retain command order: `not run` when `notRun` is
+present, otherwise `ok` for exit zero or `exit <code>` for nonzero. A stopped or blocked worker's
+commands did not run; their placeholder zero exit codes are not passes.
+Live task rows also show tool count and the last completed call.
+A task whose escalated asks closed without an answer (the worker's call was declined) gets a line
+`asks closed without an answer: <count> (<action>: <reason>; ...)`.
+It reports whether the run lock is held and whether asks are pending: a held lock prints
+`(supervised now)`, and a run with unfinished tasks (or no task states yet) and no supervisor prints
+`` (no supervisor: `resume <run>` settles it) ``, so a watcher can tell a stalled run from a working one.
+It does not wait for success.
+
+| Exit | Type | Meaning |
+|---|---|---|
+| `0` | integer | Status read successfully, regardless of task outcomes. |
+| `2` | integer | Unknown/unreadable run, newer schema, or corrupt complete event line. |
+
+### `usage [--since <yyyy-MM-dd>] [--until <yyyy-MM-dd>] [--repo <path>] [--run <wildcard>] [--by <dimensions>] [--json] [--ledger <dir>]`
+
+Summarizes tasks across the ledger root without starting a backend or writing ledger files, control
+folders or locks. It can read ledgers whose control folders are absent. Tasks are the union of event
+state keys and non-dot task folders holding `task.json`; an event-only task without a readable record
+is skipped, not silently omitted. State always comes from the event-derived `Ledger.TaskStates()`,
+not the result's recorded state; a folder-only task has `unknown` state and counts as unsettled.
+
+Date filters use the UTC calendar date of `run.json`'s `created`, both boundaries inclusive, not the
+run id's date prefix. Missing or unparsable creation dates fail either date filter. `--repo` compares
+the recorded repository with the supplied full path, trimming a trailing directory separator from both
+with `Path.TrimEndingDirectorySeparator`, case-insensitively on Windows; absent repository
+metadata fails that filter. `--run` uses the harness wildcard matcher (`*` and `?`), ignoring case on
+Windows. No filter means all readable tasks are selected.
+
+`--by` defaults to `kind,route`. Each row is one combination of these dimension values, sorted by
+the selected values using ordinal comparison:
+
+| Dimension | Value |
+|---|---|
+| `kind` | Task spec's kind. |
+| `route` | Result's `routeRequested`, else recorded settings' route value, else `unknown`. |
+| `backend` | Result's backend, else recorded settings' backend value, else `unknown`. |
+| `state` | Event-derived task state. |
+| `outcome` | Result's outcome, else `none`. |
+| `status` | Result's `workerStatus`, else `none`. |
+| `repo` | Run's repository, else `unknown`. |
+| `run` | Run id. |
+| `day` | UTC date of run creation, else `unknown`. |
+| `tag` | Each caller-supplied task tag, ignoring null or empty entries, or `(none)` without remaining tags. |
+
+A task with two tags counts in both tag rows, but only once in the total. Tag-row counts and sums
+can therefore exceed the total; tags describe caller knowledge, such as work item or first scan
+versus re-scan, and do not alter execution.
+
+Each row and the total carry numeric counters `tasks`, `done`, `failed`, `cancelled`, `unsettled`
+(every other state), `stopped` (`workerStatus` is `stopped` or `blocked`), and `tokensIncomplete`
+(results with `tokensComplete: false`, whose known figures still contribute to sums). Measured sums are
+`seconds`, `input`, `cacheRead`, `output`, `reasoning` and `cost`, each paired with a `<sum>Known`
+count of tasks reporting that figure. Token fields are independently nullable. Cost is only the
+reported cost: a Codex task without cost never contributes a synthetic zero or estimate.
+
+OpenCode results written by an early harness can store `tokens.input` without cache reads, so
+`input` can be lower than `cacheRead` in old runs.
+`output` includes reasoning on Codex but not on OpenCode, so a row that mixes backends sums unlike figures.
+
+Seconds run from the task's first `prompt` event to its first `final` event on every backend,
+including harness settlement and verification, not just model execution. Later `collect` events do
+not extend this duration. Either event missing, or a first `final` before the first `prompt`, means
+duration is unknown and contributes nothing to `seconds` or `secondsKnown`.
+
+Text output uses `unknown` when no task reported a measured figure and `<sum> (<known>/<tasks>)`
+when only some did. The total row puts `total` in the first dimension column and leaves the remaining
+dimension columns empty, aligning its figures with the header. Numbers use invariant culture; text
+seconds are rounded to whole numbers and text cost has four decimal places. JSON retains fractional seconds. With no
+selected tasks text prints `no runs`. `--json` prints one document with `rows`, `total` and `skipped`:
+dimension values are under each row's `key` object (the total has an empty key), unknown sums are
+explicit `null`, counters and known counts are always numbers. An empty selection has empty rows,
+zero total counters/known counts and null total sums.
+
+An unreadable, corrupt or newer-schema run becomes a skipped entry `{ "run": "<id>", "task": null,
+"reason": "<text>" }`. An unreadable task record becomes a task-scoped entry; readable siblings
+still count. Skips sort by run, then task. Text prints them to stderr as
+`skipped <n> item(s): <run>[/<task>] (<reason>); ...`; JSON retains them in `skipped`.
+
+| Exit | Type | Meaning |
+|---|---|---|
+| `0` | integer | Ledger root read or missing, including empty selection and skipped runs/tasks. |
+| `2` | integer | Invalid arguments, configuration failure or inability to enumerate the ledger root. |
+
+### `wait <run> [--timeout <minutes>] [--ledger <dir>]`
+
+Waits until every recorded task is final (`done`, `failed`, `cancelled`), then prints the same
+summary as `status <run>`. Polls the ledger every five seconds, shortening the last delay to the
+remaining timeout. The default timeout is 60 minutes; `--timeout` takes a positive whole number.
+This command is read-only: it writes neither ledger nor control state and never resumes a run.
+
+Start `wait <run> --timeout <minutes>` after starting `run`, with a timeout below your waiting shell
+or tool's own timeout. Pass the full dated run id that `run` prints: a bare name can resolve to an
+earlier run with the same name. Call `wait` again after exit 3; it does not stop the supervisor. If the
+ledger does not exist yet (run performs probes before creating it), wait retries for up to two minutes,
+counted inside its timeout, then refuses with exit 2 and the usual `no ledger for run ...` error.
+If the ledger never appears within the timeout, it likewise exits 2 as an unknown run, not 3.
+Bare run names are resolved again during this startup grace, so a newly created dated ledger is found.
+
+A run with no task states yet is not final. If no supervisor holds an unfinished or empty run,
+wait prints status and exits 1 immediately, including the no-supervisor annotation; use `resume`
+to settle it. On timeout it prints `run <run>: wait timed out; unfinished tasks: <ids>` to stderr,
+listing only unfinished tasks in ledger order. A supervised run with no task states yet instead
+prints `run <run>: wait timed out; no tasks recorded yet`.
+
+| Exit | Type | Meaning |
+|---|---|---|
+| `0` | integer | Every task is `done`. |
+| `1` | integer | Every task is final and at least one is not `done`, or an unfinished/empty run has no supervisor. |
+| `2` | integer | Usage error (including invalid timeout), unknown/unreadable run, or setup/read failure. |
+| `3` | integer | The timeout elapsed while tasks remained unfinished and the run was supervised. |
+
+### `asks [<run>] [--ledger <dir>]`
+
+With a run, lists its pending asks with action, resources, rule and age, and says if its supervisor
+has ended. With no run, scans control folders and displays `run.ref`'s run id and ledger root plus
+asks. It skips command-only `cmd-*` folders. Missing or invalid `run.ref` is displayed, not used as
+a gate. No-run enumeration does not restrict itself to `--ledger`.
+
+| Exit | Type | Meaning |
+|---|---|---|
+| `0` | integer | Listing finished, including no pending asks and missing/invalid display-only run references. |
+| `2` | integer | Invalid configuration, arguments, missing named-run control folder or uncaught I/O error. |
+
+### `reply <run> <askId> once|reject [--message <text>] [--ledger <dir>]`
+
+Writes a one-shot decision for an existing ask while the supervisor holds the run. Waits up to 30
+seconds for a matching operator `permission` event. Prints answered, attempted-but-unconfirmed or
+queued feedback. `once` allows one request; `reject` carries supplied or default feedback. The
+harness never replies with a standing approval.
+
+| Exit | Type | Meaning |
+|---|---|---|
+| `0` | integer | Supervisor confirmed the decision. |
+| `1` | integer | Decision queued or attempted but not confirmed. |
+| `2` | integer | Invalid decision, message with once, missing run/control/ask, or no supervisor. |
+
+### `cancel <run> <task> [--ledger <dir>]`
+
+If supervised, writes a cancel request and waits up to 30 seconds for its matching `cancel` event.
+Otherwise marks the task cancelled in the ledger. An already-final task is a no-op. Cancel targets
+the task; do not stop it by killing the supervisor.
+
+With no supervisor and a non-terminal `prepareRunning` record, cancel still succeeds: it writes the
+explicit cancelled result, cancellation summary and warning described in
+[prepare outcomes](ledger.md#prepare-evidence-and-outcomes) before `final`. It attempts no process
+discovery or kill; the command may still run. Check for it before cleanup.
+
+| Exit | Type | Meaning |
+|---|---|---|
+| `0` | integer | Request confirmed, unsupervised task marked cancelled, or task already final. |
+| `1` | integer | Request written but not confirmed in time. |
+| `2` | integer | Unknown run/task, missing control folder, invalid arguments or setup error. |
+
+### `collect <run> <task> [--ledger <dir>]`
+
+Takes the run lock and requires completed setup. Reloads the task and frozen effective config,
+collects backend evidence and repeats settlement: final text, commit/diff, verification or structured
+validation. Prints events and writes a final event. A task needs a recorded session and workspace.
+It does not re-prompt. A released done opencode session is not collectible.
+For Codex, stop is checked before collecting workspace bytes, committing or verifying. Unconfirmed
+stop writes task-scoped evidence and a failed final event with `zombie` and `workerStopped: false`,
+returns 1 without `aborted`, and retains worktree, scratch and the temporary home. Recovery also checks
+a failed creation's recorded worker when it has no turn. A later confirmed check can clear
+restored uncertainty for recollection; historical stop evidence remains.
+In a fresh process Codex still reports `lost`: it cannot recover the live assistant report. If no
+final text is available, `result.json` exists and `final.md` holds worker text rather than the
+`_No final assistant text without an error._` placeholder, recollection keeps `final.md` unchanged
+and preserves the earlier outcome, worker status (even when absent), `routesUsed`, `routeResolved`
+and `executionError`, without `no-final-text` or a lost-outcome failure. Prior route drift and execution errors
+still fail the task; workspace collection, verify, scope and stop checks run as usual, and genuine
+recollection errors still fail. A failed start without worker text does not keep its placeholder.
+Otherwise a locked home or missing ownership marker no longer aborts collection; artifacts are written with `lost`
+and `codex-home-retained`. A changed marker or unrecognized owner/path still refuses. During live
+settlement a throwing release preserves the report with `release-failed`; without stop evidence,
+no workspace collection or verify runs. Ledger errors and cancellation keep their existing handling.
+
+| Exit | Type | Meaning |
+|---|---|---|
+| `0` | integer | Recollected task is done. |
+| `1` | integer | Settled task is not done, or an exception occurs inside settlement. |
+| `2` | integer | Pre-settlement refusal: active supervisor, incomplete setup, missing task/session/workspace/config, a released done opencode session, or a structured task whose frozen `input.json` or `result.schema.json` no longer matches its recorded hash. |
+
+### `resume <run> [--continue] [--ledger <dir>]`
+
+Takes the run lock, requires `setup.done`, reloads frozen settings, resets stale asks and reconciles
+non-final tasks. Without `--continue`, never-prompted tasks remain queued and interrupted opencode
+sessions settle as failed. With it, queued tasks start and interrupted opencode sessions receive a
+fixed continuation line when their server is recoverable. Fenced opencode tasks whose server is gone
+cannot continue and settle as `lost`, without starting a replacement. Started Codex tasks cannot continue; either form recovers their backend
+outcome as `lost`, with recorded cancellation or timeout taking precedence in settlement.
+An unconfirmed Codex stop overrides cancelled state: that task fails with `zombie`, preserving its
+outcome and work, while other tasks reconcile normally. Release and scope-cleanup uncertainty also
+settle only the affected task; they do not abort recovery. Genuine supervisor or ledger failures
+still abort the command. OpenCode cancellation semantics are unchanged.
+Already-final tasks are skipped. Prints `nothing to resume` when none need action, or events and a
+status summary. Recovery is backend-specific; see [backends](backends.md).
+
+`resume --continue` recovers the same recorded run/session; task-field `continueOf` instead creates
+a new attempt with an amendment. Prepared continuations recover without source replay; never-prepared
+ones revalidate their source, and incomplete workspace preparation refuses dispatch.
+Existing unprompted-contract limitations remain. [Continuations](task-file.md#continuations) owns
+the readiness and recovery boundaries.
+
+Exception in both forms: a non-terminal task with `prepareRunning` stays queued (a `queued` event is
+persisted), is omitted from supervisor candidates and gets this exact `error` event message:
+
+```text
+<task>: prepare was interrupted by a supervisor exit; a command may still run on this host. Check for it, then clean the task and start it under a new run id.
+```
+
+Inspect host processes for a stale `prepare` command and stop it yourself. Settle the task with
+`cancel <run> <task>` (it records `cancelled` with the `prepare-interrupted` warning), inspect retained
+work, run `clean <run>` (it cleans the whole run; use `--force` only to discard inspected dirty or
+unmerged work), then start the task again with `run <tasks.jsonc> --run <new-name>`. Never clear the
+flags or reuse the recorded id.
+
+| Exit | Type | Meaning |
+|---|---|---|
+| `0` | integer | Every recorded task is done after reconciliation. |
+| `1` | integer | Any task remains not done, or reconciliation aborts inside the command's recovery block. |
+| `2` | integer | Pre-recovery refusal, including active lock, incomplete setup, missing/unreadable frozen config or task records, invalid schema or configuration. |
+
+Recovery validates structured tasks against the frozen task specification and checks the frozen
+input and schema hashes before any reattachment or further prompt; a mismatch refuses with exit 2
+before a backend starts. Do not alter any ledger inputs by hand.
+
+### `clean <run> [--force] [--ledger <dir>]`
+
+Refuses while supervised. Releases opencode sessions and recorded Codex workers unless the task is
+final, has a `collected` event, and is neither zombie nor stop-unconfirmed, then removes recognized worktrees and task
+branches, temp directories and temporary indexes. Without force, keeps dirty worktrees or branches
+not merged into their recorded base unless the landing checks below prove the work reached the target.
+It never removes an in-place folder or the ledger. If present, `diff.patch` stays in the ledger:
+it holds base-to-HEAD evidence as of settlement, not necessarily the worktree's current content,
+and it may not exist. Ignored files in a removed worktree are deleted, just as for any merged task. Successful
+control cleanup keeps `supervisor.lock` and `run.ref`; a second clean is safe.
+It also retains a recorded zombie task's worktree and scratch on either backend, including opencode,
+or a `release-failed` task's worktree and scratch without confirmed stop evidence,
+even when clean and merged, printing
+`<task>: retained zombie worktree and scratch; collect keeps uncommitted work; --force removes them anyway` and returning 1.
+With `--force`, owned zombie artifacts are removed as for any task; all existing ownership,
+Git-configuration, lock and in-place protections still apply.
+Codex release checks the recorded stop and deletes its owned temporary home only after confirmation.
+Only a final Codex task with `collected` evidence and neither zombie nor unconfirmed stop evidence
+gets a deletion-only ownership-checked home attempt without rechecking its process, with or without
+`codex-home-retained`. Other final tasks, including unsupervised cancellation or failed starts with
+only retention events, take the stop-first route. A missing folder needs no deletion.
+`<task>: codex home removed` prints only when a folder was present and is now gone. A remaining lock on any route, including zombie and
+non-final release, prints
+`<task>: codex home retained (<message>)`, records `clean-failed`, returns 1 and keeps the control
+contents so another `clean` can retry; workspace and other task cleanup still finish. During
+every clean route, any ownership refusal (including missing or changed markers, missing recorded
+marker fields and unrecognized ownership) after a confirmed stop or on the deletion-only route prints
+`<task>: codex home has no valid ownership marker; delete it by hand: <path>`, keeps the home and
+does not fail cleanup after a confirmed stop or on the deletion-only route. If stop remains
+unconfirmed, clean instead prints
+`<task>: codex home has no valid ownership marker and its stop is unconfirmed; check that the worker has ended before you delete <path> by hand`,
+still returns 1 and protects the worktree. Changed markers still refuse recorded
+release/collection. Shared `auth.json`, `.sandbox/setup_marker.json` and
+`.sandbox-secrets/sandbox_users.json` never have their attributes changed. A read-only `auth.json` on Windows,
+or a read-only folder on Linux, retains the home; the printed home path is what to clean by hand.
+Cleanup also works when the run's
+control folder is gone: a missing home needs no deletion, and a present home's owner is checked
+against the run's recorded control path as well as its ownership marker.
+An unconfirmed stop retains the home even with `--force`, prints
+`<task>: retained Codex home: <path>` and returns 1. A confirmed stop writes `hard-stop` when clearing
+zombie uncertainty or a `release-failed` task without confirmation. The task then goes through normal
+workspace checks, on this and later cleans. Historical `zombie` or `release-failed` failures do not
+override that confirmation. Uncommitted work still refuses as `dirty worktree`: `collect` keeps it
+by collecting, committing and verifying; `--force` discards it.
+
+Clean does not discover or kill leftover prepare/verify processes, remove an in-place workspace, or
+undo dependency-cache writes outside the workspace. Confirm stale commands have stopped first.
+Clean, collect and status never follow `continueOf` into another run. Independent ownership and
+inherited-base cleanup: [Continuations](task-file.md#continuations).
+
+Plain clean first checks ancestry against the recorded `workspace.baseRef` (the task's `base` as
+written, or its inherited/review base). If that does not prove merger and the worktree is not dirty,
+the target is the ref named by `git symbolic-ref --quiet refs/remotes/origin/HEAD`. It must start with
+`refs/remotes/origin/` and resolve to a commit; a symref to the task's own branch cannot prove itself.
+Clean does not fetch. Without that symbolic ref, or with an invalid target, it keeps the recorded-base
+result. With a target, it tries:
+
+1. **Ancestor:** both the task branch tip and any registered HEAD must be ancestors of the target.
+   The reason is `ancestor of <target>`.
+2. **Same content:** the recorded `workspace.baseSha` must be an ancestor of the target, so deleting
+   the task branch cannot discard unlanded base commits. Collect paths with
+   `git diff --name-only -z --no-renames --ignore-submodules=none <workspace.baseSha> <branch tip>`.
+   An empty list, more than 500 paths, a name containing U+FFFD (which cannot safely round-trip), or
+   space-joined paths exceeding 16,000 characters gives no proof. Compare all those paths together against the
+   target tip, then commits from
+   `git --literal-pathspecs rev-list --full-history --max-count=500 <baseSha>..<target> -- <paths>`.
+   A candidate proves landing only when
+    `git diff-tree -r -z --no-renames --ignore-submodules=none --no-ext-diff --no-textconv <branch tip> <candidate>`
+    exits 0 and prints no path whose whole name exactly equals a run path. No run path is passed to
+    this comparison: Git for Windows can rewrite backslashes in pathspecs, and macOS can rewrite
+    normalization. Pathspecs in the bounded candidate search can only miss candidates, which refuses;
+    the target tip is also compared. Recursive tree comparisons include blobs and gitlinks:
+    line-ending and filter settings do not take part; whitespace,
+   binary content and modes count. The reason is `content matches <12 digits> on <target>`.
+   A registered detached HEAD different from the branch tip takes only the ancestor step, never this
+   content step. The recorded `workspace.baseSha` is used unchanged, including inherited continuation
+   bases, not `startSha` or `reviewedBaseSha`. A review whose author branch is gone is refused when
+   its recorded base is not on the target.
+
+A landed task prints `<task>: landed (<reason>)` and, only if none exists yet, writes a separate `landed` event with `reason`
+just before removal starts, so the evidence survives a later cleanup failure. The `cleaned` event has
+no landing field and still means all cleanup succeeded. A landing whose content later changed on the target still
+counts when an earlier commit on the target held it. Without ancestry proof, a merge that changed
+the content needs `--force`, as does a task whose paths never matched one commit together. Clean cannot see unfetched
+landings, content only beyond the bounded history search, or content matches across more than 500
+changed paths or more than 16,000 joined path characters. A stale tracking ref can claim a landing
+later force-pushed away on the remote. Empty changes are not content proof; a task with no commits on its pinned base still
+passes the original ancestry check. Exit 1 from an ancestry probe means no match. Every non-zero
+tree-comparison exit is a probe failure. Any other landing-probe failure prints
+`<task>: refused (landing check failed: <git's first line>); --force removes it anyway`, keeps the
+task and continues the run's other tasks. An empty Git message uses the command and exit code instead.
+Exceptions starting or running a probe use the same refusal with their message (or exception type
+when empty); cancellation propagates instead.
+
+Cleanup is resumable: missing artifacts are already removed; retry reconciles the recorded folder,
+its registration, branch, task temp and temporary index independently. A folder with a missing or
+dangling `.git` link is partially removed: without force, clean refuses with
+`<task>: worktree partially removed (<path>); clean --force finishes the removal`.
+Force finishes that removal and skips dirtiness assessment, but never bypasses Git
+configuration/filter checks, worktree locks, structured-scratch ownership or in-place safety. Clean
+finds the task's registration by its recorded path, or by its branch when Git records the path
+differently (a root reached through a link); a detached worktree is found by path. A worktree in
+the task's folder that is on another branch is never the task's: clean refuses it, even with force.
+Without force, the registered HEAD (detached or not, folder present or not) must also pass the
+recorded-base ancestry check or qualify under the landing checks above. Only the task's registration
+is removed, never repository-wide pruning.
+
+Without force, clean finds the registered worktree's administrative folder under
+`<common git dir>/worktrees/*` by matching its `gitdir` file to the registration's `.git` path or the
+recorded worktree's real `.git` path, even when the worktree folder is gone. A registration with no matching administrative folder refuses cleanup with `<task>: refused (worktree admin folder not found); --force removes it anyway`.
+Every matching folder's `modules` folder permits `git worktree remove --force` only when these
+three conditions hold:
+
+1. If the worktree is intact, its `git status --porcelain=v1 -z --untracked-files=all --ignore-submodules=none` is empty.
+2. The dirty, recorded-base merge or target landing, and lock checks pass.
+3. Every folder recursively under `modules` holding a `HEAD` file and an `objects` folder reports `0`
+   from `git --git-dir=<dir> rev-list --count --all --not --remotes`. This covers deinited and
+   nested submodules' git data, not their `logs` folders, and skips filesystem links when recursing.
+   A commit reachable only from a tag is refused; `--force` removes it.
+
+The read-only commit probe uses `--work-tree=<repo>` so Git can inspect the git data even when
+the submodule's configured working folder no longer exists.
+
+Submodule changes refuse cleanup with
+`<task>: refused (submodule has changes); --force removes it anyway`.
+Commits no remote has refuse it with
+`<task>: refused (submodule holds commits no remote has); --force removes it anyway`.
+A dirty superproject refuses first with
+`<task>: refused (dirty worktree); --force removes it anyway`. Dirt only inside submodules uses
+`submodule has changes` whether or not the task is merged, before any landing probes. Otherwise,
+unmerged work refuses with
+`<task>: refused (unmerged: not on <baseRef> or <target>; fetch if it landed recently); --force removes it anyway`;
+without a target the reason is just `unmerged: not on <baseRef>`.
+A failure of these git probes follows the normal git error path. Removal deletes the submodule's
+git directory and reflog, normally kept under the linked worktree's administrative folder
+at `<common git dir>/worktrees/<id>/modules/<name>`. These checks do not preserve reflog-only history.
+A remote-tracking ref inside the deleted git data is the only evidence that a remote has a commit.
+After the harness's recorded-base merge or target landing check passes, branch deletion uses `git branch -D`, not
+Git's separate `-d` check against the repository's current HEAD or the branch's upstream. Force
+continues to bypass dirtiness and merge checks, including these submodule refusals.
+
+After all tasks succeed, clean removes empty run/temp containers bottom-up, including an empty
+`.dispatch-tmp/git` and its empty parent. Nonempty containers and links remain and are printed as
+`retained: <path>`; the worktree root remains. A task failure prints task, cleanup step and error,
+records `clean-failed` rather than `cleaned`, continues other tasks, and returns exit 1. A session
+that cannot be released records `clean-failed` at `session`, and clean still attempts workspace cleanup,
+subject to the zombie retention rule above.
+
+| Exit | Type | Meaning |
+|---|---|---|
+| `0` | integer | Cleanup succeeded or nothing needed removal. |
+| `1` | integer | Any cleanup was refused or failed. |
+| `2` | integer | Unknown run, held supervisor lock, invalid configuration or uncaught setup error. |
+
+## Common error handling
+
+| Exit | Type | Default meaning |
+|---|---|---|
+| `0` | integer | Command-specific success; status and listings do not prove task success. |
+| `1` | integer | Incomplete execution, unconfirmed control request or failed reported checks. |
+| `2` | integer | Usage error, unknown command, configuration failure, or error caught by the top-level CLI. |
+
+Ctrl-C cancels the current command. The top-level CLI returns 2 for cancellation or unexpected
+errors; a claimed run or recovery error caught internally returns 1. A corrupt complete event line
+is an error; a non-newline-terminated final fragment is ignored. Consult [ledger](ledger.md) before
+building a consumer that derives outcomes from events.

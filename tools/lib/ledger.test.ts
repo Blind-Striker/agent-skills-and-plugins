@@ -53,6 +53,14 @@ test("the build writes a deterministic ledger describing each item's resolved st
     dropped: [],
     bodyTransformations: [],
   });
+  assert.deepEqual(alpha.antigravity, {
+    artifacts: ["skill"],
+    identity: "deniz-process:alpha",
+    advertised: true,
+    edges: { model: ["deniz-process:beta"], pointer: [] },
+    droppedKeys: [],
+    transformations: [],
+  });
 
   const beta = ledger["deniz-process/skill/beta"];
   assert.deepEqual(beta.claude.artifacts, ["skill"]); // Claude: manual is still a skill, flagged
@@ -69,6 +77,7 @@ test("the build writes a deterministic ledger describing each item's resolved st
   assert.equal(beta.codex.implicit, "disabled");
   assert.equal(beta.codex.explicit, "available");
   assert.deepEqual(beta.codex.policyFiles, ["agents/openai.yaml"]);
+  assert.equal(beta.antigravity.advertised, false);
 
   // determinism: a second build produces byte-identical content
   const first = readFileSync(join(root, "docs", "ledger.json"), "utf8");

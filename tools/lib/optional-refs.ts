@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { antigravityArtifactPath } from "./antigravity-plugin.ts";
 import type { AssembledItem } from "./assemble.ts";
 import { mappedSources, treeMarkdown } from "./harness-files.ts";
 import { emitsTo, HARNESSES, type Harness, type SkillIntent } from "./manifest.ts";
@@ -18,6 +19,7 @@ export function assembledReferenceFiles(
   item: AssembledItem,
   map: Map<string, RewriteTarget>,
   primaryDocument: (harness: Harness) => string,
+  harnesses: readonly Harness[] = HARNESSES,
 ): ReferenceFile[] {
   const files = item.intent.harness_files;
   const sources = new Set(files ? mappedSources(files) : []);
@@ -33,15 +35,26 @@ export function assembledReferenceFiles(
         : [],
     ),
   ];
-  return HARNESSES.filter((harness) => emitsTo(item.intent, harness)).flatMap((harness) =>
-    treeMarkdown(claude, files, harness, readSource, map)
-      .filter((file) => item.outType === "skill" || harness === "codex" || file.path === "SKILL.md")
-      .map((file) => ({
-        path: `${harness}/${item.plugin}/${item.outName}/${file.path}`,
-        text: file.path === "SKILL.md" ? rewriteRefs(primaryDocument(harness), map, "claude") : file.text,
-        harnesses: [harness],
-      })),
-  );
+  return harnesses
+    .filter((harness) => emitsTo(item.intent, harness))
+    .flatMap((harness) =>
+      treeMarkdown(claude, files, harness, readSource, map)
+        .filter(
+          (file) =>
+            item.outType === "skill" ||
+            harness === "codex" ||
+            (harness === "antigravity" && item.outType === "command") ||
+            file.path === "SKILL.md",
+        )
+        .map((file) => ({
+          path:
+            harness === "antigravity"
+              ? `antigravity/${item.plugin}/${file.path === "SKILL.md" ? antigravityArtifactPath(item.outType, item.outName) : `skills/${item.outName}/${file.path}`}`
+              : `${harness}/${item.plugin}/${item.outName}/${file.path}`,
+          text: file.path === "SKILL.md" ? rewriteRefs(primaryDocument(harness), map, "claude") : file.text,
+          harnesses: [harness],
+        })),
+    );
 }
 
 /** Installed-Module scope at each real ATX heading; code and quote imitations establish no scope. */
@@ -102,7 +115,7 @@ export function collectOptionalGuardProblems(
   });
 }
 
-/** Guard-only proof on current rendered bytes; never re-derive audience or dependencies from Codex. */
+/** Guard-only proof on rendered bytes. Canonical facts own audience and dependency checks. */
 export function collectRenderedOptionalGuardProblems(
   file: Pick<ReferenceFile, "path" | "text">,
   harness: Exclude<Harness, "claude">,

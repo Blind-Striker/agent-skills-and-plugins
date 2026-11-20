@@ -6,8 +6,8 @@ selections, or the recorded transformation decisions may still be useful to some
 
 Upstream skill repositories live as submodules in `external/`; curation manifests in
 `curation/*.yaml` select and transform what gets packaged into the `deniz-*` Claude Code Plugins in
-`plugins/`, same-named OpenCode Module Bundles in `opencode/`, and same-named Codex Plugins in
-`codex/`.
+`plugins/`, same-named OpenCode Module Bundles in `opencode/`, Codex Plugins in `codex/`, and
+Antigravity Plugins in `antigravity/`.
 
 Working in this repo, human or agent, starts at [AGENTS.md](AGENTS.md): the contract and the map of
 where everything else lives.
@@ -32,11 +32,11 @@ lead's brief ask for to make the agent own a task and hand its work to other age
 `delegating-to-worker-models`, written from the field runs and controlled comparison in the
 [worker-model delegation research](docs/research/worker-model-delegation.md), which names no model;
 `model-profiles`, one curator's profiles of the models they delegate to, used only when you name it; `harness`, a dispatcher
-shipped as the source of a .NET file-based app, for Claude Code and Codex; `t3-delegation`, how the
+shipped as the source of a .NET file-based app, for Claude Code, Codex, and Antigravity; `t3-delegation`, how the
 craft runs on T3 Code's delegation tools; and `verified-waves`,
 written here from the approaches in the
 [orchestration research](docs/research/claude-ultracode-and-orchestration-ports.md#adopted-approaches-curator-approved),
-for OpenCode and Codex. Each skill ships only to the harnesses it serves
+for OpenCode, Codex, and Antigravity. Each skill ships only to the harnesses it serves
 ([ADR-0010](docs/adr/0010-per-harness-item-emission.md)). Running the harness needs a .NET 10 SDK; no
 other Module ships code that needs one.
 
@@ -46,7 +46,7 @@ Authored transformation inputs live in `curation/*.yaml` (what to take and how t
 `curation/attribution.json` (where redistributed sources and licenses come from), `overlays/`
 (patches or owned replacement files), and `skills/` (original skills, each declared under
 `original_skills` in its Module's manifest).
-`npm run build` regenerates committed `plugins/`, `opencode/`, `codex/`, and `dist/` output; never
+`npm run build` regenerates committed `plugins/`, `opencode/`, `codex/`, `antigravity/`, and `dist/` output. Never
 edit those generated trees directly. The Claude and Codex repository marketplaces are generated at
 `.claude-plugin/marketplace.json` and `.agents/plugins/marketplace.json`.
 
@@ -67,8 +67,8 @@ pinned upstream repos + original skills
   -> inventory + curator intent + patches/overlays
   -> preflight + transformation + reference localization/linking
   -> common assembled items
-  -> Claude Code Plugins + OpenCode Module Bundles + Codex Plugins
-  -> native Plugin marketplaces or transactional OpenCode Native-tree installation
+  -> Claude Code Plugins + OpenCode Module Bundles + Codex Plugins + Antigravity Plugins
+  -> native Plugin installation or transactional OpenCode Native-tree installation
 ```
 
 - Every scanner-visible upstream item receives an explicit take, merge, transform, or exclude
@@ -80,10 +80,12 @@ pinned upstream repos + original skills
   flags. OpenCode 2 receives one artifact per item at its `<plugin>.<name>` ID: a skill, unless
   curation chose `as: command` or `as: agent`. A `manual` skill carries
   `opencode/autoinvoke: false`, so the model is not offered it and the user attaches it with
-  `@<plugin>.<name>`; `both` is one plain skill, and no body is parked. The current Bundles hold 113
-  skills, 30 of them `manual`, and two subagents, with no commands. Codex receives a skill, with a
+  `@<plugin>.<name>`; `both` is one plain skill, and no body is parked. The generated
+  [ledger](docs/ledger.json) records the current skills, invocation posture, and subagents. Codex
+  receives a skill, with a
   native explicit-only policy for `manual`. Codex keeps explicit invocation available for `auto`
-  because its native skill surface has no implicit-only posture.
+  because its native skill surface has no implicit-only posture. Antigravity emits native skills and
+  subagents; commands become manual skills, and `manual` skills are hidden from the model list.
 - Surgical patches, owned overlays, and declared multi-source merges are stamped against their
   upstream inputs. Reviewed upstream drift blocks generation until it is deliberately reconciled or
   re-blessed.
@@ -124,8 +126,8 @@ Vincent, [Matt Pocock's skills](https://github.com/mattpocock/skills),
 [Blazing Fast .NET](https://github.com/EgorBo/BlazingFastDotnet) by Egor Bogatov. `pr`'s
 Summary guidance comes from [HumanLayer's `show-me`](https://github.com/humanlayer/skills).
 
-This repository's original work is MIT licensed. Each generated Claude Plugin, OpenCode Bundle, and
-Codex Plugin carries its exact source-specific license texts. See [LICENSE](LICENSE) and
+This repository's original work is MIT licensed. Each generated Claude Plugin, OpenCode Bundle, Codex Plugin, and
+Antigravity Plugin carries its exact source-specific license texts. See [LICENSE](LICENSE) and
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Setup
@@ -147,7 +149,7 @@ worktrees.
 
 | Command | Purpose |
 |---|---|
-| `npm run build` | Compile manifests + overlays + own skills into committed `plugins/`, `opencode/`, `codex/`, marketplaces, and installer `dist/` output |
+| `npm run build` | Compile manifests + overlays + own skills into committed `plugins/`, `opencode/`, `codex/`, `antigravity/`, marketplaces, and installer `dist/` output |
 | `npm run inventory` | Regenerate `docs/inventory.md` catalog |
 | `npm run eject -- <plugin> <name> [--patch [--rebase]] [--bless]` | Copy an item to `overlays/` for body editing, reopen a patch on current upstream, or bless reviewed upstream drift |
 | `npm run sync [submodule]` | Update submodule(s), report impact on curated items |
@@ -163,7 +165,7 @@ worktrees.
 Generated harness output is excluded from the general Biome pass, while `npm run build` formats the
 committed installer JavaScript in `dist/`; `biome.json` is authoritative for the exact exclusions.
 
-Build output is committed. CI rebuilds and fails if `plugins/`, `opencode/`, `codex/`, `dist/`,
+Build output is committed. CI rebuilds and fails if `plugins/`, `opencode/`, `codex/`, `antigravity/`, `dist/`,
 either marketplace, `docs/inventory.md`, or `docs/ledger.json` differs from what is
 checked in, so run `npm run build && npm run inventory` and commit the result
 with any curation change or submodule bump. The build compiles the installer to
@@ -179,6 +181,34 @@ plugins. Once a `deniz-*` plugin covers an upstream source, uninstall the
 upstream plugin (avoid duplicate similar skills). General, Akka, and Dispatch need other plugins
 installed beside them in every harness; the requirement table is under
 [OpenCode from this checkout](#opencode-from-this-checkout).
+
+### Antigravity
+
+Install a Module directly from the GitHub subfolder (replace `<module>` with a `deniz-*` name):
+
+```bash
+agy plugin install https://github.com/Blind-Striker/agent-skills-and-plugins/tree/master/antigravity/<module>
+```
+
+For zero-copy discovery from a local checkout, add its absolute plugin directory to
+`~/.gemini/config/plugins.json`, preserving any existing entries:
+
+```json
+{ "entries": [{ "path": "<absolute-checkout-path>/antigravity/deniz-process" }] }
+```
+
+Repeat an entry for each desired Module. `agy plugin list --json` lists installed plugins, not
+manifest-discovered entries. Install required Modules yourself as listed in the
+[requirement table](#opencode-from-this-checkout).
+
+In T3 Code, the bundled `agy_acp_server 1.4.5` ignores native plugins and agents. Point T3 Code's
+Antigravity provider **Binary path** at `agy` (`>= 1.5.13`) so T3 runs `agy acp`; it then loads
+plugins installed under `~/.gemini/config/plugins/` natively — including auto skills,
+`disable-model-invocation: true` hiding, and native subagents — with no loose-skill sync helper or
+`GEMINI_HOME` junction. These observations are bounded to Windows probes on `agy 1.5.13` (CLI and
+T3 `agy acp`); see
+[distribution](docs/architecture/distribution-and-installation.md#antigravity-native-distribution)
+and the [research](docs/research/antigravity-native-plugin-and-skill-surfaces.md).
 
 ### Codex from this repository marketplace
 
@@ -259,7 +289,7 @@ Process's `systematic-debugging`, and `writing-tunit-tests` hands what to test, 
 to Process's `test-driven-development`. Coordination requires Process because
 `delegating-to-worker-models` sends the coordinator's own review read to Process's
 `requesting-code-review`. So the installer refuses a Selection that has General without Aspire and
-Process, Akka without Aspire and General, or Coordination without Process. Claude Code and Codex
+Process, Akka without Aspire and General, or Coordination without Process. Claude Code, Codex, and Antigravity
 install each Plugin on its own, and these Plugins declare no requirement there, so install the
 required Plugins yourself: `deniz-process` and `deniz-dotnet-aspire` alongside
 `deniz-dotnet-general`, `deniz-dotnet-aspire` and `deniz-dotnet-general` alongside

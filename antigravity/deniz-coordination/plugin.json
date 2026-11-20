@@ -1,0 +1,18 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "deniz-coordination",
+  "displayName": "Deniz Coordination",
+  "version": "0.3.2",
+  "description": "Deniz's coordination skills (the coordinator mode, the delegation craft, model profiles, the dispatch harness and T3 Code as delegation mechanisms, verified waves)",
+  "author": {
+    "name": "Deniz İrgin",
+    "email": "1965259+Blind-Striker@users.noreply.github.com"
+  },
+  "homepage": "https://github.com/Blind-Striker/agent-skills-and-plugins#readme",
+  "repository": "https://github.com/Blind-Striker/agent-skills-and-plugins",
+  "license": "MIT",
+  "keywords": [
+    "antigravity",
+    "skills"
+  ]
+}

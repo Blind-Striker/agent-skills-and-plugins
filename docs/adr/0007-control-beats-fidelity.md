@@ -40,11 +40,11 @@ material, not a standard to track. Concretely:
   neither. Entering a workflow through one framework's trigger and continuing with another's
   ceremony is an expected shape, not an exception. Nothing routes except the curator.
 - **Decisions see the whole dependency closure.** A skill can lean on other skills, commands,
-  agents, bundled scripts and reference files — in all three reference spellings
+  agents, bundled scripts and reference files — in every target’s reference spelling
   defined by [ADR-0008](0008-references-are-symbols.md) and [References and linking](../architecture/references-and-linking.md#one-grammar-three-evidence-tiers).
   The closure is surfaced at decision time; taking a package whole, cutting the edge, or rewiring it
   are all legitimate outcomes. Deciding an item in isolation is not.
-- **All harnesses, every time.** An item's fate is decided for the Claude Code, OpenCode, and Codex
+- **All harnesses, every time.** An item's fate is decided for the Claude Code, OpenCode, Codex, and Antigravity
   trees at once — ADR-0006 resolves each axis per harness. Treating any target as a later port is the
   named anti-pattern.
 

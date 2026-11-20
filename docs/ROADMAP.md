@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-11-16
+Date: 2026-11-20
 
 Operational document: current orientation, next work, open decisions, known gaps, and deferred work.
 It shrinks as work lands and is not a chronology. Current mechanics live in
@@ -11,12 +11,13 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 ## Current State
 
 - The five current curation manifests pass through one common assembly and emit matching Claude
-  Code Plugins, OpenCode Module Bundles, and native Codex Plugins plus both repository marketplaces.
-  Checkout Module versions are Process 0.15.5, General 0.19.1, Akka 0.5.0, Aspire 0.7.2, and
-  Coordination 0.3.1. Coordination holds the `coordinator` mode, `delegating-to-worker-models` and
+  Code Plugins, OpenCode Module Bundles, native Codex Plugins, and native Antigravity Plugins, plus
+  both repository marketplaces. Checkout Module versions are Process 0.15.6, General 0.19.1, Akka
+  0.5.0, Aspire 0.7.2, and Coordination 0.3.2. Coordination holds the `coordinator` mode, `delegating-to-worker-models` and
   `verified-waves`, both moved out of Process, `model-profiles`, the `harness` skill with its bundled
   .NET source, and `t3-delegation` ([ADR-0009](adr/0009-coordination-ships-in-its-own-module.md)); `harnesses` narrows
-  `harness` to Claude Code and Codex and `verified-waves` to OpenCode and Codex
+  `harness` to Claude Code, Codex, and Antigravity and `verified-waves` to OpenCode, Codex, and
+  Antigravity
   ([ADR-0010](adr/0010-per-harness-item-emission.md)). Every Release since `installer-v0.13.0`
   carries it. At 0.2.0 the coordinator names no delegation tool: the craft picks each piece's model
   and then any mechanism that reaches it, so in T3 Code no per-lane "ignore the dispatch harness"
@@ -26,6 +27,13 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   authorizes workers. Their
   item posture, source pins, transformations, exclusions, and reasons live in
   [`curation/*.yaml`](../curation/) and the generated [ledger](ledger.json), not in this roadmap.
+- Native Antigravity Plugins live under `antigravity/` (135 skills and 2 native agents across the
+  five Modules). Windows probes on `agy 1.5.13` CLI and `agy acp 1.5.13` under T3 Code (using a
+  provider configured with `Binary path: agy`) covered native plugin installation and discovery,
+  manual-skill hiding, and subagent discovery with no loose-skills sync helper or `GEMINI_HOME`
+  junction; T3's bundled `agy_acp_server 1.4.5` is unsupported. App/IDE behavior and full-estate
+  runtime compliance remain unmeasured
+  ([research](research/antigravity-native-plugin-and-skill-surfaces.md)).
 - OpenCode 2 is the only OpenCode target. Canon now states the decided OpenCode 2 rules: the runtime
   floor and dropped OpenCode 1 support in
   [distribution and installation](architecture/distribution-and-installation.md#target-opencode-runtime),
@@ -194,13 +202,12 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   new routing and guards is unmeasured.
 - `verified-waves`, design A of the
   [ultracode and orchestration research](research/claude-ultracode-and-orchestration-ports.md#port-designs),
-  ships in Process 0.10.0 as an original `manual` skill, declared under `original_skills`
+  ships in Coordination as an original `manual` skill, declared under `original_skills`
   ([`curation/SCHEMA.md`](../curation/SCHEMA.md#original_skills)), that runs one task as verified
   multi-agent waves. One shared body in this repository's own words, not named "ultracode", holds
-  the method, and per-harness tool notes through `harness_files` hold the tools: Claude Code's notes
-  route into the native Workflow tool, which accepts a skill whose instructions say to call it as
-  the user's opt-in; OpenCode's run background `subagent` waves; Codex's run `spawn_agent` waves
-  that branch on the multi-agent version the model's tool list shows. `ask-deniz` and the
+  the method, and per-harness tool notes through `harness_files` hold the tools: OpenCode runs
+  background `subagent` waves, Codex uses its available multi-agent tools, and Antigravity uses
+  its native subagent surface. Claude Code uses its native Workflow tool instead. `ask-deniz` and the
   [cheatsheet](cheatsheet.md) route people to it. The curator-approved prior-art approaches, the
   rejected ones, the skill outline, and the rulings on its authoring points are in the research
   note's
@@ -313,7 +320,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    Claude emitter path for workflow scripts yet. Open question for the curator, not decided: the
    surface is Claude-only, so what answers the "same standard in every harness" rule
    ([ADR-0007](adr/0007-control-beats-fidelity.md), "All harnesses, every time")? One candidate:
-   Claude Code gets the scripted form, and OpenCode and Codex get `verified-waves`' model-driven
+   Claude Code gets the scripted form, and OpenCode, Codex, and Antigravity get `verified-waves`' model-driven
    form of the same playbook.
 3. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
    required and forbidden initiation capabilities, but it does not claim that descriptions reliably
@@ -327,6 +334,12 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    [skill-framework-landscape.md](research/skill-framework-landscape.md).
 
 ## Known Gaps
+
+- **Antigravity proof and dispatch backend:** A repeatable full-estate discovery and invocation panel
+  is still needed for generated Plugins, including model handoffs and both native agents. Native
+  Antigravity support in the .NET dispatch harness would be a separate future `AntigravityBackend`
+  milestone; the existing harness has OpenCode and Codex backends only. The emitter does not
+  implement that backend.
 
 - **A Codex child's model record in T3 Code is unmeasured:** `t3-delegation` reads the model that ran
   from T3's `executedModel`, filled for Claude runs, or from OpenCode's database for OpenCode

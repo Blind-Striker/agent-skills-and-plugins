@@ -1,6 +1,6 @@
 # ADR-0009: Coordination ships in its own Module, with the dispatch harness as a .NET file-based app
 
-Date: 2026-11-16
+Date: 2026-11-20
 Status: Accepted
 
 ## Context
@@ -70,14 +70,14 @@ source of a .NET file-based application bundled inside one of that Module's skil
     harness.
   - `harness`, model-invocable, is the dispatch tool and its contract for every caller. It depends
     on no other skill, so a caller that only needs the tool uses it alone; its section for the craft
-    maps the craft's steps onto task files. It ships to Claude Code and Codex, because OpenCode
+    maps the craft's steps onto task files. It ships to Claude Code, Codex, and Antigravity, because OpenCode
     reaches several model families natively.
   - `t3-delegation`, model-invocable, maps the craft onto T3 Code's delegation tools, which reach
     every provider T3 lists on several machines. It repeats none of T3's own orchestration
     instructions, which win where they differ, and it ships to every harness, because a T3 session
     can run on any of them.
   - `verified-waves`, started by the user, moves out of Process. It ships to the harnesses without
-    a native workflow tool the user opts into, which today means OpenCode and Codex.
+    a native workflow tool the user opts into, which today means OpenCode, Codex, and Antigravity.
 
   Coordination requires Process (the craft's review path is Process's `requesting-code-review`);
   Process never requires Coordination, and Process's remaining mentions of these skills become
@@ -85,15 +85,15 @@ source of a .NET file-based application bundled inside one of that Module's skil
 - **Workers on other providers run only on an explicit request.** A user's own request for
   workers, a model, or the mechanism, or a coordinated or delegated run that the user or a
   coordinator the user started asked for, is that request; loading a skill, or the harness or T3
-  being available, is not. The craft names the harness only from the host notes that the Claude Code
-  and Codex trees ship.
+  being available, is not. The craft names the harness only from the host notes that the Claude Code,
+  Codex, and Antigravity trees ship.
 - **Harness.** The harness skill's body is the harness's contract. It runs workers on two equal
   backends: OpenCode through the OpenCode .NET SDK, and Codex through a thin JSON-RPC client over the
   standard streams of `codex app-server`.
 - **Payload.** The application is C# source split with `#:include`, kept entirely inside the
   harness skill's folder with its own `global.json` and an entry file that starts with a shebang.
   It is run as `dotnet <entry>.cs`. No compiled binary ships. Because the files sit inside a skill
-  folder, they are ordinary bundled text to the emitter and to the Claude Code and Codex Plugin trees; no
+  folder, they are ordinary bundled text to the emitter and to the Claude Code, Codex, and Antigravity Plugin trees; no
   OpenCode Bundle carries it, and the payload needs no new Native path kind, manifest field, or
   installer rule.
 - **User state stays outside the payload.** Route allow-lists, policies, ledgers, escalation files,
@@ -148,7 +148,7 @@ source of a .NET file-based application bundled inside one of that Module's skil
 - An OpenCode or Codex user who selects only Process loses `verified-waves` until they also select
   Coordination, because the installer never adds a Module to a Selection. Rolling out the release
   includes that Selection change wherever the skill is in use.
-- If OpenCode or Codex gains a native workflow tool the user opts into, the skill's harness list in
+- If OpenCode, Codex, or Antigravity gains a native workflow tool the user opts into, the skill's harness list in
   the manifest changes; that is a manifest edit, not a new decision.
 - The repository gains a second language and a CI toolchain. `validate` learns the `dotnet`
   invocation form for bundled scripts.

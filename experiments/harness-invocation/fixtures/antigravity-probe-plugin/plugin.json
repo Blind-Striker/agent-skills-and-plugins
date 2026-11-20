@@ -1,0 +1,10 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "probe-plugin",
+  "displayName": "Probe Control",
+  "version": "1.0.0",
+  "description": "Nonsense controls for a harness discovery and invocation measurement.",
+  "author": { "name": "Harness Probe" },
+  "license": "MIT",
+  "keywords": ["probe"]
+}

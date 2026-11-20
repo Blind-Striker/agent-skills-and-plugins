@@ -1,6 +1,6 @@
 # Repository workflow
 
-Date: 2026-10-12
+Date: 2026-11-20
 
 This document owns task-triggered repository flow: where edits belong, how a curation session moves
 from catalog to reviewed output, how upstream changes enter, and how a task closes. Manifest field
@@ -25,7 +25,7 @@ Treat repository areas according to the action they permit:
   `THIRD_PARTY_NOTICES.md` are authored inputs. `tests/dispatch/` holds the dispatch harness's .NET
   tests, kept outside its skill folder so they never ship
   ([ADR-0009](../adr/0009-coordination-ships-in-its-own-module.md)).
-- `plugins/`, `opencode/`, `codex/`, `dist/`, `.claude-plugin/marketplace.json`,
+- `plugins/`, `opencode/`, `codex/`, `antigravity/`, `dist/`, `.claude-plugin/marketplace.json`,
   `.agents/plugins/marketplace.json`, `docs/inventory.md`, and `docs/ledger.json` are generated
   review surfaces. Change their inputs and regenerate; never patch them directly.
 
@@ -45,7 +45,7 @@ Curation is a human judgement boundary. An agent may inventory, compare upstream
 references, identify harness constraints, and recommend an option. It must not silently decide an
 ambiguous item's trigger, shape, ownership, or module placement. Present the options and a
 recommendation to the curator, then encode the chosen intent and reason. Consider the Claude Code
-Plugin, OpenCode Module, and Codex Plugin together for every item rather than treating one as a
+Plugin, OpenCode Module, Codex Plugin, and Antigravity Plugin together for every item rather than treating one as a
 later port.
 
 ## Manifest and body-edit flow
@@ -142,7 +142,7 @@ inventory, reopen affected source bodies and manifests, and review any posture, 
 or patch impact.
 
 After a pin move, resolve overlay drift through the bless or rebase flow, make any newly required
-curation decisions with nearby reasons, regenerate all three harness outputs, and run the
+curation decisions with nearby reasons, regenerate all four harness outputs, and run the
 generated-output gate in [quality-gates.md](quality-gates.md#command-matrix). Complete its
 generated-output review before accepting the update.
 

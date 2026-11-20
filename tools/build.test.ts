@@ -12,6 +12,7 @@ import { loadLock, lockKey, saveLock, stampFiles, stampMergeFiles } from "./lib/
 import {
   addOriginalHarnessNotes,
   addOriginalSkill,
+  antigravityPluginPath,
   codexPluginPath,
   makeHarnessFilesRepo,
   makeRepo,
@@ -20,6 +21,42 @@ import {
   restampFrontmatter,
 } from "./testutil.ts";
 import { validateRepo } from "./validate.ts";
+
+test("buildAll emits a native Antigravity plugin with a manual command and a native agent", () => {
+  const root = makeRepo();
+  buildAll(root);
+  const plugin = antigravityPluginPath(root, "deniz-process");
+  const manifest = JSON.parse(readFileSync(join(plugin, "plugin.json"), "utf8"));
+  assert.equal(manifest.$schema, "https://antigravity.google/schemas/v1/plugin.json");
+  assert.equal(manifest.name, "deniz-process");
+  const command = parseDoc(readFileSync(join(plugin, "skills", "deniz-beta", "SKILL.md"), "utf8"));
+  assert.equal(command.frontmatter["disable-model-invocation"], true);
+  const agent = parseDoc(readFileSync(join(plugin, "agents", "beta-agent.md"), "utf8"));
+  assert.deepEqual(agent.frontmatter, {
+    name: "beta-agent",
+    description: "Beta upstream",
+    mainAgent: false,
+    subagent: true,
+    model: "inherit",
+  });
+  assert.ok(!existsSync(join(plugin, "commands")));
+  assert.ok(existsSync(join(plugin, "THIRD_PARTY_NOTICES.md")));
+});
+
+test("Antigravity keeps overflow losslessly in a linked companion without splitting a Markdown section", () => {
+  const root = makeRepo();
+  const overview = `# Overview\n\n${"é".repeat(10_000)}\n\n`;
+  const details = `## Details\n\n${"é".repeat(6_000)}\n`;
+  addOriginalSkill(root, "long-skill", { body: overview + details });
+  buildAll(root);
+  const skill = antigravityPluginPath(root, "deniz-process", "skills", "long-skill");
+  const { body } = parseDoc(readFileSync(join(skill, "SKILL.md"), "utf8"));
+  assert.equal(body, `${overview}Read [the remaining instructions](SKILL-CONTINUATION.md) to continue.\n`);
+  assert.equal(readFileSync(join(skill, "SKILL-CONTINUATION.md"), "utf8"), details);
+  assert.ok(Buffer.byteLength(body) <= 24_000);
+  const claude = join(root, "plugins", "deniz-process", "skills", "long-skill", "SKILL.md");
+  assert.equal(parseDoc(readFileSync(claude, "utf8")).body, overview + details);
+});
 
 test("buildAll compiles plugins with overrides, overlays, conversions, rewrites", () => {
   const root = makeRepo();
@@ -735,6 +772,7 @@ test("a description that rendering pushes over 1,024 characters aborts before an
     join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"),
     opencodeIdPath(root, "deniz-process", "skill", "alpha", "SKILL.md"),
     codexPluginPath(root, "deniz-process", "skills", "alpha", "SKILL.md"),
+    antigravityPluginPath(root, "deniz-process", "skills", "alpha", "SKILL.md"),
   ];
   const before = sentinels.map((path) => readFileSync(path));
   // 1,007 + " superpowers:beta" = 1,024 neutral characters. Each harness renders the fact with its own
@@ -767,10 +805,11 @@ test("a description that rendering pushes over 1,024 characters aborts before an
   assert.equal(
     error,
     [
-      "3 skill descriptions over the 1024-character limit after rendering, nothing deleted:",
+      "4 skill descriptions over the 1024-character limit after rendering, nothing deleted:",
       "plugins/deniz-process/skills/alpha/SKILL.md: description is 1026 characters, over the 1024-character skill limit",
       "opencode/deniz-process/skills/deniz-process.alpha/SKILL.md: description is 1026 characters, over the 1024-character skill limit",
       "codex/deniz-process/skills/alpha/SKILL.md: description is 1027 characters, over the 1024-character skill limit",
+      "antigravity/deniz-process/skills/alpha/SKILL.md: description is 1026 characters, over the 1024-character skill limit",
     ].join("\n"),
   );
   for (const [index, path] of sentinels.entries()) {
@@ -1793,6 +1832,7 @@ test("harness_files ships each tree its own file at one output path and no mappe
     plugins: join(root, "plugins", "deniz-process", "skills", "delta"),
     opencode: opencodeIdPath(root, "deniz-process", "skill", "delta"),
     codex: codexPluginPath(root, "deniz-process", "skills", "delta"),
+    antigravity: antigravityPluginPath(root, "deniz-process", "skills", "delta"),
   };
   assert.equal(
     readFileSync(join(trees.plugins, "references", "tools.md"), "utf8"),
@@ -1806,8 +1846,12 @@ test("harness_files ships each tree its own file at one output path and no mappe
     readFileSync(join(trees.opencode, "references", "tools.md"), "utf8"),
     "# OpenCode notes\n\nUse the `subagent` tool.\n",
   );
+  assert.equal(
+    readFileSync(join(trees.antigravity, "references", "tools.md"), "utf8"),
+    "# Antigravity notes\n\nUse invoke_subagent.\n",
+  );
   for (const [tree, dir] of Object.entries(trees)) {
-    for (const source of ["claude.md", "codex.md", "opencode.md"]) {
+    for (const source of ["claude.md", "codex.md", "opencode.md", "antigravity.md"]) {
       assert.ok(!existsSync(join(dir, "references", source)), `${tree} ships ${source}`);
     }
     assert.ok(existsSync(join(dir, "references", "notes.md")), `${tree} keeps the unmapped file`);
@@ -1821,11 +1865,13 @@ test("harness_files ships each tree its own file at one output path and no mappe
       claude: "references/claude.md",
       codex: "references/codex.md",
       opencode: "references/opencode.md",
+      antigravity: "references/antigravity.md",
     },
   });
   assert.deepEqual(entry.claude.edges.model, ["deniz-process:gamma"]);
   assert.deepEqual(entry.opencode.edges.model, [], "the Claude notes ship only in the Claude tree");
   assert.deepEqual(entry.codex.edges.model, []);
+  assert.deepEqual(entry.antigravity.edges.model, []);
 });
 
 test("harness_files with a null harness ships nothing at the output path in that tree", () => {
@@ -1874,7 +1920,9 @@ test("harness_files preflight stops the build before deleting anything", () => {
 
 test("harnesses ships an item only to the trees it names, with no trace in the others", () => {
   const root = makeRepo();
-  addOriginalSkill(root, "waves", { declaration: { invocation: "manual", harnesses: ["opencode", "codex"] } });
+  addOriginalSkill(root, "waves", {
+    declaration: { invocation: "manual", harnesses: ["opencode", "codex", "antigravity"] },
+  });
   const p = join(root, "curation", "deniz-process.yaml");
   writeFileSync(
     p,
@@ -1887,6 +1935,7 @@ test("harnesses ships an item only to the trees it names, with no trace in the o
   assert.ok(!existsSync(join(root, "plugins", "deniz-process", "skills", "waves")), "the Claude tree has no waves");
   assert.ok(existsSync(join(opencodeIdPath(root, "deniz-process", "skill", "waves"), "SKILL.md")));
   assert.ok(existsSync(codexPluginPath(root, "deniz-process", "skills", "waves", "SKILL.md")));
+  assert.ok(existsSync(antigravityPluginPath(root, "deniz-process", "skills", "waves", "SKILL.md")));
   assert.ok(existsSync(join(root, "plugins", "deniz-process", "skills", "delta", "SKILL.md")));
   assert.ok(!existsSync(opencodeIdPath(root, "deniz-process", "skill", "delta")), "the OpenCode tree has no delta");
   assert.ok(!existsSync(codexPluginPath(root, "deniz-process", "skills", "delta")), "the Codex tree has no delta");
@@ -1895,7 +1944,7 @@ test("harnesses ships an item only to the trees it names, with no trace in the o
   assert.ok(!Object.keys(manifest.files).some((file) => file.startsWith("skills/deniz-process.delta/")));
   const ledger = JSON.parse(readFileSync(join(root, "docs", "ledger.json"), "utf8"));
   const waves = ledger["deniz-process/skill/waves"];
-  assert.deepEqual(waves.harnesses, ["codex", "opencode"]);
+  assert.deepEqual(waves.harnesses, ["antigravity", "codex", "opencode"]);
   assert.equal(waves.claude, undefined, "no Claude row for a tree that ships nothing");
   assert.equal(waves.opencode.identity, "deniz-process.waves");
   assert.equal(waves.codex.identity, "deniz-process:waves");
@@ -1903,6 +1952,7 @@ test("harnesses ships an item only to the trees it names, with no trace in the o
   assert.deepEqual(delta.harnesses, ["claude"]);
   assert.equal(delta.opencode, undefined);
   assert.equal(delta.codex, undefined);
+  assert.equal(delta.antigravity, undefined);
   assert.deepEqual(delta.claude.artifacts, ["skill"]);
   assert.equal(ledger["deniz-process/skill/alpha"].harnesses, undefined, "an unnarrowed entry is unchanged");
 });
@@ -1918,7 +1968,10 @@ test("a Module that one harness would get nothing from stops the build before de
     plugin: "deniz-solo",
     declaration: { invocation: "both", harnesses: ["claude"] },
   });
-  assert.throws(() => buildAll(root), /deniz-solo ships nothing to codex or opencode — narrow fewer items/);
+  assert.throws(
+    () => buildAll(root),
+    /deniz-solo ships nothing to codex or opencode or antigravity — narrow fewer items/,
+  );
   assert.ok(existsSync(join(root, "plugins", "deniz-process", "skills", "delta", "SKILL.md")));
 });
 
@@ -1930,6 +1983,7 @@ test("harness_files on an original skill ships each tree its own file at one out
     plugins: join(root, "plugins", "deniz-process", "skills", "own-notes"),
     opencode: opencodeIdPath(root, "deniz-process", "skill", "own-notes"),
     codex: codexPluginPath(root, "deniz-process", "skills", "own-notes"),
+    antigravity: antigravityPluginPath(root, "deniz-process", "skills", "own-notes"),
   };
   assert.equal(readFileSync(join(trees.plugins, "references", "tools.md"), "utf8"), "# Claude\n\n`Agent` calls.\n");
   assert.equal(readFileSync(join(trees.codex, "references", "tools.md"), "utf8"), "# Codex\n\nUse spawn_agent.\n");
@@ -1937,8 +1991,12 @@ test("harness_files on an original skill ships each tree its own file at one out
     readFileSync(join(trees.opencode, "references", "tools.md"), "utf8"),
     "# OpenCode\n\nUse the `subagent` tool.\n",
   );
+  assert.equal(
+    readFileSync(join(trees.antigravity, "references", "tools.md"), "utf8"),
+    "# Antigravity\n\nUse invoke_subagent.\n",
+  );
   for (const [tree, dir] of Object.entries(trees)) {
-    for (const source of ["claude.md", "codex.md", "opencode.md"]) {
+    for (const source of ["claude.md", "codex.md", "opencode.md", "antigravity.md"]) {
       assert.ok(!existsSync(join(dir, "references", source)), `${tree} ships ${source}`);
     }
   }

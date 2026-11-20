@@ -1,11 +1,11 @@
 # Transformation and emission
 
-Date: 2026-10-12
+Date: 2026-11-20
 
 ## Responsibility
 
 This document owns the current compile-time mechanics: how authored inputs become separate Claude
-Code, OpenCode, and Codex artifacts, where body ownership sits, and where compilation hands off to
+Code, OpenCode, Codex, and Antigravity artifacts, where body ownership sits, and where compilation hands off to
 installation and runtime. Distribution terms retain the precise meanings in
 [`GLOSSARY.md`](../../GLOSSARY.md); manifest grammar and authoring choices remain in
 [`curation/SCHEMA.md`](../../curation/SCHEMA.md).
@@ -25,13 +25,14 @@ the gap and its responsible files are tracked in [`docs/ROADMAP.md`](../ROADMAP.
 The product crosses three distinct phases:
 
 1. **Compile-time transformation.** `external/`, `curation/`, `overlays/`, and any original
-   `skills/` are resolved into committed Claude Plugin, OpenCode Bundle, and Codex Plugin trees.
+   `skills/` are resolved into committed Claude Plugin, OpenCode Bundle, Codex Plugin, and Antigravity Plugin trees.
    Invocation, shape, frontmatter, body ownership, reference spelling, and target fit are settled
    here.
 2. **Install-time composition.** The OpenCode installer verifies ready-made Bundles and composes the
    selected files into the global Native tree without parsing or adapting their content. Claude Code
    installs the independently emitted Plugins through its marketplace, and Codex installs its own
-   Plugins through `.agents/plugins/marketplace.json`. OpenCode composition is
+   Plugins through `.agents/plugins/marketplace.json`. Antigravity installs or discovers its native
+   Plugins independently. OpenCode composition is
    owned by [Distribution and installation](distribution-and-installation.md).
 3. **Skill runtime.** A harness discovers or invokes the installed artifact, and its shipped
    instructions run. Work a skill performs in the consumer repository, including its own setup
@@ -46,10 +47,11 @@ phase reinterprets a skill after emission.
   `curation/attribution.json`, overlays and their lock, original skills with their
   [`original_skills`](../../curation/SCHEMA.md#original_skills) declarations, and the root license
   and notice are the authored transformation layer.
-- `plugins/`, `opencode/`, `codex/`, `dist/`, `.claude-plugin/marketplace.json`,
+- `plugins/`, `opencode/`, `codex/`, `antigravity/`, `dist/`, `.claude-plugin/marketplace.json`,
   `.agents/plugins/marketplace.json`, `docs/inventory.md`, and `docs/ledger.json` are generated and
   committed. They are review surfaces and consumable output, not edit surfaces.
-- One curation manifest produces one same-named Claude Plugin, OpenCode Module, and Codex Plugin.
+- One curation manifest produces one same-named Claude Plugin, OpenCode Module, Codex Plugin, and
+  Antigravity Plugin.
   Each marketplace points at its native Plugin tree; the Bundle keeps the Module's `skills/`,
   `commands/`, and `agents/` paths separate until installation.
 - Every skill, curated or original, is parsed and serialized even when no body override is present.
@@ -116,7 +118,8 @@ The compiler assembles a body in this order:
 Each non-excluded primary or merge source must have an entry in `curation/attribution.json`. After
 body assembly, the build copies the repository `LICENSE`, writes a source-specific
 `THIRD_PARTY_NOTICES.md`, and copies each used upstream license byte-for-byte under
-`third_party/<source>/LICENSE` in the Claude Plugin, OpenCode Bundle, and Codex Plugin. Bundle
+`third_party/<source>/LICENSE` in the Claude Plugin, OpenCode Bundle, Codex Plugin, and Antigravity
+Plugin. Bundle
 manifests hash these distribution files with the rest of the final Bundle.
 
 The fail-before-delete and emit order are explicit in [`buildAll`](../../tools/build.ts), with
@@ -124,13 +127,13 @@ per-item assembly in [`assembleItems`](../../tools/lib/assemble.ts). Overlay has
 owned body uses, including declared merge inputs; additions with no upstream counterpart are not
 pretended to have an upstream stamp. This is review ownership, not a content dependency lock.
 
-There is one neutral assembled item for all three targets. It retains the full selected dependency
+There is one neutral assembled item for all four targets. It retains the full selected dependency
 closure even when the resolved Claude/OpenCode kind is a single-file command or agent. `body: patch`,
 `body: overlay`, `omit`, and `merged_from` all act once before harness emission. The internal
-temporary assembly is pipeline state, not a fourth output format, and no finalized target tree is
+temporary assembly is pipeline state, not another output format, and no finalized target tree is
 another target's source. The repository does **not** express a per-target body overlay. Two seams
 are per target. Localization's closed harness phrasing renders the skill-tool call sentence and
-the subagent-dispatch words for each harness, and OpenCode's todo instructions as Markdown-checklist
+the subagent-dispatch words for each harness, and OpenCode's and Antigravity's todo instructions as Markdown-checklist
 wording, from upstream's Claude wording, and rewords nothing else
 ([References and linking](references-and-linking.md#harness-phrasing)). An item's or an original
 skill's [`harness_files`](../../curation/SCHEMA.md#harness_files) select, for one output path, a
@@ -142,12 +145,12 @@ permission to hand-edit one generated tree.
 
 ## Harness emission
 
-The three emitters consume the same pre-localization assembly and make target decisions
+The four emitters consume the same pre-localization assembly and make target decisions
 independently. They filter frontmatter, choose native artifact shape and invocation policy, and
 rewrite their own copies. Each places an item's or an original skill's `harness_files` for its own
 harness right after copying the skill folder, after a preflight that stops the build before any
 deletion when a mapped source is missing from the assembly or the output path is already taken
-(`collectHarnessFileProblems`). Final Claude, OpenCode, or Codex output is never mirrored into
+(`collectHarnessFileProblems`). Final Claude, OpenCode, Codex, or Antigravity output is never mirrored into
 another target. See [`buildAll`](../../tools/build.ts) and
 [`assembleItems`](../../tools/lib/assemble.ts).
 
@@ -174,7 +177,7 @@ includes the Agent Skills fields `license`, `compatibility`, and `metadata` that
 without acting on. An agent keeps only the keys of its subagent reference, less `hooks`,
 `mcpServers`, `permissionMode`, and `initialPrompt`, which Claude Code ignores in an agent a plugin
 ships. Every other key, such as an upstream `invocable`, `version`, or `tags`, is dropped and
-reported by the build, as in the other two emitters (`CLAUDE_SKILL_KEYS` and `CLAUDE_AGENT_KEYS` in
+reported by the build, as in the other emitters (`CLAUDE_SKILL_KEYS` and `CLAUDE_AGENT_KEYS` in
 [`tools/build.ts`](../../tools/build.ts)). An original skill takes the same adaptation as a curated
 skill. Its [declaration](../../curation/SCHEMA.md#original_skills) always states an invocation, so
 the declaration writes its Claude invocation keys, and its SKILL.md may author neither key
@@ -318,6 +321,34 @@ metadata, and one entry in `.agents/plugins/marketplace.json`. The repository ma
 native transport for Codex CLI and Codex in the ChatGPT desktop app. IDE Plugin loading and
 `.codex/agents/*.toml` distribution are outside this output.
 
+### Antigravity
+
+Each `antigravity/<plugin>/` is a native Plugin with a root `plugin.json` using
+`https://antigravity.google/schemas/v1/plugin.json`, distribution notices and licenses, skills, and
+native agents. The manifest derives identity and metadata from the curation manifest and publisher;
+its display name removes platform words forbidden by the strict schema. Preflight checks names,
+HTTPS repository URLs, portable paths and case aliases, collisions, and nonempty descriptions
+([`antigravity-plugin.ts`](../../tools/lib/antigravity-plugin.ts)). Native install and discovery
+are described in
+[Distribution and installation](distribution-and-installation.md#antigravity-native-distribution).
+
+A skill is `skills/<name>/SKILL.md`. Its frontmatter keeps only `name`, `description`,
+`disable-model-invocation`, `license`, `compatibility`, and `icon`, with dropped keys reported.
+`manual` writes `disable-model-invocation: true`; `auto` and `both` omit it, and absent intent
+preserves an upstream true value. The native skill remains explicitly invocable in each case.
+A resolved command also becomes a skill, always with `disable-model-invocation: true`, and retains
+its selected bundled files. A resolved agent is `agents/<name>.md`, with frontmatter `name`,
+`description`, `mainAgent: false`, `subagent: true`, and `model: inherit`; other keys are reported
+as drops. Invocation does not change the native agent shape. `harness_files` selects the
+Antigravity variant for skill-shaped items before localization.
+
+After localization, a skill body over 24,000 UTF-8 bytes is split at an eligible Markdown heading,
+preferentially a level-one or level-two heading, with a link to `SKILL-CONTINUATION.md` in the same
+folder. Anchors that cross the split are retargeted in both files, including duplicate-heading
+slugs. The leading body including its link must fit the limit. Preflight fails before deletion if
+no suitable boundary fits, if retargeting exceeds the limit, or if the continuation would collide
+with a bundled or mapped file. This is a body limit, not a frontmatter or total-file limit.
+
 ### Description length
 
 Every harness shares one limit: an emitted skill's `description` holds at most 1,024 characters.
@@ -327,7 +358,8 @@ the longest spelling, and OpenCode's path respelling can lengthen a sibling path
 shortens a description to fit, because a cut would give one harness different trigger text. The
 build measures the rendered description of every skill each harness would emit, including the
 commands and agents Codex emits as skills, and stops before any generated output is deleted;
-`validate` reads every emitted `SKILL.md` under `plugins/`, `opencode/`, and `codex/` again. Both
+`validate` reads every emitted `SKILL.md` under `plugins/`, `opencode/`, `codex/`, and
+`antigravity/` again. Both
 findings name the emitted path and the length. An overflow is a curation decision, made through the
 item's `frontmatter:` override or its patch ([`curation/SCHEMA.md`](../../curation/SCHEMA.md)). The
 checks are `collectDescriptionProblems` in [`buildAll`](../../tools/build.ts) and the description
@@ -337,7 +369,7 @@ check D in [`validateRepo`](../../tools/validate.ts), which share
 ## Finalization and handoff
 
 References, harness phrasing, and OpenCode's sibling-item and item-root paths are localized only
-after all three artifact trees exist, independently for each address space. Facts and phrasing are
+after all four artifact trees exist, independently for each address space. Facts and phrasing are
 rendered in Markdown; OpenCode path respelling also covers every other bundled text file of a skill
 folder and rewrites a file only when its bytes change. That includes the source of an application a
 skill bundles, such as the `harness` skill's .NET file-based app
@@ -350,7 +382,7 @@ not ship, of its Codex copy and then of an original skill's own file, so an exec
 `100755` after path respelling, and every other Bundle file is `100644`
 ([`claudeCounterpartPath`](../../tools/lib/opencode-target.ts)). A Windows checkout cannot see the
 bit, so `validate` reads both sides from Git's index: a curated item's source from its submodule's
-index, an original skill's from this repository's. A committed copy in any of the three trees of an
+index, an original skill's from this repository's. A committed copy in any of the four trees of an
 executable source that is recorded `100644` is an error naming the `git update-index --chmod=+x`
 command that fixes it (check 1e in [`validateRepo`](../../tools/validate.ts)).
 Compile-time `requiredModules` are derived only from the declared `depends_on` edges of items and
@@ -371,7 +403,7 @@ to committed `dist/` JavaScript using
 
 ## Current limits
 
-- Per-harness body ownership is absent; one overlay or patch feeds all three emitters. The follow-up
+- Per-harness body ownership is absent; one overlay or patch feeds all four emitters. The follow-up
   [Codex estate audit](../research/codex-generated-estate-audit.md) classified slash-shaped text and
   promoted actual skill pointers to namespaced authored facts in that common layer. Each emitter
   localizes those facts, so no Codex-only body-patch seam is currently justified. The harness
@@ -383,8 +415,8 @@ to committed `dist/` JavaScript using
 - An item resolved `as: command` is a single file in Claude Code and OpenCode. Skill-relative paths
   in its body can cease to resolve from that command location; whether the command surface is worth
   that cost is the per-item `as:` decision. OpenCode has no place for such a command's bundled
-  files: the build reports `bundled files not emitted` for them, while Codex, which emits the item
-  as a skill, keeps them. The path check that covers this case is described in
+  files: the build reports `bundled files not emitted` for them, while Codex and Antigravity, which emit the item
+  as a skill, keep them. The path check that covers this case is described in
   [References and linking](references-and-linking.md#paths).
 - On OpenCode, `manual` hides a skill from the model's list but cannot stop the skill tool from
   loading a registered ID that text names
@@ -393,7 +425,8 @@ to committed `dist/` JavaScript using
   flow into output. OpenCode renders an upstream `disable-model-invocation: true` through its native
   hiding key, while an upstream `user-invocable: false` has no OpenCode equivalent and is dropped and
   reported; Codex emits a skill with its target-default policy and does not translate upstream
-  Claude flags.
+  Claude flags. Antigravity preserves an upstream `disable-model-invocation: true`
+  when intent is absent.
 - OpenCode 2's TUI fuzzy ranking lists a namespaced `@<plugin>.<name>` below a bare third-party skill
   of the same `<name>`; typing the Module prefix selects this repository's artifact.
 - OpenCode 2 loads `AGENTS.md` and never `CLAUDE.md`. A shipped instruction that writes or relies on

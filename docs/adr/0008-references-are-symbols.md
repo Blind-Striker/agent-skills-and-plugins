@@ -1,6 +1,6 @@
 # ADR-0008: References are symbols — one model, a linker, a ledger
 
-Date: 2026-10-12
+Date: 2026-11-20
 Status: Accepted
 
 ## Context
@@ -31,16 +31,16 @@ The reference system has five parts, decided together:
    emitter localizes that intent into its target address space, which need not reuse the neutral
    punctuation: OpenCode renders a model-edge as `<plugin>.<name>` and a user-pointer as
    `@<plugin>.<name>` for a skill or agent target or `/<plugin>.<name>` for a command target,
-   because a user attaches an OpenCode skill rather than running it as a slash command. Two
-   phrasings name a harness tool, so localization renders each as a unit around its neutral facts:
-   the skill-tool call sentence and a closed table of subagent-dispatch words. Authors write
-   upstream's Claude wording; every other sentence is left as written. Touching candidate prose in
+   because a user attaches an OpenCode skill rather than running it as a slash command. Localization renders harness phrasing around its neutral facts: the skill-tool call, a closed
+   table of subagent-dispatch words, and the shared OpenCode/Antigravity todo-to-checklist table.
+   Authors write upstream's Claude wording; other sentences remain as written. Touching candidate prose in
    an overlay or patch does not promote it; promotion requires an authored namespaced spelling.
 3. **Each emitted tree is linked.** An authoritative fact must resolve in each harness and be
    reachable by the audience its spelling names. Admitted paths must land: a sibling climb onto the
    shared skills directory, or an item-root `skills/<name>/` path, in any bundled text file,
    scripts included, must resolve, and such a climb fails closed. No path may land in the folder of
-   an item whose model invocation Claude blocks, because a path is a read that bypasses that block;
+   an item whose model invocation Claude blocks, or an Antigravity manual skill in its tree, because
+   a path is a read that bypasses the intended initiation boundary;
    a user-pointer names such an item instead. A target is identified
    by its bare output name across the whole estate: bare names are unique across all Modules as
    curation policy ([ADR-0002](0002-multi-harness-output.md)), so the neutral symbol,
@@ -83,7 +83,7 @@ non-harness bytes into source and Claude output, and still could not reach upstr
 skill-tool prose or dispatch words without new patches. Rendering upstream's Claude sentence needs
 no new syntax and leaves the Claude tree as written. Neutral load wording in every harness was
 rejected because a harness-native instruction names the tool the model actually has. A
-per-harness body overlay was rejected because it triples the reviewed body surface for a closed
+per-harness body overlay was rejected because it multiplies the reviewed body surface for a closed
 set of phrasings. A manifest-side guard for bare-name expectations, a manifest list of retired
 names, and a ledger projection of heuristic handoff hits were rejected as new surfaces for what the
 closed templates, the promotion they force, and the linker already enforce.
@@ -106,8 +106,9 @@ separate transformation concern owned by
 - Linking proves resolvability and audience reachability, not whether a model will traverse an edge
   or follow its discipline. Reachability is not propensity; runtime behavior is measured under the
   [harness-invocation protocol](../../experiments/harness-invocation/protocol.md), outside CI.
-- Reachability is only as strong as the harness's own boundary. A Codex or OpenCode `manual` skill
-  is not offered to the model, and nothing documented makes it unloadable;
+- Reachability is only as strong as the harness's own boundary. A Codex, OpenCode, or Antigravity `manual` skill
+  is not offered to the model; the Antigravity probes establish hiding and explicit invocation,
+  not a general prohibition on model reads;
   [ADR-0005](0005-invocation-intent-in-the-manifest.md) accepts that meaning without a compensating
   rule.
 - Candidate prose outside the handoff templates remains a deliberate blind spot. A body patch does

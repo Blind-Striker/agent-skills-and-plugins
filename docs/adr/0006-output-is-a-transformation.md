@@ -75,11 +75,11 @@ product definition relayed by `AGENTS.md`.
   express. Emitters must not guess at required or forbidden capabilities; a capability the manifest
   leaves unspecified may follow the target's native surface.
 - Shape and fit being per-harness means the output trees are intentionally not comparable; review
-  has to inspect all three.
+  has to inspect all four.
 - Axis 3 has no upper bound. "Idiomatic in the target harness" is a judgement that grows as the
   harnesses grow, so new incompatibilities create new emitter work or explicit curation decisions.
 - Adapting content the emitter cannot reconcile mechanically implies per-harness body edits, which
-  the overlay mechanism (ADR-0001) does not currently express — it produces one body for all three
+  the overlay mechanism (ADR-0001) does not currently express — it produces one body for all four
   trees; `harness_files` can give each harness its own whole file at one path, not its own body. That
   gap is now a named cost of this decision rather than an oversight.
 - A new harness stays localized to a new emitter but is not free: it must

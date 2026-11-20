@@ -1,6 +1,6 @@
 # Engineering quality gates
 
-Date: 2026-10-12
+Date: 2026-11-20
 
 This document owns completion evidence: which repository commands apply, what CI proves, what still
 requires human review, and which words those results authorize. Script implementations remain
@@ -61,7 +61,7 @@ repository documentation and is outside that current-tree policy. Submodule hist
 upstream responsibility, while copied generated output and Package content remain inside this
 repository's build and package gates.
 
-After generation, CI mechanically stages only `plugins/`, `opencode/`, `codex/`, `dist/`,
+After generation, CI mechanically stages only `plugins/`, `opencode/`, `codex/`, `antigravity/`, `dist/`,
 `.claude-plugin/`, `.agents/plugins/marketplace.json`, `docs/inventory.md`, and `docs/ledger.json`,
 and fails if that staged generated state differs from the commit. The two marketplace files are
 never-edit review surfaces. That proves one clean regeneration matches the checked-in generated
@@ -91,7 +91,7 @@ For every generated-output change:
    same as before it. A dirty tree with intended first-run output is valid evidence; merely observing
    that it is still dirty is not.
 
-Review the generated estate rather than trusting green commands. Inspect all three harness trees,
+Review the generated estate rather than trusting green commands. Inspect all four harness trees,
 every changed `opencode/*/manifest.json`, both marketplace files, emitted installer files under
 `dist/`, `docs/inventory.md`, and `docs/ledger.json`. Confirm that each change follows from an
 authored input, that no expected artifact disappeared, and that reported drops, warnings, invocation

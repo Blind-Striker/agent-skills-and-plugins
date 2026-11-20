@@ -16,9 +16,15 @@ in the repository Codex marketplace. It shares its name with the Claude Plugin a
 its own manifest, skill namespace, and installation surface.
 _Avoid_: Claude Plugin, module, package, bundle
 
+**Antigravity Plugin**:
+The Antigravity-native packaging unit of exactly one curation manifest, emitted under
+`antigravity/` with its own `plugin.json`, skills, and native agents. It shares its name with the
+Claude Plugin, Codex Plugin, and Module, and uses Antigravity's own installation or discovery surface.
+_Avoid_: Claude Plugin, Codex Plugin, module, package, bundle
+
 **Module**:
 The installable OpenCode distribution of exactly one curation manifest. It is one-to-one with a
-Claude Plugin and Codex Plugin, and its name is the namespace of every OpenCode ID it emits.
+Claude Plugin, Codex Plugin, and Antigravity Plugin, and its name is the namespace of every OpenCode ID it emits.
 _Avoid_: plugin (for OpenCode output), package, bundle
 
 **OpenCode ID**:

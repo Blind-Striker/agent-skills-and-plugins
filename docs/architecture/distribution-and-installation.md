@@ -1,10 +1,10 @@
 # Distribution and installation
 
-Date: 2026-10-17
+Date: 2026-11-20
 
 ## Responsibility
 
-This document owns the mechanics after OpenCode emission: Bundle identity, Package contents and
+This document owns Antigravity distribution and the mechanics after OpenCode emission: Bundle identity, Package contents and
 transport, global Native-tree composition, the OpenCode runtime the installed tree targets, and the
 Selection/Ownership/Plan/Apply/Recovery lifecycle.
 Capitalized terms keep their definitions in [`GLOSSARY.md`](../../GLOSSARY.md); this document
@@ -18,14 +18,39 @@ This document states the decided OpenCode 2 behavior. Where the implementation h
 the gap and its responsible files are tracked in [`docs/ROADMAP.md`](../ROADMAP.md#known-gaps).
 
 This installer is OpenCode-specific. Claude Code and Codex consume independently emitted native
-Plugins through separate repository marketplaces; installing either Plugin neither selects nor
-installs its same-named Module.
+Plugins through separate repository marketplaces; Antigravity uses its own native discovery and
+installation. Installing any Plugin neither selects nor installs its same-named OpenCode Module.
 
 Codex distribution does not use the npm-format OpenCode Package or this repository's transactional
 installer. `.agents/plugins/marketplace.json` points at `codex/<plugin>`, and native Codex marketplace
 and plugin commands own installation, update, and removal. The supported Plugin hosts for this
 milestone are Codex CLI and Codex in the ChatGPT desktop app; the IDE extension and native custom-
 agent profile transport are not included.
+
+## Antigravity native distribution
+
+Each `antigravity/<plugin>/` is a native Plugin, independent of the OpenCode Package and installer.
+On `agy 1.5.13`, `agy plugin install <local-plugin-dir>` and a GitHub tree URL such as
+`agy plugin install https://github.com/Blind-Striker/agent-skills-and-plugins/tree/master/antigravity/deniz-process`
+were observed to install a plugin. Zero-copy local discovery also worked by listing absolute plugin
+paths in `~/.gemini/config/plugins.json` as `{ "entries": [{ "path": "<plugin-dir>" }] }`;
+`agy plugin list --json` lists installed plugins, not entries discovered through that manifest.
+Install or list the required Plugins independently; the native Plugin does not enforce OpenCode's
+Bundle `requiredModules` selection check. The npm-format OpenCode Package does not carry these
+Plugins.
+
+T3 Code's bundled `agy_acp_server 1.4.5` ignores native plugins and agents and is not supported by
+a loose-skills bridge. Point T3 Code's Antigravity provider **Binary path** at `agy` (`>= 1.5.13`)
+so T3 launches `agy acp`: live Windows probes confirmed that `agy acp 1.5.13` loads plugins
+installed under `~/.gemini/config/plugins/` natively — discovering auto skills, hiding
+`disable-model-invocation: true` manual skills, and exposing native plugin subagents — without a
+`GEMINI_HOME` junction or sync script.
+
+The Windows probes covered native plugin discovery and invocation on `agy 1.5.13` CLI, plus native
+plugin discovery (auto skills, manual hiding, and native subagent discovery) on `agy acp 1.5.13`
+under T3 Code. App and IDE loading, cross-device behavior, and full-estate model compliance are not
+established by those probes. See the bounded
+[research](../research/antigravity-native-plugin-and-skill-surfaces.md).
 
 ## Target OpenCode runtime
 
@@ -113,7 +138,7 @@ pass ([`verifyModuleManifest`](../../tools/lib/opencode-bundle.ts#L354-L446)).
 The npm-format Package contains package metadata, README, the repository license and notices,
 committed `dist/` installer JavaScript, and every generated Bundle. Each Bundle also carries its
 source-specific notice and exact upstream license copies. The Package excludes TypeScript authoring
-sources, upstream worktrees, Claude and Codex Plugin output, overlays, experiments, and other documentation. Focused
+sources, upstream worktrees, Claude, Codex, and Antigravity Plugin output, overlays, experiments, and other documentation. Focused
 package tests require the packed installer, licenses and notices, and every Bundle file and manifest
 to match the committed emit byte-for-byte
 ([`tools/install-opencode.test.ts`](../../tools/install-opencode.test.ts#L1046-L1107)). Consumers do
@@ -305,7 +330,7 @@ are in [`inspectRecovery`](../../tools/lib/opencode-install-apply.ts#L1527-L1603
 ## Full estate versus installed Selection
 
 Compilation and `validate` reason over the complete generated estate: every Claude Plugin, Codex
-Plugin, Module, formal fact, and Bundle is present together. The OpenCode installer, by contrast,
+Plugin, Antigravity Plugin, Module, formal fact, and Bundle is present together. The OpenCode installer, by contrast,
 still takes an explicit Selection
 rather than installing every Package Module. Schema-2 Module manifests and Install state record
 `requiredModules` with file identity. Plan refuses a final Selection that omits a Module another

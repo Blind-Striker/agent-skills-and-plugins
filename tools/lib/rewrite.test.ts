@@ -15,6 +15,20 @@ import {
 } from "./rewrite.ts";
 import type { ComponentInfo } from "./scan.ts";
 
+test("Antigravity renders skill calls and slash pointers in its native namespace", () => {
+  const targets = new Map<string, RewriteTarget>([
+    ["upstream:check", { plugin: "deniz-process", name: "check", kind: "skill" }],
+  ]);
+  assert.equal(
+    localize(
+      'Call the Skill tool with "upstream:check". Run `/upstream:check`. Create a todo per item.',
+      targets,
+      "antigravity",
+    ),
+    "Invoke `deniz-process:check`. Run `/deniz-process:check`. Keep a visible Markdown checklist with one line per item, and tick each line as it is done.",
+  );
+});
+
 const comp = (over: Partial<ComponentInfo>): ComponentInfo => ({
   submodule: "sp",
   namespace: "superpowers",
@@ -327,7 +341,7 @@ test("each harness's tool words are matched by its own list", () => {
       "Call spawn_agent, then wait_agent and close_agent; followup_task, send_message later.",
       "codex",
     ).map((h) => h.match),
-    ["spawn_agent", "wait_agent", "close_agent", "followup_task", "send_message"],
+    ["spawn_agent", "wait_agent", "close_agent", "followup_task"],
   );
   assert.deepEqual(
     harnessOnlyVocabulary("Use the `subagent` tool; set experimental.subagent_depth.", "opencode").map((h) => h.match),
@@ -342,7 +356,7 @@ test("each harness's tool words are matched by its own list", () => {
 });
 
 test("every harness rendering of the phrasing tables is free of the other harnesses' words", () => {
-  for (const style of ["claude", "opencode", "codex"] as const) {
+  for (const style of HARNESSES) {
     const rendered = style === "claude" ? PHRASES : renderHarnessPhrasing(PHRASES, style);
     for (const other of HARNESSES.filter((h) => h !== style)) {
       assert.deepEqual(harnessOnlyVocabulary(rendered, other), [], `${style} rendering vs ${other}`);

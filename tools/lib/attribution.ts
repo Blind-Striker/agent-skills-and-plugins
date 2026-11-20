@@ -80,7 +80,7 @@ export function manifestAttributions(
   });
 }
 
-function noticeText(entries: [string, Attribution][]): string {
+export function renderDistributionNotices(entries: [string, Attribution][]): string {
   const lines = [
     "# Third-party notices",
     "",
@@ -104,7 +104,7 @@ function noticeText(entries: [string, Attribution][]): string {
 export function writeDistributionNotices(root: string, destination: string, entries: [string, Attribution][]): void {
   mkdirSync(destination, { recursive: true });
   cpSync(join(root, "LICENSE"), join(destination, "LICENSE"));
-  writeFileSync(join(destination, "THIRD_PARTY_NOTICES.md"), noticeText(entries));
+  writeFileSync(join(destination, "THIRD_PARTY_NOTICES.md"), renderDistributionNotices(entries));
   for (const [source, attribution] of entries) {
     const target = join(destination, "third_party", source);
     mkdirSync(target, { recursive: true });

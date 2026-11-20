@@ -20,7 +20,7 @@ export function addressOf(c: ComponentInfo): string {
  * Claude Code addresses a plugin skill as `<plugin>:<name>`; Codex as `$<plugin>:<name>`; OpenCode 2
  * as the dotted ID `<plugin>.<name>`, which contains no `:` and so cannot be re-detected by the scan.
  */
-export type RefStyle = "claude" | "opencode" | "codex";
+export type RefStyle = Harness;
 
 /** The resolved output a reference points at: owning Plugin, output name, and output kind. */
 export interface RewriteTarget {
@@ -69,6 +69,7 @@ export function buildRewriteMap(
 function render(target: RewriteTarget, style: RefStyle): string {
   switch (style) {
     case "claude":
+    case "antigravity":
       return `${target.plugin}:${target.name}`;
     case "codex":
       return `$${target.plugin}:${target.name}`;
@@ -103,9 +104,9 @@ export function rewriteRefs(content: string, map: Map<string, RewriteTarget>, st
     // The scanner positions a pointer after its leading slash. Codex renders both semantic edge
     // kinds with `$`, so consume that slash instead of producing the invalid `/$plugin:skill`;
     // OpenCode consumes it too and renders its own prefix, which depends on the target kind.
-    const pointer = ref.kind === "pointer";
-    const start = pointer && style !== "claude" ? ref.index - 1 : ref.index;
-    const rendered = pointer && style !== "claude" ? renderPointer(target, style) : render(target, style);
+    const replacePointer = ref.kind === "pointer" && (style === "codex" || style === "opencode");
+    const start = replacePointer ? ref.index - 1 : ref.index;
+    const rendered = replacePointer ? renderPointer(target, style) : render(target, style);
     out += content.slice(cut, start) + rendered;
     cut = ref.index + ref.address.length;
   }
@@ -312,61 +313,72 @@ export function markdownCodeBlocks(content: string): [number, number][] {
 // differ between multi-agent versions, and using-superpowers' Codex tool notes name the tools. A row
 // marked `outsideCode` would put a backtick inside a code span and break it, so it skips a match
 // there in every harness and leaves the words for the vocabulary check to reject.
-const DISPATCH: { pattern: RegExp; opencode: string; codex: string; outsideCode?: true }[] = [
-  { pattern: /Subagent \(general-purpose\)/g, opencode: "Subagent (general)", codex: "Subagent" },
-  { pattern: /`general-purpose`(\s+)subagent/g, opencode: "`general`$1subagent", codex: "subagent" },
+const DISPATCH: { pattern: RegExp; opencode: string; codex: string; antigravity: string; outsideCode?: true }[] = [
+  {
+    pattern: /Subagent \(general-purpose\)/g,
+    opencode: "Subagent (general)",
+    codex: "Subagent",
+    antigravity: "Subagent",
+  },
+  {
+    pattern: /`general-purpose`(\s+)subagent/g,
+    opencode: "`general`$1subagent",
+    codex: "subagent",
+    antigravity: "subagent",
+  },
   // The same words unbackticked, or with the type emphasized as `**general-purpose**` or
   // `_general-purpose_`. An underscore is a word character, so the emphasis is matched explicitly.
   {
     pattern: /(?:(\*{1,2}|_{1,2})|(?<!\w))general-purpose\1(\s+)subagent\b/g,
     opencode: "$1`general`$1$2subagent",
     codex: "subagent",
+    antigravity: "subagent",
     outsideCode: true,
   },
-  { pattern: /`Agent`( calls?)\b/g, opencode: "`subagent`$1", codex: "subagent$1" },
+  { pattern: /`Agent`( calls?)\b/g, opencode: "`subagent`$1", codex: "subagent$1", antigravity: "subagent$1" },
 ];
 
 type Replacement = string | ((match: string, ...groups: string[]) => string);
 
-// Closed OpenCode todo table (references-and-linking.md "Harness phrasing"), matched exactly.
-// OpenCode 2 has no todo tool, so each upstream phrase that creates, marks, or names a todo renders
+// Closed todo table (references-and-linking.md "Harness phrasing"), matched exactly.
+// OpenCode 2 and Antigravity have no todo tool, so each upstream phrase that creates, marks, or names a todo renders
 // as Markdown-checklist wording: the plan executors keep the checklist in the ledger they already
 // keep, and every other skill keeps a visible checklist ticked line by line. Claude Code and Codex
 // keep upstream's words. A match inside an inline code span is left whole, as the check skips it.
-const OPENCODE_TODO: { pattern: RegExp; opencode: Replacement }[] = [
+const TODO_CHECKLIST: { pattern: RegExp; replacement: Replacement }[] = [
   // executing-plans and subagent-driven-development: the ledger holds the checklist. Setup runs again
   // on every resume and the ledger survives it, so a resumed run keeps the checklist it has. A
   // Markdown checkbox is ticked or not, so a task in progress is one whose line is not yet ticked.
   {
     pattern: /\bcreate a(\s+)todo per task\b/g,
-    opencode: "add a$1Markdown checklist with one line per task to the ledger, unless the ledger already has one",
+    replacement: "add a$1Markdown checklist with one line per task to the ledger, unless the ledger already has one",
   },
-  { pattern: /\[Create todos for all tasks\]/g, opencode: "[Add a checklist of all tasks to the ledger]" },
+  { pattern: /\[Create todos for all tasks\]/g, replacement: "[Add a checklist of all tasks to the ledger]" },
   {
     pattern: /\bMark the task's todo in_progress\b/g,
-    opencode: "Leave the task's checklist line unticked until task-done records it",
+    replacement: "Leave the task's checklist line unticked until task-done records it",
   },
-  { pattern: /\bmark (?:the )?todo complete\b/g, opencode: "tick the task's checklist line" },
-  { pattern: /\bledger file, not only in todos\./g, opencode: "ledger file." },
+  { pattern: /\bmark (?:the )?todo complete\b/g, replacement: "tick the task's checklist line" },
+  { pattern: /\bledger file, not only in todos\./g, replacement: "ledger file." },
   {
     pattern: /\bHarness todos are a(\s+)live view; the ledger is the record\./g,
-    opencode: "The ledger is both the$1live view and the record.",
+    replacement: "The ledger is both the$1live view and the record.",
   },
   // diagnosing-superpowers, using-superpowers, writing-skills: a visible checklist.
   {
     pattern: /\b([Cc])reate a todo per (step|item)\./g,
-    opencode: (_match, c, unit) =>
+    replacement: (_match, c, unit) =>
       `${c === "C" ? "K" : "k"}eep a visible Markdown checklist with one line per ${unit}, and tick each line as it is done.`,
   },
   {
     pattern: /\bCreate a todo for EACH checklist item below\./g,
-    opencode: "Copy EACH checklist item below into a visible Markdown checklist, and tick each line as it is done.",
+    replacement: "Copy EACH checklist item below into a visible Markdown checklist, and tick each line as it is done.",
   },
-  { pattern: /\btodos for checklists\b/g, opencode: "a visible Markdown checklist, ticked line by line" },
-  { pattern: /\bwithout todo tracking\b/g, opencode: "without line-by-line ticking" },
-  { pattern: /\bfind a todo list helpful\b/g, opencode: "find ticking lines off helpful" },
+  { pattern: /\btodos for checklists\b/g, replacement: "a visible Markdown checklist, ticked line by line" },
+  { pattern: /\bwithout todo tracking\b/g, replacement: "without line-by-line ticking" },
+  { pattern: /\bfind a todo list helpful\b/g, replacement: "find ticking lines off helpful" },
   // diagnosing-superpowers' plan-adherence prompt: what an agreed plan looks like in a session.
-  { pattern: /\ba todo-list record\b/g, opencode: "a Markdown checklist" },
+  { pattern: /\ba todo-list record\b/g, replacement: "a Markdown checklist" },
 ];
 
 /**
@@ -384,6 +396,7 @@ const SCHEME_URL = /\b[A-Za-z][A-Za-z0-9+.-]*:\/\/[^\s<>()[\]"'`]+/g;
  * notes, which must name the todo tool OpenCode 2 removed.
  */
 export const OPENCODE_TODO_NOTES = "deniz-process/skills/deniz-process.using-superpowers/references/harness-tools.md";
+export const ANTIGRAVITY_TODO_NOTES = "deniz-process/skills/using-superpowers/references/harness-tools.md";
 
 /**
  * Every todo word outside code and outside a URL. OpenCode 2 has no todo tool, so prose that names
@@ -439,9 +452,17 @@ export const HARNESS_ONLY_VOCABULARY: Readonly<Record<Harness, readonly RegExp[]
   opencode: [/`subagent` (?:tool|calls?)\b/g, /\bsubagent_depth\b/g],
   // Codex's multi-agent tools, V1 and V2 alike.
   codex: [
-    /\b(?:spawn_agent|wait_agent|close_agent|send_input|resume_agent|followup_task|send_message|list_agents|interrupt_agent)\b/g,
+    /\b(?:spawn_agent|wait_agent|close_agent|send_input|resume_agent|followup_task|list_agents|interrupt_agent)\b/g,
   ],
+  antigravity: [/\b(?:invoke_subagent|define_subagent|manage_subagents|manage_task)\b/g],
 };
+
+export function sharedVocabularyViolations(content: string, harness: Harness): { index: number; match: string }[] {
+  if (harness === "codex" || harness === "antigravity") {
+    return [];
+  }
+  return [...content.matchAll(/\bsend_message\b/g)].map((m) => ({ index: m.index, match: m[0] }));
+}
 
 /** Every match of one harness's tool words, sorted by index. */
 export function harnessOnlyVocabulary(content: string, harness: Harness): { index: number; match: string }[] {
@@ -454,7 +475,7 @@ export function claudeOnlyVocabulary(content: string): { index: number; match: s
   return harnessOnlyVocabulary(content, "claude");
 }
 
-function renderCall(content: string, call: SkillToolCall, style: "opencode" | "codex"): string {
+function renderCall(content: string, call: SkillToolCall, style: Exclude<RefStyle, "claude">): string {
   const span = content.slice(call.index, call.end);
   if (style === "opencode") {
     return span.replace("the Skill tool", "the `skill` tool");
@@ -478,9 +499,9 @@ export function renderHarnessPhrasing(content: string, style: RefStyle): string 
   for (const row of DISPATCH) {
     out = row.outsideCode ? replaceOutsideCode(out, row.pattern, row[style]) : out.replace(row.pattern, row[style]);
   }
-  if (style === "opencode") {
-    for (const row of OPENCODE_TODO) {
-      out = replaceOutsideCode(out, row.pattern, row.opencode);
+  if (style === "opencode" || style === "antigravity") {
+    for (const row of TODO_CHECKLIST) {
+      out = replaceOutsideCode(out, row.pattern, row.replacement);
     }
   }
   return out;

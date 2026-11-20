@@ -13,6 +13,7 @@
       "!plugins",
       "!opencode",
       "!codex",
+      "!antigravity",
       "!.claude-plugin",
       "!.agents/plugins/marketplace.json",
       "!docs/ledger.json",

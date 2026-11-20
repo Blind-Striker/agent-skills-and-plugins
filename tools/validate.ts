@@ -4,7 +4,20 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "nod
 import { pathToFileURL } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import { parse as parseYaml } from "yaml";
+import {
+  adaptAntigravityDocument,
+  ANTIGRAVITY_CONTINUATION,
+  ANTIGRAVITY_CONTINUATION_LINK,
+  antigravityArtifactPath,
+  antigravityDisablesModel,
+  ANTIGRAVITY_SKILL_KEYS,
+  collectAntigravityPathProblems,
+  createAntigravityPluginManifest,
+  isAntigravityHttpsUrl,
+  MAX_ANTIGRAVITY_SKILL_BODY_BYTES,
+} from "./lib/antigravity-plugin.ts";
 import { assembleItem } from "./lib/assemble.ts";
+import { loadAttributions, manifestAttributions, renderDistributionNotices } from "./lib/attribution.ts";
 import { CLAUDE_INVOCATION_KEYS } from "./lib/claude-target.ts";
 import {
   CODEX_SKILL_KEYS,
@@ -14,7 +27,7 @@ import {
   loadCodexPublisherMetadata,
   resolveCodexRepositoryPath,
 } from "./lib/codex-plugin.ts";
-import { parseDoc } from "./lib/frontmatter.ts";
+import { parseDoc, type ParsedDoc } from "./lib/frontmatter.ts";
 import { indexModes } from "./lib/git.ts";
 import { everListedNames } from "./lib/ledger.ts";
 import {
@@ -71,12 +84,14 @@ import {
 } from "./lib/resolve.ts";
 import {
   addressOf,
+  ANTIGRAVITY_TODO_NOTES,
   buildRewriteMap,
   harnessOnlyVocabulary,
   isBundledText,
   OPENCODE_TODO_NOTES,
   openCodeTodoWords,
   rewriteRefs,
+  sharedVocabularyViolations,
 } from "./lib/rewrite.ts";
 import {
   type BundledScript,
@@ -90,6 +105,18 @@ import { descriptionLengthProblem } from "./lib/skill-description.ts";
 export interface Finding {
   level: "error" | "warn";
   message: string;
+}
+
+const TREE_HARNESS = { plugins: "claude", opencode: "opencode", codex: "codex", antigravity: "antigravity" } as const;
+const OUTPUT_TREES = Object.keys(TREE_HARNESS) as (keyof typeof TREE_HARNESS)[];
+
+function readAntigravityDocument(file: string): ParsedDoc | undefined {
+  try {
+    const doc = parseDoc(readFileSync(file, "utf8"), { strict: true });
+    return typeof doc.frontmatter === "object" && !Array.isArray(doc.frontmatter) ? doc : undefined;
+  } catch {
+    return undefined; // The integrity check names the invalid file.
+  }
 }
 
 /** Markdown link targets, minus anchors and anything with a scheme (http:, mailto:, file:). */
@@ -170,14 +197,17 @@ function linkTargets(text: string): string[] {
   return out;
 }
 
-function* walk(dir: string): Generator<string> {
+function* walk(dir: string, includeDirectories = false): Generator<string> {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     if (e.name === ".git") {
       continue;
     }
     const p = join(dir, e.name);
     if (e.isDirectory()) {
-      yield* walk(p);
+      if (includeDirectories) {
+        yield p;
+      }
+      yield* walk(p, includeDirectories);
     } else {
       yield p;
     }
@@ -558,6 +588,7 @@ export function validateRepo(root: string): Finding[] {
         ["claude", `plugins/${m.plugin.name}/skills/${outName}`],
         ["opencode", `opencode/${m.plugin.name}/skills/${openCodeId(m.plugin.name, outName)}`],
         ["codex", `codex/${m.plugin.name}/skills/${outName}`],
+        ["antigravity", `antigravity/${m.plugin.name}/skills/${outName}`],
       ];
       for (const [harness, folder] of folders) {
         if (!existsSync(join(root, folder))) {
@@ -600,6 +631,7 @@ export function validateRepo(root: string): Finding[] {
         claude: `plugins/${m.plugin.name}/${outType}s/${outType === "skill" ? outName : `${outName}.md`}`,
         opencode: `opencode/${m.plugin.name}/${openCodeBundlePath(outType, m.plugin.name, outName)}`,
         codex: `codex/${m.plugin.name}/skills/${outName}`,
+        antigravity: `antigravity/${m.plugin.name}/${antigravityArtifactPath(outType, outName)}`,
       };
       for (const harness of HARNESSES) {
         if (!emitsTo(intent, harness) && existsSync(join(root, artifacts[harness]))) {
@@ -618,7 +650,7 @@ export function validateRepo(root: string): Finding[] {
   // place the bit survives such a checkout, so both sides are read from there: a curated item's
   // source from its submodule's index, an original skill's from this repository's. Untracked output
   // is skipped — it cannot be wrong yet, and it becomes visible the moment it is staged.
-  const ourModes = indexModes(root, ["plugins", "opencode", "codex"]);
+  const ourModes = indexModes(root, OUTPUT_TREES);
   const subModes = new Map<string, Map<string, string>>();
   let originalModes: Map<string, string> | undefined;
   for (const m of manifests) {
@@ -641,10 +673,10 @@ export function validateRepo(root: string): Finding[] {
         const own = originalModes;
         sourceOf = (rel) => ({ label: `the original ${source}/${rel}`, mode: own.get(`${source}/${rel}`) });
       }
-      // Every resolved kind ships as a Codex skill folder, so that copy lists the files; an item the
-      // Codex tree leaves out (harnesses) is listed from its Claude or OpenCode skill folder instead.
-      const copies: [Harness, string][] = [
+      // Each skill folder can carry different executable files through harness_files.
+      const copies: (readonly [Harness, string])[] = [
         ["codex", `codex/${m.plugin.name}/skills/${outName}`],
+        ...(outType !== "agent" ? [["antigravity", `antigravity/${m.plugin.name}/skills/${outName}`] as const] : []),
         ...(outType === "skill"
           ? ([
               ["claude", `plugins/${m.plugin.name}/skills/${outName}`],
@@ -652,21 +684,16 @@ export function validateRepo(root: string): Finding[] {
             ] as [Harness, string][])
           : []),
       ];
-      const shippedCopies = copies.filter(([harness]) => emitsTo(intent, harness)).map(([, copy]) => copy);
-      const listed = shippedCopies[0];
-      const builtDir = listed === undefined ? undefined : join(root, listed);
-      if (builtDir === undefined || !existsSync(builtDir)) {
-        continue;
-      }
-      for (const file of walk(builtDir)) {
-        const rel = itemRelative(builtDir, file);
-        const { label, mode } = sourceOf(rel);
-        if (mode !== "100755") {
+      for (const [harness, copy] of copies) {
+        const builtDir = join(root, copy);
+        if (!emitsTo(intent, harness) || !existsSync(builtDir)) {
           continue;
         }
-        const outputs = shippedCopies.map((copy) => `${copy}/${rel}`);
-        for (const out of outputs) {
-          if (ourModes.has(out) && ourModes.get(out) !== "100755") {
+        for (const file of walk(builtDir)) {
+          const rel = itemRelative(builtDir, file);
+          const { label, mode } = sourceOf(intent.harness_files?.[rel]?.[harness] ?? rel);
+          const out = `${copy}/${rel}`;
+          if (mode === "100755" && ourModes.has(out) && ourModes.get(out) !== "100755") {
             findings.push({
               level: "error",
               message: `${out}: ${label} is executable but this copy is recorded ${ourModes.get(out)} — run: git update-index --chmod=+x ${out}`,
@@ -730,7 +757,7 @@ export function validateRepo(root: string): Finding[] {
 
   // 3. portability: a copied symlink carries an absolute local target, so it dangles in every
   // other clone. Both trees, because both are committed.
-  for (const outDir of ["plugins", "opencode", "codex"]) {
+  for (const outDir of OUTPUT_TREES) {
     const dir = join(root, outDir);
     if (!existsSync(dir)) {
       continue;
@@ -913,6 +940,8 @@ export function validateRepo(root: string): Finding[] {
     ocKind?: ComponentType;
     codexModel: boolean;
     codexUser: boolean;
+    antigravityModel: boolean;
+    antigravityUser: boolean;
     /** The trees the target ships to, when `harnesses` narrows it (ADR-0010). */
     harnesses?: readonly Harness[] | undefined;
   }
@@ -941,6 +970,18 @@ export function validateRepo(root: string): Finding[] {
     }
     return { codexModel: implicit, codexUser: true };
   };
+  const antigravityState = (
+    plugin: string,
+    name: string,
+  ): Pick<TargetState, "antigravityModel" | "antigravityUser"> => {
+    const path = join(root, "antigravity", plugin, antigravityArtifactPath("skill", name));
+    const skill = existsSync(path) && lstatSync(path).isFile();
+    const doc = skill ? readAntigravityDocument(path) : undefined;
+    return {
+      antigravityUser: skill,
+      antigravityModel: doc !== undefined && doc.frontmatter["disable-model-invocation"] !== true,
+    };
+  };
   const targetState = new Map<string, TargetState>();
   for (const plugin of existsSync(pluginsDir) ? readdirSync(pluginsDir) : []) {
     const skillsDir = join(pluginsDir, plugin, "skills");
@@ -952,6 +993,7 @@ export function validateRepo(root: string): Finding[] {
         userReachClaude: doc.frontmatter["user-invocable"] !== false,
         ...ocState(plugin, name),
         ...codexState(plugin, name),
+        ...antigravityState(plugin, name),
       });
     }
     for (const kind of ["commands", "agents"] as const) {
@@ -964,6 +1006,7 @@ export function validateRepo(root: string): Finding[] {
           userReachClaude: true,
           ...ocState(plugin, name),
           ...codexState(plugin, name),
+          ...antigravityState(plugin, name),
         });
       }
     }
@@ -982,6 +1025,7 @@ export function validateRepo(root: string): Finding[] {
           userReachClaude: false,
           ...ocState(manifest.plugin.name, declared.outName),
           ...codexState(manifest.plugin.name, declared.outName),
+          ...antigravityState(manifest.plugin.name, declared.outName),
           harnesses: declared.intent.harnesses,
         });
       }
@@ -1032,6 +1076,12 @@ export function validateRepo(root: string): Finding[] {
           : t.codexUser
             ? "allow_implicit_invocation: false in the Codex tree"
             : "no Codex skill";
+      case "antigravity":
+        return t.antigravityModel
+          ? undefined
+          : t.antigravityUser
+            ? "disable-model-invocation in the Antigravity tree"
+            : "no Antigravity skill";
     }
   };
   /** Why the user cannot reach `t` in one harness's tree, or undefined when they can. */
@@ -1043,6 +1093,8 @@ export function validateRepo(root: string): Finding[] {
         return t.ocUser ? undefined : "no OpenCode artifact";
       case "codex":
         return t.codexUser ? undefined : "no Codex skill";
+      case "antigravity":
+        return t.antigravityUser ? undefined : "no Antigravity skill";
     }
   };
   /**
@@ -1140,7 +1192,7 @@ export function validateRepo(root: string): Finding[] {
   };
   /** Folders outside the Claude tree whose Markdown the interpreter check reads (harnesses). */
   const neutralSkillFolders: string[] = [];
-  const LINKED_HARNESSES = ["claude", "opencode", "codex"] as const;
+  const antigravityUpstreamPolicy = new Map<string, unknown>();
   /**
    * Each non-Claude harness's own harness_files sources, in the Claude spelling, for the text checks
    * below that read the Claude tree: `claudeAbs` is the same path in the Claude skill folder.
@@ -1160,7 +1212,9 @@ export function validateRepo(root: string): Finding[] {
         // The Claude tree is the canonical spelling; an item it does not ship (harnesses) is read from
         // its neutral folder in that spelling, and its first own tree labels the shared files.
         const inClaude = emitsTo(intent, "claude");
-        const emitting = LINKED_HARNESSES.filter((harness) => emitsTo(intent, harness));
+        const emitting = (["claude", "opencode", "codex", "antigravity"] as const).filter((harness) =>
+          emitsTo(intent, harness),
+        );
         const primary: Harness = emitting[0] ?? "claude";
         if (inClaude && !existsSync(built)) {
           continue;
@@ -1190,6 +1244,7 @@ export function validateRepo(root: string): Finding[] {
           claude: relative(root, built).replaceAll("\\", "/"),
           opencode: `opencode/${m.plugin.name}/skills/${openCodeId(m.plugin.name, outName)}`,
           codex: `codex/${m.plugin.name}/skills/${outName}`,
+          antigravity: `antigravity/${m.plugin.name}/${outType === "agent" ? antigravityArtifactPath(outType, outName) : `skills/${outName}`}`,
         };
         const relIn = (harness: Harness, path: string): string =>
           path === "" ? folder[harness] : `${folder[harness]}/${path}`;
@@ -1198,6 +1253,13 @@ export function validateRepo(root: string): Finding[] {
         const self = { plugin: m.plugin.name, name: outName, named: false };
         const referenceFiles: ReferenceFile[] = [];
         const readSource = files || outType !== "skill" ? harnessSourceReader(m, declared, id) : undefined;
+        if (outType === "skill" && intent.invocation === undefined && emitsTo(intent, "antigravity")) {
+          const source = neutral ?? neutralDir(m, declared, id);
+          if (source) {
+            const doc = parseDoc(readFileSync(join(source, "SKILL.md"), "utf8"));
+            antigravityUpstreamPolicy.set(id, doc.frontmatter["disable-model-invocation"]);
+          }
+        }
         for (const file of treeMarkdown(
           shipped,
           files,
@@ -1218,7 +1280,7 @@ export function validateRepo(root: string): Finding[] {
             });
           }
         }
-        for (const harness of ["opencode", "codex"] as const) {
+        for (const harness of ["opencode", "codex", "antigravity"] as const) {
           if (!files || !readSource || harness === primary || !emitsTo(intent, harness)) {
             continue;
           }
@@ -1235,21 +1297,25 @@ export function validateRepo(root: string): Finding[] {
             }
           }
         }
-        if (outType !== "skill" && readSource) {
-          const codexDir = join(root, folder.codex);
-          for (const path of existsSync(codexDir) ? walk(codexDir) : []) {
-            const bundled = relative(codexDir, path).replaceAll("\\", "/");
+        const bundledHarnesses = outType === "command" ? (["codex", "antigravity"] as const) : (["codex"] as const);
+        for (const harness of outType !== "skill" && readSource ? bundledHarnesses : []) {
+          if (!emitsTo(intent, harness) || !readSource) {
+            continue;
+          }
+          const skillDir = join(root, folder[harness]);
+          for (const path of existsSync(skillDir) ? walk(skillDir) : []) {
+            const bundled = relative(skillDir, path).replaceAll("\\", "/");
             if (!bundled.endsWith(".md") || bundled === "SKILL.md") {
               continue;
             }
             try {
               const text = rewriteRefs(readSource(bundled), rewriteMap, "claude");
-              referenceFiles.push({ path: relIn("codex", bundled), text, harnesses: ["codex"] });
-              linkFacts(relIn("codex", bundled), text, ["codex"], derived, optional, self);
+              referenceFiles.push({ path: relIn(harness, bundled), text, harnesses: [harness] });
+              linkFacts(relIn(harness, bundled), text, [harness], derived, optional, self);
             } catch (error) {
               findings.push({
                 level: "error",
-                message: `${id}: cannot read canonical Codex bundled Markdown ${bundled} — ${error instanceof Error ? error.message : String(error)}`,
+                message: `${id}: cannot read canonical ${harness} bundled Markdown ${bundled} — ${error instanceof Error ? error.message : String(error)}`,
               });
             }
           }
@@ -1263,14 +1329,14 @@ export function validateRepo(root: string): Finding[] {
         )) {
           findings.push({ level: "error", message });
         }
-        for (const harness of ["opencode", "codex"] as const) {
+        for (const harness of ["opencode", "codex", "antigravity"] as const) {
           const native =
-            harness === "codex"
-              ? join(root, folder.codex)
-              : join(root, "opencode", m.plugin.name, openCodeBundlePath(outType, m.plugin.name, outName));
+            harness === "opencode"
+              ? join(root, "opencode", m.plugin.name, openCodeBundlePath(outType, m.plugin.name, outName))
+              : join(root, folder[harness]);
           const paths = !existsSync(native)
             ? []
-            : harness === "codex" || outType === "skill"
+            : harness === "codex" || outType === "skill" || (harness === "antigravity" && outType === "command")
               ? [...walk(native)].filter((path) => path.endsWith(".md"))
               : [native];
           for (const path of paths) {
@@ -1424,14 +1490,18 @@ export function validateRepo(root: string): Finding[] {
 
   // V: each harness's tool words must not reach another harness's tree, which has no such tool.
   // Phrasing renders Claude Code's dispatch words; the others live only in harness_files notes.
-  const vocabularyLabel: Record<Harness, string> = { claude: "Claude", opencode: "OpenCode", codex: "Codex" };
-  const treeHarness = { plugins: "claude", opencode: "opencode", codex: "codex" } as const;
-  for (const tree of ["plugins", "opencode", "codex"] as const) {
+  const vocabularyLabel: Record<Harness, string> = {
+    claude: "Claude",
+    opencode: "OpenCode",
+    codex: "Codex",
+    antigravity: "Antigravity",
+  };
+  for (const tree of OUTPUT_TREES) {
     const dir = join(root, tree);
     for (const file of existsSync(dir) ? [...walk(dir)].filter((f) => f.endsWith(".md")) : []) {
       const rel = relative(root, file).replaceAll("\\", "/");
       const text = readFileSync(file, "utf8");
-      for (const harness of HARNESSES.filter((h) => h !== treeHarness[tree])) {
+      for (const harness of HARNESSES.filter((h) => h !== TREE_HARNESS[tree])) {
         const label = vocabularyLabel[harness];
         const remedy =
           harness === "claude"
@@ -1444,13 +1514,21 @@ export function validateRepo(root: string): Finding[] {
           });
         }
       }
-      // OpenCode 2 has no todo tool: the OpenCode todo table renders every known phrase, and any
-      // other todo word outside code fails, except in the tool notes that name the removed tool.
-      const todoChecked = tree === "opencode" && rel !== `opencode/${OPENCODE_TODO_NOTES}`;
-      for (const hit of todoChecked ? openCodeTodoWords(text) : []) {
+      for (const hit of sharedVocabularyViolations(text, TREE_HARNESS[tree])) {
         findings.push({
           level: "error",
-          message: `${rel}:${lineOf(text, hit.index)}: todo word "${hit.match}" outside code in opencode/ — OpenCode 2 has no todo tool: reword it, write a code marker as code, or add a row to the OpenCode todo table (references-and-linking.md Harness phrasing)`,
+          message: `${rel}:${lineOf(text, hit.index)}: Codex and Antigravity vocabulary "${hit.match}" in ${tree}/ — move it into the item's harness_files notes for those harnesses`,
+        });
+      }
+      // Check prose in harnesses without a native checklist tool, except their tool notes.
+      const todoChecked =
+        (tree === "opencode" && rel !== `opencode/${OPENCODE_TODO_NOTES}`) ||
+        (tree === "antigravity" && rel !== `antigravity/${ANTIGRAVITY_TODO_NOTES}`);
+      for (const hit of todoChecked ? openCodeTodoWords(text) : []) {
+        const label = tree === "opencode" ? "OpenCode 2" : "Antigravity";
+        findings.push({
+          level: "error",
+          message: `${rel}:${lineOf(text, hit.index)}: todo word "${hit.match}" outside code in ${tree}/ — ${label} has no todo tool: reword it, write a code marker as code, or add a row to the todo table (references-and-linking.md Harness phrasing)`,
         });
       }
     }
@@ -1459,7 +1537,7 @@ export function validateRepo(root: string): Finding[] {
   // D: the shared skill description limit (transformation-and-emission.md) on the text each tree
   // ships. Rendering lengthens a namespaced fact by its plugin prefix, by a different amount per
   // harness, so every emitted skill in every tree is read rather than the neutral source.
-  for (const tree of ["plugins", "opencode", "codex"] as const) {
+  for (const tree of OUTPUT_TREES) {
     const treeDir = join(root, tree);
     for (const module of existsSync(treeDir) ? readdirSync(treeDir, { withFileTypes: true }) : []) {
       const skillsDir = join(treeDir, module.name, "skills");
@@ -1471,7 +1549,8 @@ export function validateRepo(root: string): Finding[] {
         if (!skill.isDirectory() || !existsSync(file)) {
           continue;
         }
-        const description = parseDoc(readFileSync(file, "utf8")).frontmatter.description;
+        const doc = tree === "antigravity" ? readAntigravityDocument(file) : parseDoc(readFileSync(file, "utf8"));
+        const description = doc?.frontmatter.description;
         const problem =
           typeof description === "string"
             ? descriptionLengthProblem(`${tree}/${module.name}/skills/${skill.name}/SKILL.md`, description)
@@ -1622,12 +1701,15 @@ export function validateRepo(root: string): Finding[] {
     child === parent || !relative(parent, child).startsWith("..");
   // A Claude skill with disable-model-invocation. An agent is also unreachable by the Claude model,
   // but it owns no folder in Claude Code or OpenCode, and Codex emits it as an ordinary skill folder.
-  const manualItem = (name: string): boolean => {
+  const manualItem = (name: string, tree: keyof typeof TREE_HARNESS): boolean => {
     const t = targetState.get(name);
-    return t !== undefined && !t.modelReachClaude && t.ocKind === "skill";
+    return (
+      t !== undefined &&
+      (tree === "antigravity" ? t.antigravityUser && !t.antigravityModel : !t.modelReachClaude && t.ocKind === "skill")
+    );
   };
-  const manualMessage = (at: string, path: string, name: string): string =>
-    `${at}: path ${path} reaches manual item ${name}'s body — reading its SKILL.md bypasses Claude's model-invocation block; point the human with /ns:${name} instead`;
+  const manualMessage = (at: string, path: string, name: string, tree: keyof typeof TREE_HARNESS): string =>
+    `${at}: path ${path} reaches manual item ${name}'s body — reading its SKILL.md bypasses ${tree === "antigravity" ? "Antigravity" : "Claude"}'s model-invocation block; point the human with /ns:${name} instead`;
   // A manual item's body is its SKILL.md, and a path to the folder itself leads there. Its other
   // bundled files are plain reads: reading one does not invoke the skill.
   const reachesBody = (folder: string, abs: string): boolean => abs === folder || abs === join(folder, "SKILL.md");
@@ -1647,6 +1729,7 @@ export function validateRepo(root: string): Finding[] {
         claude: join(pluginsDir, m.plugin.name, "skills", outName),
         opencode: openCodeArtifact(root, m.plugin.name, "skills", outName),
         codex: join(root, "codex", m.plugin.name, "skills", outName),
+        antigravity: join(root, "antigravity", m.plugin.name, "skills", outName),
       };
       for (const [output, byHarness] of Object.entries(intent.harness_files ?? {})) {
         for (const harness of HARNESSES) {
@@ -1665,7 +1748,7 @@ export function validateRepo(root: string): Finding[] {
     );
   };
 
-  for (const tree of ["plugins", "opencode", "codex"]) {
+  for (const tree of OUTPUT_TREES) {
     const treeRoot = join(root, tree);
     if (!existsSync(treeRoot)) {
       continue;
@@ -1678,7 +1761,7 @@ export function validateRepo(root: string): Finding[] {
         const owner = ownerModule.get(name);
         return owner ? [openCodeArtifact(root, owner, "skills", name)] : [];
       }
-      return moduleNames.map((plugin) => join(root, "codex", plugin, "skills", name));
+      return moduleNames.map((plugin) => join(root, tree, plugin, "skills", name));
     };
     // P — path claims (references-and-linking.md "Paths"), read from every bundled text file in a
     // skill folder, scripts included. A landing climb fails closed: a climb onto the shared skills
@@ -1710,8 +1793,8 @@ export function validateRepo(root: string): Finding[] {
             };
             const abs = placed(claim.path);
             const folder = placed(claim.path.slice(0, claim.segmentIndex - claim.index + claim.segment.length));
-            if (name !== ownName && manualItem(name) && reachesBody(folder, abs)) {
-              findings.push({ level: "error", message: manualMessage(at, claim.path, name) });
+            if (name !== ownName && manualItem(name, tree) && reachesBody(folder, abs)) {
+              findings.push({ level: "error", message: manualMessage(at, claim.path, name, tree) });
             }
             const nullOutput = landed(abs, claim.path) ? undefined : nullOutputMessage(at, claim.path, abs, tree);
             if (nullOutput) {
@@ -1743,10 +1826,10 @@ export function validateRepo(root: string): Finding[] {
         const resolved = resolve(dirname(file), link);
         const abs = tree === "opencode" ? reRootOpenCode(resolved) : resolved;
         const manual = [...emitted.keys()].find(
-          (n) => n !== own.name && manualItem(n) && skillsOf(n).some((d) => existsSync(d) && reachesBody(d, abs)),
+          (n) => n !== own.name && manualItem(n, tree) && skillsOf(n).some((d) => existsSync(d) && reachesBody(d, abs)),
         );
         if (manual) {
-          findings.push({ level: "error", message: manualMessage(rel, link, manual) });
+          findings.push({ level: "error", message: manualMessage(rel, link, manual, tree) });
         }
         if (existsSync(abs)) {
           continue;
@@ -1828,6 +1911,16 @@ export function validateRepo(root: string): Finding[] {
   } catch (error) {
     findings.push({ level: "error", message: error instanceof Error ? error.message : String(error) });
   }
+  findings.push(
+    ...collectAntigravityIntegrityFindings(
+      root,
+      manifests,
+      pairedItems,
+      publisher,
+      antigravityUpstreamPolicy,
+      upstreamNs,
+    ),
+  );
   const qualifiedCodexSkills = new Set<string>();
   for (const m of manifests) {
     const pluginRoot = join(codexRoot, m.plugin.name);
@@ -2121,6 +2214,188 @@ export function validateRepo(root: string): Finding[] {
     }
   }
 
+  return findings;
+}
+
+function collectAntigravityIntegrityFindings(
+  root: string,
+  manifests: CurationManifest[],
+  pairedItems: (manifest: CurationManifest) => DeclaredItem[],
+  publisher: ReturnType<typeof loadCodexPublisherMetadata> | undefined,
+  upstreamPolicy: ReadonlyMap<string, unknown>,
+  upstreamNamespaces: ReadonlySet<string>,
+): Finding[] {
+  const findings: Finding[] = [];
+  const error = (message: string): void => {
+    findings.push({ level: "error", message });
+  };
+  const directory = (path: string): boolean => existsSync(path) && lstatSync(path).isDirectory();
+  const ordinaryFile = (path: string): boolean => existsSync(path) && lstatSync(path).isFile();
+  const rootPath = join(root, "antigravity");
+  const plugins = new Set(manifests.map((manifest) => manifest.plugin.name));
+  const actual = directory(rootPath) ? readdirSync(rootPath, { withFileTypes: true }) : [];
+  for (const entry of actual) {
+    if (!entry.isDirectory() || !plugins.has(entry.name)) {
+      error(`unexpected entry under antigravity/: ${entry.name}`);
+    }
+  }
+  for (const problem of collectAntigravityPathProblems(
+    "antigravity",
+    actual.map((entry) => entry.name),
+  )) {
+    error(problem);
+  }
+  let attributions: ReturnType<typeof loadAttributions> | undefined;
+  try {
+    attributions = loadAttributions(root);
+  } catch (cause) {
+    error(cause instanceof Error ? cause.message : String(cause));
+  }
+  if (publisher?.repository && !isAntigravityHttpsUrl(publisher.repository)) {
+    error("package.json: Antigravity plugin repository must be an HTTPS URL");
+  }
+  const qualifiedArtifacts = new Set<string>();
+  for (const manifest of manifests) {
+    const plugin = manifest.plugin.name;
+    const at = `antigravity/${plugin}`;
+    const pluginRoot = join(root, at);
+    if (!directory(pluginRoot)) {
+      error(`missing Antigravity Plugin root ${at}`);
+      continue;
+    }
+    const manifestPath = join(pluginRoot, "plugin.json");
+    if (!ordinaryFile(manifestPath)) {
+      error(`${at}/plugin.json is missing`);
+    } else {
+      try {
+        const value: unknown = JSON.parse(readFileSync(manifestPath, "utf8"));
+        if (publisher && !isDeepStrictEqual(value, createAntigravityPluginManifest(manifest, publisher))) {
+          error(`${at}/plugin.json does not match the Antigravity manifest schema and repository metadata`);
+        }
+      } catch (cause) {
+        error(`${at}/plugin.json is invalid JSON: ${cause instanceof Error ? cause.message : String(cause)}`);
+      }
+    }
+    if (existsSync(join(pluginRoot, "commands"))) {
+      error(`${at}/commands is deprecated — emit commands as manual skills`);
+    }
+
+    const expected = new Map<string, DeclaredItem>();
+    for (const item of pairedItems(manifest).filter((candidate) => emitsTo(candidate.intent, "antigravity"))) {
+      const path = antigravityArtifactPath(item.outType, item.outName);
+      if (expected.has(path)) {
+        error(`${at}/${path}: duplicate Antigravity artifact`);
+      }
+      expected.set(path, item);
+    }
+    const paths = [...walk(pluginRoot, true)].map((file) => itemRelative(pluginRoot, file));
+    for (const problem of collectAntigravityPathProblems(at, paths)) {
+      error(problem);
+    }
+    for (const [folder, artifact] of [
+      ["skills", "skill"],
+      ["agents", "agent"],
+    ] as const) {
+      const path = join(pluginRoot, folder);
+      if (existsSync(path) && !directory(path)) {
+        error(`${at}/${folder} must be a directory`);
+      }
+      for (const entry of directory(path) ? readdirSync(path, { withFileTypes: true }) : []) {
+        const primary = artifact === "skill" ? `skills/${entry.name}/SKILL.md` : `agents/${entry.name}`;
+        if (!expected.has(primary) || (artifact === "skill" ? !entry.isDirectory() : !entry.isFile())) {
+          error(`${at}/${folder}/${entry.name}: unexpected Antigravity ${artifact}`);
+        }
+      }
+    }
+    for (const file of paths.filter((path) => path.startsWith("skills/") && path.endsWith("/SKILL.md"))) {
+      if (file.split("/").length !== 3) {
+        error(`${at}/${file}: nested Antigravity SKILL.md`);
+      }
+    }
+    for (const [path, { outName, outType, intent }] of expected) {
+      const file = join(pluginRoot, path);
+      const label = `${at}/${path}`;
+      if (!ordinaryFile(file)) {
+        error(`${label} is missing`);
+        continue;
+      }
+      const doc = readAntigravityDocument(file);
+      if (!doc) {
+        error(`${label} has invalid frontmatter YAML`);
+        continue;
+      }
+      const { name, description } = doc.frontmatter;
+      if (!PORTABLE_NAME.test(outName) || name !== outName || typeof description !== "string" || !description.trim()) {
+        error(`${label} must have a matching portable name and non-empty description`);
+      }
+      qualifiedArtifacts.add(`${plugin}:${outName}`);
+      if (outType === "agent") {
+        const { document } = adaptAntigravityDocument(outType, outName, doc, intent.invocation);
+        if (!isDeepStrictEqual(doc.frontmatter, document.frontmatter)) {
+          error(`${label} must use exactly name, description, mainAgent: false, subagent: true, and model: inherit`);
+        }
+        continue;
+      }
+      if (Buffer.byteLength(doc.body) > MAX_ANTIGRAVITY_SKILL_BODY_BYTES) {
+        error(`${label} body exceeds ${MAX_ANTIGRAVITY_SKILL_BODY_BYTES} bytes`);
+      }
+      if (
+        doc.body.endsWith(ANTIGRAVITY_CONTINUATION_LINK) &&
+        !ordinaryFile(join(dirname(file), ANTIGRAVITY_CONTINUATION))
+      ) {
+        error(`${label} links to missing ${ANTIGRAVITY_CONTINUATION}`);
+      }
+      const unsupported = Object.keys(doc.frontmatter).filter((key) => !ANTIGRAVITY_SKILL_KEYS.has(key));
+      if (unsupported.length) {
+        error(`${label} has unsupported frontmatter: ${unsupported.sort().join(", ")}`);
+      }
+      const disabled = antigravityDisablesModel(outType, intent.invocation, upstreamPolicy.get(`${plugin}/${outName}`));
+      if (
+        disabled ? doc.frontmatter["disable-model-invocation"] !== true : "disable-model-invocation" in doc.frontmatter
+      ) {
+        error(`${label}: disable-model-invocation ${disabled ? "must be true" : "must be omitted"}`);
+      }
+    }
+    if (!attributions) {
+      continue;
+    }
+    try {
+      const entries = manifestAttributions(manifest, attributions);
+      const notices = join(pluginRoot, "THIRD_PARTY_NOTICES.md");
+      if (!ordinaryFile(notices) || readFileSync(notices, "utf8") !== renderDistributionNotices(entries)) {
+        error(`${at}/THIRD_PARTY_NOTICES.md is missing or does not match curation attribution`);
+      }
+      const licenses = [
+        ["LICENSE", join(root, "LICENSE")],
+        ...entries.map(
+          ([source, meta]) =>
+            [`third_party/${source}/LICENSE`, join(root, "external", source, meta.licenseFile)] as const,
+        ),
+      ] as const;
+      for (const [path, source] of licenses) {
+        const file = join(pluginRoot, path);
+        if (!ordinaryFile(file) || !readFileSync(file).equals(readFileSync(source))) {
+          error(`${at}/${path} is missing or differs from its source license`);
+        }
+      }
+    } catch (cause) {
+      error(`${at}: ${cause instanceof Error ? cause.message : String(cause)}`);
+    }
+  }
+
+  for (const file of directory(rootPath)
+    ? [...walk(rootPath)].filter((path) => path.endsWith(".md") && ordinaryFile(path))
+    : []) {
+    const text = readFileSync(file, "utf8");
+    const rel = itemRelative(root, file);
+    for (const ref of scanRefs(text)) {
+      if (plugins.has(ref.ns) && (text[ref.index - 1] === "$" || !qualifiedArtifacts.has(ref.address))) {
+        error(`${rel}: invalid or dangling Antigravity reference ${ref.address}`);
+      } else if (upstreamNamespaces.has(ref.ns)) {
+        error(`${rel}: unrendered Antigravity reference ${ref.address}`);
+      }
+    }
+  }
   return findings;
 }
 

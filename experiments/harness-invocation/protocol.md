@@ -49,6 +49,7 @@ The harnesses isolate differently. Getting this wrong wastes a round.
 | OpenCode 2 | `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME`, `XDG_CACHE_HOME`, `OPENCODE_DB` | data, state, cache, logs, and the database. Relocate all of them; upstream's own `packages/cli/script/service-smoke.ts` uses the same set |
 | OpenCode 2 | `OPENCODE_DISABLE_PROJECT_CONFIG=1` | skips the project walk, which otherwise collects `.claude`, `.agents`, `.opencode`, and `opencode.json(c)` from every ancestor of the working directory up to the filesystem root |
 | Codex | `CODEX_HOME` | replaces config, auth, plugin records, marketplace records, cache, and run-local temporary state for the CLI |
+| Antigravity `agy 1.5.13` | `GEMINI_HOME` | ignored for plugin discovery; behavior runs borrow the real `~/.gemini/config/plugins.json` and restore its bytes or prior absence |
 
 `Get-OpenCodeLabEnvironment` in [`common.ps1`](common.ps1) holds the OpenCode set for one lab root,
 and `Use-OpenCodeIsolation` applies it to the shell for `<lab>/.opencode-home`. The evidence for
@@ -235,6 +236,33 @@ nonsense controls measure catalog pressure, then probe one generated manual skil
 one generated auto skill implicitly. Also require the installed cross-skill handoff, bundled
 reference, and uninstalled-plugin negative controls. Kill and record timeouts. Keep credentialed
 JSONL only in the external lab.
+
+### Antigravity plugin discovery and invocation
+
+Run [`antigravity-matrix.ps1`](antigravity-matrix.ps1) in structural mode for strict JSON validation
+of the nonsense fixture and all five generated plugins, plus counts of skills, manual skills,
+continuation files, and native agents. This mode never writes the profile. `-DryRun` prints the plan
+and starts no harness process.
+
+Behavior mode uses a disposable external lab project and points the real
+`~/.gemini/config/plugins.json` at the fixture, then the generated plugin folders. Unlike Codex and
+OpenCode, `agy 1.5.13` ignores `GEMINI_HOME` for this discovery: the runner saves the manifest's
+exact bytes or prior absence before replacing it and restores them in `finally`, including on
+PowerShell errors or interruption. It does not install into `config/plugins/`. Do not run this
+panel concurrently with other Antigravity sessions or profile edits: they share the manifest and
+could observe the temporary configuration or have their edits overwritten. A forced process kill or
+power loss cannot execute `finally`; if that occurs, recover the manifest from an independent backup.
+Other Antigravity profile settings, loose skills, credentials, and any already installed plugins
+remain visible to the CLI; this is manifest restoration, not full profile isolation.
+
+The runner asks the model to list its supplied skill names and `invoke_subagent` types without
+reading files. It pairs the fixture's visible auto skill and specialist with the hidden manual
+control, tests both qualified and bare manual slash expansion, and repeats discovery with the five
+generated plugins. Model self-report is not a direct prompt or tool-schema capture: absence from its
+answer is limited evidence of hiding, and a partial or misleading list can fail a probe. Record the
+actual output, exit status, version, counts, and manifest restoration, not just a green summary.
+Raw responses and paths stay in the external lab. T3's `agy_acp_server 1.4.5` loose-skill boundary
+is separate and is not exercised by this CLI panel.
 
 ## Probe cheaply
 
