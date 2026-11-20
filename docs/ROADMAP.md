@@ -335,6 +335,17 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Known Gaps
 
+- **Antigravity shared customization budget and `agy acp` lazy-MCP drop (`agy 1.5.13`):** Enabling
+  heavy Modules globally (e.g., `deniz-dotnet-general` at ~33.0 KB, or all five Modules at ~51.7 KB
+  for `100` model-visible skills) alongside T3 Code's `t3-code` MCP server (`71` tools, `48.2` KB)
+  overflows Antigravity's shared customization budget (~62–64 KB combined): `agy acp` dynamically
+  trims both skills (`8` excluded with 3 Modules, `17` with 5) and `t3-code` eager schemas (`56/71`
+  with 3 Modules, `55/71` with 5) without registering `call_mcp_tool`, dropping the largest tools
+  including `delegate_task` and `t3_thread_read`. With plugins disabled or with only
+  `deniz-process` + `deniz-coordination` enabled (~9.1 KB skills), all `71/71` tools register
+  eagerly (`0` excluded skills) and cross-provider `delegate_task` works. No configurable
+  customization-budget setting is documented for `agy`; see
+  [research](research/antigravity-native-plugin-and-skill-surfaces.md#shared-customization-budget-and-t3-mcp-truncation-agy-1513).
 - **Antigravity proof and dispatch backend:** A repeatable full-estate discovery and invocation panel
   is still needed for generated Plugins, including model handoffs and both native agents. Native
   Antigravity support in the .NET dispatch harness would be a separate future `AntigravityBackend`

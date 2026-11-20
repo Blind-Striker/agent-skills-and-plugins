@@ -163,6 +163,62 @@ that directly shape `tools/lib/rewrite.ts` and `harness_files`:
    therefore replaces that stale note via its own Antigravity tool notes rather than shipping
    upstream's file verbatim.
 
+## Shared customization budget and T3 MCP truncation (`agy 1.5.13`)
+
+Official Antigravity rules documentation (`https://antigravity.google/docs/rules.md`) defines a
+20,000-token aggregate budget for global/`always_on` rules *"separate from the customization budget
+(plugins such as skills and MCP)"*, and does not document a user-configurable setting (such as
+Claude Code's `SLASH_COMMAND_TOOL_CHAR_BUDGET`) to raise the customization budget.
+
+Live A/B observations on `agy acp 1.5.13` inside T3 Code (`Binary path: agy`) with the `t3-code`
+MCP server (71 tool schemas, 48,154 bytes total under `<appDataDir>/mcp/t3-code/`) showed that
+skills and MCP compete for this shared customization budget:
+
+- **All five Modules disabled (`0` estate plugins, `4` built-in skills):** all **71/71** `t3-code`
+  MCP tools registered eagerly (`Lazy: 0`), including `delegate_task`, `t3_thread_read`,
+  `t3_thread_launch`, `schedule_task`, `html_render`, and `preview_open`.
+- **Two Modules enabled (`deniz-process` + `deniz-coordination`: `28` model-visible estate skills,
+  ~9.1 KB prompt lines + `48.2` KB `t3-code` MCP schemas ≈ ~57.3 KB):** all `32` skills (`4`
+  built-in + `28` estate) loaded with **0** exclusions and all **71/71** `t3-code` MCP tools
+  registered eagerly (`Lazy: 0`), with live `delegate_task` cross-provider dispatch confirmed
+  across Codex, Claude, and OpenCode children.
+- **Three Modules enabled (`deniz-process`, `deniz-coordination`, `deniz-dotnet-general`: `86`
+  model-visible estate skills, ~42.2 KB prompt lines + `48.2` KB `t3-code` MCP schemas):**
+  `81` skills loaded with descriptions while **8** visible skills (`coverage-analysis`,
+  `csharp-15`, `csharp-refactoring`, `dotnet-breaking-changes`, `item-management`,
+  `property-patterns`, `system-text-json-net11`, `target-authoring`) were excluded, and `t3-code`
+  shrank to **56/71** eager tools (`25,236` bytes), `Lazy: 0`, no `call_mcp_tool`, and no
+  `delegate_task` or `t3_thread_read`.
+- **All five Modules enabled (`135` skills: `100` model-visible + `35` hidden `manual`, plus `4`
+  built-in skills and `2` native agents; ~51.7 KB of estate skill prompt lines + `48.2` KB of
+  `t3-code` MCP schemas):**
+  1. **Skill budget truncation:** `87` skills loaded with descriptions and paths, while **17**
+     model-visible skills (`6` from `deniz-dotnet-aspire`, `11` from `deniz-dotnet-general`) were
+     stripped to bare names in a footer (`The following items were excluded due to context budget
+     limits: ...`).
+  2. **Shared-budget MCP trimming + missing `call_mcp_tool` bug:** `t3-code` shrank further from
+     `56/71` (`25,236` bytes) to **55/71** eager tools (`24,359` bytes), dropping the 16 largest
+     tools (`delegate_task`, `t3_thread_read`, `t3_thread_launch`, `create_threads`,
+     `schedule_task`, `html_render`, `preview_open`, `preview_act`, `preview_navigate`,
+     `preview_snapshot`, `preview_resize`, `request_secret`, `t3_project_create`,
+     `t3_project_update`, `t3_environment_link`, `t3_thread_send_attachments`). The `56/71` vs.
+     `55/71` shift confirms that `agy` dynamically splits a shared customization budget (~62–64 KB
+     combined across skills and MCP) rather than enforcing a static 24 KiB MCP cap. Although the
+     system prompt instructs calling lazy tools via `call_mcp_tool`, the `Lazy:` list was empty and
+     `call_mcp_tool` was not registered; additionally `T3_ACP_MCP_NODE` was unset in the session, so
+     T3's CLI ACP fallback was unavailable.
+
+Per-Module model-visible skill footprint (measured on the generated `antigravity/` tree):
+
+| Module | Total skills | Hidden (`manual`) | Visible skills | Description chars | Approx. prompt bytes |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `deniz-coordination` | 6 | 1 | 5 | 1,497 | ~2.0 KB |
+| `deniz-dotnet-akka` | 5 | 0 | 5 | 1,065 | ~1.7 KB |
+| `deniz-process` | 45 | 22 | 23 | 4,562 | ~7.1 KB |
+| `deniz-dotnet-aspire` | 10 | 1 | 9 | 6,720 | ~7.7 KB |
+| `deniz-dotnet-general` | 69 | 11 | 58 | 25,968 | ~33.0 KB |
+| **Total** | **135** | **35** | **100** | **39,812** | **~51.7 KB** |
+
 ## Design implications
 
 - Emit one native Antigravity plugin per Module under `antigravity/<plugin>/` with strict
@@ -171,5 +227,9 @@ that directly shape `tools/lib/rewrite.ts` and `harness_files`:
   direct GitHub subfolder `agy plugin install` and zero-copy `~/.gemini/config/plugins.json` work
   natively on `agy 1.5.13`, and T3 Code reaches the same native plugin surface by setting its
   Antigravity provider **Binary path** to `agy`.
+- Until `agy acp` fixes lazy MCP tool exposure (`call_mcp_tool`) or exposes a configurable
+  customization budget, enabling all five Modules globally alongside large MCP servers such as
+  `t3-code` (48 KB) overflows the shared customization budget; keep rarely used heavy Modules
+  disabled globally (`agy plugin disable`) or enable them per project.
 - Run a repeatable Antigravity discovery and invocation panel under `experiments/harness-invocation/`
   and commit its measurement record to close the bounded runtime proof loop.
