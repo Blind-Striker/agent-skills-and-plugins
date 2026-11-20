@@ -34,8 +34,8 @@ the sources each Module actually uses, copies their license bytes directly from 
 keeps excluded-only sources out of that Module's notices.
 
 The repository's root `LICENSE` covers original work and modifications. It does not replace upstream
-terms. Root `THIRD_PARTY_NOTICES.md` credits the complete source estate; generated Claude Plugin,
-OpenCode Bundle, and Codex Plugin notice packs are source-specific distribution output and must
+terms. Root `THIRD_PARTY_NOTICES.md` credits the complete source estate. Generated Claude Plugin,
+OpenCode Bundle, Codex Plugin, and Antigravity Plugin notice packs are source-specific distribution output and must
 never be edited directly.
 
 ## Choose the lowest-cost mechanism
@@ -69,11 +69,11 @@ portable-name rule for every harness: lowercase letters and digits in single-hyp
 (`^[a-z0-9]+(-[a-z0-9]+)*$`), so no `.`, `_`, `:`, or doubled hyphen. Within a manifest, each
 non-excluded item must have a unique artifact-kind/output-name pair. Codex emits every resolved kind
 into one plugin-local skill namespace, so output names must also be unique across kinds within a
-manifest; `skill:review` and `command:review` would collide as Codex skills and fail preflight.
+manifest. `skill:review` and `command:review` would collide as skills in Codex and Antigravity and fail preflight.
 Across manifests, a bare output name must be unique in the whole repository, whatever its kind:
 `depends_on`, `optional_refs`, the linker, and `requiredModules` derivation identify a target by its bare name.
 
-Each harness qualifies the bare name with its plugin. Claude Code and Codex address an item through
+Each harness qualifies the bare name with its plugin. Claude Code, Codex, and Antigravity address an item through
 their plugin namespace. OpenCode has no plugin concept, so every OpenCode ID is `<plugin>.<name>`:
 `skills/deniz-process.brainstorming/SKILL.md` is attached as `@deniz-process.brainstorming`, and a
 command `commands/deniz-process.handoff.md` runs as `/deniz-process.handoff`. The portable-name rule
@@ -111,9 +111,10 @@ harness_files:
     claude: references/claude-code-tools.md
     codex: references/codex-tools.md
     opencode: references/opencode-tools.md
+    antigravity: references/antigravity-tools.md
 ```
 
-Name all three harnesses. A source is an item-relative path in the assembled item, so it can come
+Name every harness. A source is an item-relative path in the assembled item, so it can come
 from upstream or from the item's patch or overlay; for an original skill it is a path inside its
 `skills/<plugin>/<name>/` directory. `null` states that the harness ships no file at that path. Each
 tree gets its own harness's source at the output path, and no tree ships a mapped source under its
@@ -142,15 +143,15 @@ read each harness's source is owned by
 item ships to ([ADR-0010](../docs/adr/0010-per-harness-item-emission.md)):
 
 ```yaml
-harnesses: [opencode, codex] # Claude Code starts the same run through its own workflow tool
+harnesses: [opencode, codex, antigravity] # Claude Code starts the same run through its own workflow tool
 ```
 
-Without the key, an item ships to all three harnesses. With it, an unlisted harness gets nothing from
+Without the key, an item ships to every harness. With it, an unlisted harness gets nothing from
 the item: no skill, command, or agent, no marketplace or Bundle entry, and no ledger row for that
 tree. The key records a decision for every tree, never a port still to come, so give its reason
 beside it, as for `exclude`.
 
-The manifest loader rejects an empty list, a duplicate, an unknown harness, and a list of all three:
+The manifest loader rejects an empty list, a duplicate, an unknown harness, and a list of every harness:
 "everywhere" has one spelling, the absent key. A `harness_files` mapping on the item must map every
 unlisted harness to `null`. The build stops before deleting output when a Module would ship nothing
 to some harness.
@@ -189,7 +190,7 @@ upstream posture to pass through, and it maps to each harness as the
 [invocation table](#invocation-and-as-are-orthogonal) states. The declaration alone owns the
 skill's invocation posture in every harness. Each emitter adapts an original skill as it adapts a
 curated one, so the declaration decides its Claude invocation keys, OpenCode's hiding key, and the
-Codex policy file. The SKILL.md may author neither `user-invocable` nor `disable-model-invocation`,
+Codex policy file, as well as Antigravity's `disable-model-invocation` flag. The SKILL.md may author neither `user-invocable` nor `disable-model-invocation`,
 nor a `metadata` that holds `opencode/autoinvoke`, and the directory may hold no
 `agents/openai.yaml`.
 
@@ -263,26 +264,28 @@ read ([`scriptInvocationProblems`](../tools/lib/script-invocation.ts)).
 ## `invocation` and `as` are orthogonal
 
 `invocation` says which initiation capabilities an item requires or forbids. `as` says its resolved
-Claude/OpenCode artifact shape. One does not derive the other; Codex adapts every resolved kind to a
-skill and therefore still consumes invocation on an item resolved as a command or agent.
+artifact shape. One does not derive the other; Codex adapts every resolved kind to a skill and
+Antigravity emits a resolved command as a manual skill and a resolved agent as a native subagent.
 
-| `invocation` | Capability intent | Claude Code skill output | OpenCode 2 skill output | Codex output |
-|---|---|---|---|---|
-| absent | passthrough or target default | preserve upstream posture | skill; an upstream `disable-model-invocation: true` becomes `metadata: {"opencode/autoinvoke": false}` | skill with target defaults |
-| `auto` | implicit required; explicit unspecified | model-only skill | advertised skill; explicit `@` attach remains natively available | ordinary skill; explicit remains natively available |
-| `manual` | implicit forbidden; explicit required | user-only skill | unadvertised skill with `metadata: {"opencode/autoinvoke": false}`; the user attaches it with `@` | skill with `allow_implicit_invocation: false` |
-| `both` | implicit and explicit required | skill available to both audiences | one advertised skill the user can attach with `@`; no command | ordinary skill |
+| `invocation` | Capability intent | Claude Code skill output | OpenCode 2 skill output | Codex output | Antigravity skill output |
+|---|---|---|---|---|---|
+| absent | passthrough or target default | preserve upstream posture | skill; an upstream `disable-model-invocation: true` becomes `metadata: {"opencode/autoinvoke": false}` | skill with target defaults | preserves upstream `disable-model-invocation: true` |
+| `auto` | implicit required; explicit unspecified | model-only skill | advertised skill; explicit `@` attach remains natively available | ordinary skill; explicit remains natively available | ordinary skill; slash invocation remains available |
+| `manual` | implicit forbidden; explicit required | user-only skill | unadvertised skill with `metadata: {"opencode/autoinvoke": false}`; the user attaches it with `@` | skill with `allow_implicit_invocation: false` | skill with `disable-model-invocation: true` |
+| `both` | implicit and explicit required | skill available to both audiences | one advertised skill the user can attach with `@`; no command | ordinary skill | ordinary skill |
 
 Absent is not a default value: it records no curation intent, so upstream Claude frontmatter passes
-through, OpenCode renders an upstream `disable-model-invocation: true` with its native key, and Codex
-uses its native target default. Neither Codex nor OpenCode 2 has a policy that preserves implicit
+through, OpenCode renders an upstream `disable-model-invocation: true` with its native key,
+Antigravity preserves that true value, and Codex uses its native target default. Codex, Antigravity,
+and OpenCode 2 have no policy that preserves implicit
 selection while forbidding explicit invocation, so `auto` does not mean model-only there; this is a
 native capability resolution, not a silent approximation.
 
 OpenCode 2 has no skill-level switch that forbids a model-initiated load: its native key only keeps
 the skill out of the list the model is offered, and the skill tool can still load a registered ID.
-On Codex and OpenCode 2 alike, `manual` therefore means not offered to the model, with the user
-invoking it explicitly; Claude Code alone blocks model invocation
+On Codex, OpenCode 2, and Antigravity, `manual` means not offered to the model, with the user
+invoking it explicitly. The Antigravity probes establish hiding and explicit invocation, not a
+general ban on model reads. Claude Code blocks model invocation
 ([ADR-0005](../docs/adr/0005-invocation-intent-in-the-manifest.md)). Text may name a `manual` item's
 ID, for example to point the user at it, but a relative path may not reach its body, its
 `SKILL.md` ([Dependencies](#dependencies)).
@@ -291,7 +294,10 @@ Invocation never changes artifact shape. Use `as: command` or `as: agent` when t
 artifact itself must change regardless of trigger intent. `as: command` is the per-item escape hatch
 for an item that truly needs a command surface, a `/<plugin>.<name>` entry in OpenCode that takes
 `$ARGUMENTS`; its body then lives in one command file, so skill-relative paths in it may stop
-resolving.
+resolving. Antigravity emits commands as manual skills and agents as native subagents. Its skill frontmatter
+allowlist is `name`, `description`, `disable-model-invocation`, `license`, `compatibility`, and
+`icon`; its native agent fields and body-size handling are documented in
+[Antigravity emission](../docs/architecture/transformation-and-emission.md#antigravity).
 
 ## Body ownership and merge sources
 

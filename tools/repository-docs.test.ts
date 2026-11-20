@@ -56,16 +56,22 @@ test("dispatch CI uses the shard filter in both shells and isolates artifacts", 
 
 test("README build command names every committed generated tree", () => {
   const readme = readFileSync(join(root, "README.md"), "utf8");
-  assert.match(readme, /`npm run build`[^\n]*`plugins\/`[^\n]*`opencode\/`[^\n]*`codex\/`[^\n]*`dist\/`/);
+  assert.match(
+    readme,
+    /`npm run build`[^\n]*`plugins\/`[^\n]*`opencode\/`[^\n]*`codex\/`[^\n]*`antigravity\/`[^\n]*`dist\/`/,
+  );
 });
 
-test("bootstrap and CI guard every generated Codex surface", () => {
+test("bootstrap and CI guard the generated plugin and bundle surfaces", () => {
   const agents = readFileSync(join(root, "AGENTS.md"), "utf8");
-  assert.match(agents, /Never hand-edit[^\n]*`external\/`[^\n]*`plugins\/`[^\n]*`opencode\/`[^\n]*`codex\/`/);
+  assert.match(
+    agents,
+    /Never hand-edit[^\n]*`external\/`[^\n]*`plugins\/`[^\n]*`opencode\/`[^\n]*`codex\/`[^\n]*`antigravity\/`/,
+  );
   assert.match(agents, /\.agents\/plugins\/marketplace\.json/);
 
   const workflow = readFileSync(join(root, ".github", "workflows", "validate.yml"), "utf8");
-  for (const path of ["plugins", "opencode", "codex", "dist", ".agents/plugins/marketplace.json"]) {
+  for (const path of ["plugins", "opencode", "codex", "antigravity", "dist", ".agents/plugins/marketplace.json"]) {
     assert.match(workflow, new RegExp(`git add -A --[^\\n]*${path.replaceAll(".", "\\.")}`));
   }
 });

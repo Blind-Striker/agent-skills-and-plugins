@@ -119,11 +119,16 @@ const withHarnessFiles = (block: string): string =>
 test("harness_files maps one output path to a source per harness, null stating a gap", () => {
   const m = loadManifest(
     withHarnessFiles(
-      "      references/harness-tools.md:\n        claude: references/claude.md\n        codex: references/codex.md\n        opencode: null\n",
+      "      references/harness-tools.md:\n        claude: references/claude.md\n        codex: references/codex.md\n        opencode: null\n        antigravity: null\n",
     ),
   );
   assert.deepEqual(m.items[0]?.harness_files, {
-    "references/harness-tools.md": { claude: "references/claude.md", codex: "references/codex.md", opencode: null },
+    "references/harness-tools.md": {
+      claude: "references/claude.md",
+      codex: "references/codex.md",
+      opencode: null,
+      antigravity: null,
+    },
   });
 });
 
@@ -134,22 +139,38 @@ test("harness_files rejects a harness it does not name, and every malformed path
       /harness_files out\.md states no source for opencode — name one, or null to ship no file there/,
     ],
     [
+      "      out.md:\n        claude: a.md\n        codex: b.md\n        opencode: c.md\n",
+      /harness_files out\.md states no source for antigravity/,
+    ],
+    [
       "      out.md:\n        claude: a.md\n        codex: b.md\n        opencode: c.md\n        cursor: d.md\n",
       /harness_files out\.md names an unknown harness cursor/,
     ],
-    ["      out.md: a.md\n", /harness_files out\.md must map claude, codex, and opencode to a source or null/],
+    ["      out.md: a.md\n", /harness_files out\.md must map claude, codex, opencode, antigravity to a source or null/],
     [
-      "      ../out.md:\n        claude: a.md\n        codex: b.md\n        opencode: c.md\n",
+      "      ../out.md:\n        claude: a.md\n        codex: b.md\n        opencode: c.md\n        antigravity: null\n",
       /not an item-relative path/,
     ],
     [
-      "      out.md:\n        claude: /a.md\n        codex: b.md\n        opencode: c.md\n",
+      "      out.md:\n        claude: /a.md\n        codex: b.md\n        opencode: c.md\n        antigravity: null\n",
       /not an item-relative path/,
     ],
-    ["      SKILL.md:\n        claude: a.md\n        codex: b.md\n        opencode: c.md\n", /SKILL\.md/],
-    ["      out.md:\n        claude: SKILL.md\n        codex: b.md\n        opencode: c.md\n", /SKILL\.md/],
-    ["      out.md:\n        claude: out.md\n        codex: b.md\n        opencode: c.md\n", /is also a mapped source/],
-    ["      out.md:\n        claude: null\n        codex: null\n        opencode: null\n", /maps no harness/],
+    [
+      "      SKILL.md:\n        claude: a.md\n        codex: b.md\n        opencode: c.md\n        antigravity: null\n",
+      /SKILL\.md/,
+    ],
+    [
+      "      out.md:\n        claude: SKILL.md\n        codex: b.md\n        opencode: c.md\n        antigravity: null\n",
+      /SKILL\.md/,
+    ],
+    [
+      "      out.md:\n        claude: out.md\n        codex: b.md\n        opencode: c.md\n        antigravity: null\n",
+      /is also a mapped source/,
+    ],
+    [
+      "      out.md:\n        claude: null\n        codex: null\n        opencode: null\n        antigravity: null\n",
+      /maps no harness/,
+    ],
   ];
   for (const [block, message] of cases) {
     assert.throws(() => loadManifest(withHarnessFiles(block)), message, block);
@@ -192,14 +213,19 @@ test("original_skills rejects every malformed declaration", () => {
 test("original_skills takes harness_files under the curated grammar", () => {
   const m = loadManifest(
     withOriginals(
-      "  my-own:\n    invocation: manual\n    harness_files:\n      references/tools.md:\n        claude: references/claude.md\n        codex: references/codex.md\n        opencode: null\n",
+      "  my-own:\n    invocation: manual\n    harness_files:\n      references/tools.md:\n        claude: references/claude.md\n        codex: references/codex.md\n        opencode: null\n        antigravity: null\n",
     ),
   );
   assert.deepEqual(m.original_skills, {
     "my-own": {
       invocation: "manual",
       harness_files: {
-        "references/tools.md": { claude: "references/claude.md", codex: "references/codex.md", opencode: null },
+        "references/tools.md": {
+          claude: "references/claude.md",
+          codex: "references/codex.md",
+          opencode: null,
+          antigravity: null,
+        },
       },
     },
   });
@@ -207,7 +233,7 @@ test("original_skills takes harness_files under the curated grammar", () => {
     () =>
       loadManifest(
         withOriginals(
-          "  my-own:\n    invocation: manual\n    harness_files:\n      SKILL.md:\n        claude: a.md\n        codex: b.md\n        opencode: c.md\n",
+          "  my-own:\n    invocation: manual\n    harness_files:\n      SKILL.md:\n        claude: a.md\n        codex: b.md\n        opencode: c.md\n        antigravity: null\n",
         ),
       ),
     /original_skills\.my-own: harness_files cannot replace SKILL\.md/,
@@ -269,14 +295,14 @@ test("harnesses narrows a curated item or an original skill to the trees it name
   assert.deepEqual(original.original_skills?.["my-own"]?.harnesses, ["claude"]);
 });
 
-test("harnesses rejects an empty, duplicate, unknown, or all-three list for either declaration kind", () => {
+test("harnesses rejects an empty, duplicate, unknown, or all-harness list for either declaration kind", () => {
   const cases: [string, RegExp][] = [
-    ["[]", /harnesses must be a nonempty list of claude\|codex\|opencode/],
-    ["claude", /harnesses must be a nonempty list of claude\|codex\|opencode/],
-    ["[cursor]", /harnesses must be a nonempty list of claude\|codex\|opencode/],
+    ["[]", /harnesses must be a nonempty list of claude\|codex\|opencode\|antigravity/],
+    ["claude", /harnesses must be a nonempty list of claude\|codex\|opencode\|antigravity/],
+    ["[cursor]", /harnesses must be a nonempty list of claude\|codex\|opencode\|antigravity/],
     ["[codex, codex]", /harnesses names codex twice/],
     [
-      "[claude, codex, opencode]",
+      "[claude, codex, opencode, antigravity]",
       /harnesses names every harness — drop the key; an item ships everywhere unless it names fewer/,
     ],
   ];
@@ -294,9 +320,14 @@ test("harnesses rejects an empty, duplicate, unknown, or all-three list for eith
 
 test("harnesses requires null harness_files sources for every harness it leaves out", () => {
   const block = (opencode: string): string =>
-    `  my-own:\n    invocation: manual\n    harnesses: [claude, codex]\n    harness_files:\n      references/tools.md:\n        claude: references/claude.md\n        codex: references/codex.md\n        opencode: ${opencode}\n`;
+    `  my-own:\n    invocation: manual\n    harnesses: [claude, codex]\n    harness_files:\n      references/tools.md:\n        claude: references/claude.md\n        codex: references/codex.md\n        opencode: ${opencode}\n        antigravity: null\n`;
   assert.deepEqual(loadManifest(withOriginals(block("null"))).original_skills?.["my-own"]?.harness_files, {
-    "references/tools.md": { claude: "references/claude.md", codex: "references/codex.md", opencode: null },
+    "references/tools.md": {
+      claude: "references/claude.md",
+      codex: "references/codex.md",
+      opencode: null,
+      antigravity: null,
+    },
   });
   assert.throws(
     () => loadManifest(withOriginals(block("references/opencode.md"))),

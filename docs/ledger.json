@@ -51,6 +51,21 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-coordination:coordinator",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-coordination:delegating-to-worker-models"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-coordination/skill/delegating-to-worker-models": {
@@ -68,7 +83,8 @@
       "references/host-tools.md": {
         "claude": "references/claude-code-tools.md",
         "codex": "references/codex-tools.md",
-        "opencode": "references/opencode-tools.md"
+        "opencode": "references/opencode-tools.md",
+        "antigravity": "references/antigravity-tools.md"
       }
     },
     "description": "Use when you hand off implementation, a plan, research a decision will rely on, or a review, and you brief the worker and check what comes back. A subagent that searches, reads in parallel, or keeps your context small is ordinary tool use. Covers what stays with you, the mechanism, assigning work by strength, the walls preflight, prompts without contradictions, the worker contract, a worker's lifetime (size, usage, restarts, cleanup), evidence from your own run, review, and the fix-up loop.",
@@ -124,6 +140,24 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-coordination:delegating-to-worker-models",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-coordination:harness",
+          "deniz-coordination:model-profiles",
+          "deniz-coordination:t3-delegation",
+          "deniz-process:requesting-code-review"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-coordination/skill/harness": {
@@ -131,6 +165,7 @@
     "original": true,
     "invocation": "both",
     "harnesses": [
+      "antigravity",
       "claude",
       "codex"
     ],
@@ -161,6 +196,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-coordination:harness",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-coordination/skill/model-profiles": {
@@ -221,6 +269,23 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-coordination:model-profiles",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-coordination:delegating-to-worker-models"
+        ],
+        "pointer": [
+          "/deniz-coordination:coordinator"
+        ]
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-coordination/skill/t3-delegation": {
@@ -275,6 +340,21 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-coordination:t3-delegation",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-coordination:delegating-to-worker-models"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-coordination/skill/verified-waves": {
@@ -285,10 +365,12 @@
       "references/harness-tools.md": {
         "claude": null,
         "codex": "references/codex-tools.md",
-        "opencode": "references/opencode-tools.md"
+        "opencode": "references/opencode-tools.md",
+        "antigravity": "references/antigravity-tools.md"
       }
     },
     "harnesses": [
+      "antigravity",
       "codex",
       "opencode"
     ],
@@ -324,6 +406,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-coordination:verified-waves",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-akka/agent/akka-net-specialist": {
@@ -367,6 +462,18 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "agent"
+      ],
+      "identity": "deniz-dotnet-akka:akka-net-specialist",
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-akka/skill/akka-hosting-actor-patterns": {
@@ -428,6 +535,23 @@
         "user-invocable"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-akka:akka-hosting-actor-patterns",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-general:dependency-injection-patterns"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "user-invocable"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-akka/skill/akka-net-aspire-configuration": {
@@ -509,6 +633,30 @@
         "user-invocable"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-akka:akka-net-aspire-configuration",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-akka:akka-net-best-practices",
+          "deniz-dotnet-akka:akka-net-management",
+          "deniz-dotnet-akka:akka-net-testing-patterns",
+          "deniz-dotnet-aspire:aspire",
+          "deniz-dotnet-aspire:aspire-integration-testing",
+          "deniz-dotnet-general:microsoft-extensions-configuration"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "user-invocable"
+      ],
+      "transformations": [
+        "skill body overflow -> SKILL-CONTINUATION.md"
+      ]
     }
   },
   "deniz-dotnet-akka/skill/akka-net-best-practices": {
@@ -560,6 +708,21 @@
         "user-invocable"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-akka:akka-net-best-practices",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "user-invocable"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-akka/skill/akka-net-management": {
@@ -621,6 +784,23 @@
         "user-invocable"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-akka:akka-net-management",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-akka:akka-net-aspire-configuration"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "user-invocable"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-akka/skill/akka-net-testing-patterns": {
@@ -673,6 +853,21 @@
         "user-invocable"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-akka:akka-net-testing-patterns",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "user-invocable"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-aspire/skill/aspire": {
@@ -755,6 +950,30 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-aspire:aspire",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-aspire:aspire-deployment",
+          "deniz-dotnet-aspire:aspire-init",
+          "deniz-dotnet-aspire:aspire-monitoring",
+          "deniz-dotnet-aspire:aspire-orchestration",
+          "deniz-dotnet-aspire:aspire-terminals",
+          "deniz-dotnet-aspire:aspireify"
+        ],
+        "pointer": [
+          "/deniz-dotnet-aspire:aspire-project-v2-migration"
+        ]
+      },
+      "droppedKeys": [
+        "metadata"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-aspire/skill/aspire-deployment": {
@@ -819,6 +1038,25 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-aspire:aspire-deployment",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-aspire:aspire-monitoring",
+          "deniz-dotnet-aspire:aspire-orchestration",
+          "deniz-dotnet-aspire:aspireify"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "metadata"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-aspire/skill/aspire-init": {
@@ -891,6 +1129,27 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-aspire:aspire-init",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-aspire:aspire",
+          "deniz-dotnet-aspire:aspire-deployment",
+          "deniz-dotnet-aspire:aspire-monitoring",
+          "deniz-dotnet-aspire:aspire-orchestration",
+          "deniz-dotnet-aspire:aspireify"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "metadata"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-aspire/skill/aspire-integration-testing": {
@@ -943,6 +1202,21 @@
         "user-invocable"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-aspire:aspire-integration-testing",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "user-invocable"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-aspire/skill/aspire-monitoring": {
@@ -1011,6 +1285,26 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-aspire:aspire-monitoring",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-aspire:aspire-deployment",
+          "deniz-dotnet-aspire:aspire-orchestration",
+          "deniz-dotnet-aspire:aspire-terminals",
+          "deniz-dotnet-aspire:aspireify"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "metadata"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-aspire/skill/aspire-orchestration": {
@@ -1083,6 +1377,27 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-aspire:aspire-orchestration",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-aspire:aspire-deployment",
+          "deniz-dotnet-aspire:aspire-init",
+          "deniz-dotnet-aspire:aspire-monitoring",
+          "deniz-dotnet-aspire:aspire-terminals",
+          "deniz-dotnet-aspire:aspireify"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "metadata"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-aspire/skill/aspire-project-v2-migration": {
@@ -1160,6 +1475,27 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-aspire:aspire-project-v2-migration",
+      "advertised": false,
+      "edges": {
+        "model": [
+          "deniz-dotnet-aspire:aspire-deployment",
+          "deniz-dotnet-aspire:aspire-init",
+          "deniz-dotnet-aspire:aspire-monitoring",
+          "deniz-dotnet-aspire:aspire-orchestration",
+          "deniz-dotnet-aspire:aspireify"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "metadata"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-aspire/skill/aspire-service-defaults": {
@@ -1221,6 +1557,23 @@
         "user-invocable"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-aspire:aspire-service-defaults",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-aspire:aspireify"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "user-invocable"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-aspire/skill/aspire-terminals": {
@@ -1293,6 +1646,27 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-aspire:aspire-terminals",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-aspire:aspire-deployment",
+          "deniz-dotnet-aspire:aspire-init",
+          "deniz-dotnet-aspire:aspire-monitoring",
+          "deniz-dotnet-aspire:aspire-orchestration",
+          "deniz-dotnet-aspire:aspireify"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "metadata"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-aspire/skill/aspireify": {
@@ -1365,6 +1739,27 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-aspire:aspireify",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-aspire:aspire-deployment",
+          "deniz-dotnet-aspire:aspire-init",
+          "deniz-dotnet-aspire:aspire-monitoring",
+          "deniz-dotnet-aspire:aspire-orchestration",
+          "deniz-dotnet-aspire:aspire-terminals"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "metadata"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/agent/roslyn-incremental-generator-specialist": {
@@ -1408,6 +1803,18 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "agent"
+      ],
+      "identity": "deniz-dotnet-general:roslyn-incremental-generator-specialist",
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/analyzing-dotnet-performance": {
@@ -1454,6 +1861,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:analyzing-dotnet-performance",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/aot-trimming": {
@@ -1514,6 +1934,24 @@
         "version"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:aot-trimming",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": [
+          "/deniz-dotnet-general:dotnet-aot-compat"
+        ]
+      },
+      "droppedKeys": [
+        "tags",
+        "version"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/api-design": {
@@ -1566,6 +2004,21 @@
         "user-invocable"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:api-design",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "user-invocable"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/blazing-fast-dotnet": {
@@ -1610,6 +2063,21 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:blazing-fast-dotnet",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": [
+        "skill body overflow -> SKILL-CONTINUATION.md"
+      ]
     }
   },
   "deniz-dotnet-general/skill/build-parallelism": {
@@ -1659,6 +2127,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:build-parallelism",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/check-bin-obj-clash": {
@@ -1718,6 +2199,21 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:check-bin-obj-clash",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-general:msbuild"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/code-testing": {
@@ -1795,6 +2291,25 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:code-testing",
+      "advertised": false,
+      "edges": {
+        "model": [
+          "deniz-dotnet-general:run-tests",
+          "deniz-dotnet-general:test-anti-patterns",
+          "deniz-dotnet-general:test-gap-analysis",
+          "deniz-dotnet-general:writing-tunit-tests",
+          "deniz-process:systematic-debugging"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/convert-to-cpm": {
@@ -1846,6 +2361,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:convert-to-cpm",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/coverage-analysis": {
@@ -1905,6 +2433,21 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:coverage-analysis",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-general:run-tests"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/cscheck": {
@@ -1952,6 +2495,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:cscheck",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/csharp-15": {
@@ -2000,6 +2556,21 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:csharp-15",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": [
+        "skill body overflow -> SKILL-CONTINUATION.md"
+      ]
     }
   },
   "deniz-dotnet-general/skill/csharp-concurrency-patterns": {
@@ -2051,6 +2622,21 @@
         "user-invocable"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:csharp-concurrency-patterns",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "user-invocable"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/csharp-nullable-reference-types": {
@@ -2111,6 +2697,24 @@
         "version"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:csharp-nullable-reference-types",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": [
+          "/deniz-dotnet-general:migrate-nullable-references"
+        ]
+      },
+      "droppedKeys": [
+        "tags",
+        "version"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/csharp-refactoring": {
@@ -2177,6 +2781,24 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:csharp-refactoring",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-general:dotnet-breaking-changes",
+          "deniz-dotnet-general:modern-csharp-coding-standards"
+        ],
+        "pointer": [
+          "/deniz-dotnet-general:migrate-nullable-references"
+        ]
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/csharp-scripts": {
@@ -2226,6 +2848,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:csharp-scripts",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/database-performance": {
@@ -2283,6 +2918,22 @@
         "user-invocable"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:database-performance",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "tags",
+        "user-invocable"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/dependency-injection-patterns": {
@@ -2334,6 +2985,21 @@
         "user-invocable"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:dependency-injection-patterns",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "user-invocable"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/detect-static-dependencies": {
@@ -2393,6 +3059,22 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:detect-static-dependencies",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": [
+          "/deniz-dotnet-general:generate-testability-wrappers",
+          "/deniz-dotnet-general:migrate-static-to-wrapper"
+        ]
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/directory-build-organization": {
@@ -2449,6 +3131,21 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:directory-build-organization",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": [
+          "/deniz-dotnet-general:convert-to-cpm"
+        ]
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/dotnet-aot-compat": {
@@ -2504,6 +3201,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:dotnet-aot-compat",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/dotnet-breaking-changes": {
@@ -2563,6 +3273,21 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:dotnet-breaking-changes",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-general:csharp-refactoring"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/dotnet-devcert-trust": {
@@ -2621,6 +3346,23 @@
         "user-invocable"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:dotnet-devcert-trust",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-aspire:aspire-service-defaults"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "user-invocable"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/dotnet-local-tools": {
@@ -2672,6 +3414,21 @@
         "user-invocable"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:dotnet-local-tools",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "user-invocable"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/dotnet-pinvoke": {
@@ -2721,6 +3478,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:dotnet-pinvoke",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/dotnet-project-structure": {
@@ -2779,6 +3549,23 @@
         "user-invocable"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:dotnet-project-structure",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": [
+          "/deniz-dotnet-general:convert-to-cpm"
+        ]
+      },
+      "droppedKeys": [
+        "user-invocable"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/dotnet-slopwatch": {
@@ -2824,6 +3611,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:dotnet-slopwatch",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/dotnet-trace-collect": {
@@ -2876,6 +3676,21 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:dotnet-trace-collect",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": [
+        "skill body overflow -> SKILL-CONTINUATION.md"
+      ]
     }
   },
   "deniz-dotnet-general/skill/dotnet-walls": {
@@ -2924,6 +3739,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:dotnet-walls",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/dotnet-webapi": {
@@ -2974,6 +3802,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:dotnet-webapi",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/dump-collect": {
@@ -3025,6 +3866,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:dump-collect",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/efcore-patterns": {
@@ -3080,6 +3934,21 @@
         "user-invocable"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:efcore-patterns",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "user-invocable"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/eliminate-redundant-restores": {
@@ -3139,6 +4008,21 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:eliminate-redundant-restores",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-general:msbuild"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/filter-syntax": {
@@ -3193,6 +4077,22 @@
         "user-invocable"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:filter-syntax",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "disable-model-invocation",
+        "user-invocable"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/find-repeated-work-within-one-build": {
@@ -3252,6 +4152,21 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:find-repeated-work-within-one-build",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-general:msbuild"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/generate-testability-wrappers": {
@@ -3313,6 +4228,21 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:generate-testability-wrappers",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": [
+          "/deniz-dotnet-general:migrate-static-to-wrapper"
+        ]
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/ilspy-decompile": {
@@ -3362,6 +4292,21 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:ilspy-decompile",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "allowed-tools"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/including-generated-files": {
@@ -3411,6 +4356,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:including-generated-files",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/item-management": {
@@ -3460,6 +4418,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:item-management",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/microbenchmarking": {
@@ -3509,6 +4480,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:microbenchmarking",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/microsoft-extensions-configuration": {
@@ -3560,6 +4544,21 @@
         "user-invocable"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:microsoft-extensions-configuration",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "user-invocable"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/migrate-dotnet10-to-dotnet11": {
@@ -3612,6 +4611,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:migrate-dotnet10-to-dotnet11",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/migrate-nullable-references": {
@@ -3664,6 +4676,21 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:migrate-nullable-references",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": [
+        "skill body overflow -> SKILL-CONTINUATION.md"
+      ]
     }
   },
   "deniz-dotnet-general/skill/migrate-static-to-wrapper": {
@@ -3722,6 +4749,21 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:migrate-static-to-wrapper",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": [
+          "/deniz-dotnet-general:generate-testability-wrappers"
+        ]
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/modern-csharp-coding-standards": {
@@ -3783,6 +4825,23 @@
         "user-invocable"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:modern-csharp-coding-standards",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-general:csharp-refactoring"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "user-invocable"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/msbuild": {
@@ -3884,6 +4943,32 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:msbuild",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-general:build-parallelism",
+          "deniz-dotnet-general:check-bin-obj-clash",
+          "deniz-dotnet-general:directory-build-organization",
+          "deniz-dotnet-general:eliminate-redundant-restores",
+          "deniz-dotnet-general:find-repeated-work-within-one-build",
+          "deniz-dotnet-general:including-generated-files",
+          "deniz-dotnet-general:item-management",
+          "deniz-dotnet-general:msbuild-modernization",
+          "deniz-dotnet-general:property-patterns",
+          "deniz-dotnet-general:target-authoring"
+        ],
+        "pointer": [
+          "/deniz-dotnet-general:troubleshoot-binlog-mcp"
+        ]
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/msbuild-modernization": {
@@ -3940,6 +5025,21 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:msbuild-modernization",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": [
+          "/deniz-dotnet-general:convert-to-cpm"
+        ]
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/mtp-hot-reload": {
@@ -4000,6 +5100,22 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:mtp-hot-reload",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-general:filter-syntax",
+          "deniz-dotnet-general:platform-detection"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/opentelemetry-net-instrumentation": {
@@ -4054,6 +5170,24 @@
         "version"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:opentelemetry-net-instrumentation",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "tags",
+        "version"
+      ],
+      "transformations": [
+        "skill body overflow -> SKILL-CONTINUATION.md"
+      ]
     }
   },
   "deniz-dotnet-general/skill/package-management": {
@@ -4112,6 +5246,23 @@
         "user-invocable"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:package-management",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": [
+          "/deniz-dotnet-general:convert-to-cpm"
+        ]
+      },
+      "droppedKeys": [
+        "user-invocable"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/platform-detection": {
@@ -4162,6 +5313,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:platform-detection",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/playwright-blazor-testing": {
@@ -4214,6 +5378,21 @@
         "user-invocable"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:playwright-blazor-testing",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "user-invocable"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/process-api-net11": {
@@ -4263,6 +5442,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:process-api-net11",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/property-patterns": {
@@ -4312,6 +5504,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:property-patterns",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/r3-reactive-extensions": {
@@ -4363,6 +5568,21 @@
         "user-invocable"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:r3-reactive-extensions",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "user-invocable"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/run-tests": {
@@ -4426,6 +5646,24 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:run-tests",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-general:filter-syntax",
+          "deniz-dotnet-general:platform-detection"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "metadata"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/sdk-container-publishing": {
@@ -4491,6 +5729,24 @@
         "invocable"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:sdk-container-publishing",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-general:aot-trimming",
+          "deniz-dotnet-general:testcontainers-integration-tests"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "invocable"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/serialization": {
@@ -4542,6 +5798,21 @@
         "user-invocable"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:serialization",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "user-invocable"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/snapshot-testing": {
@@ -4594,6 +5865,21 @@
         "user-invocable"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:snapshot-testing",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "user-invocable"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/system-text-json-net11": {
@@ -4644,6 +5930,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:system-text-json-net11",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/target-authoring": {
@@ -4703,6 +6002,21 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:target-authoring",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-general:msbuild"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/test-analysis-extensions": {
@@ -4758,6 +6072,22 @@
         "user-invocable"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:test-analysis-extensions",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "disable-model-invocation",
+        "user-invocable"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/test-anti-patterns": {
@@ -4823,6 +6153,25 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:test-anti-patterns",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-general:test-analysis-extensions"
+        ],
+        "pointer": [
+          "/deniz-dotnet-general:code-testing"
+        ]
+      },
+      "droppedKeys": [],
+      "transformations": [
+        "skill body overflow -> SKILL-CONTINUATION.md"
+      ]
     }
   },
   "deniz-dotnet-general/skill/test-gap-analysis": {
@@ -4882,6 +6231,21 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:test-gap-analysis",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-general:test-analysis-extensions"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/test-value-evidence": {
@@ -4931,6 +6295,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:test-value-evidence",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/testcontainers-integration-tests": {
@@ -4983,6 +6360,21 @@
         "user-invocable"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:testcontainers-integration-tests",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "user-invocable"
+      ],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/thread-abort-migration": {
@@ -5034,6 +6426,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:thread-abort-migration",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/troubleshoot-binlog-mcp": {
@@ -5095,6 +6500,21 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:troubleshoot-binlog-mcp",
+      "advertised": false,
+      "edges": {
+        "model": [
+          "deniz-dotnet-general:msbuild"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/vectorization": {
@@ -5144,6 +6564,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:vectorization",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-dotnet-general/skill/writing-tunit-tests": {
@@ -5223,6 +6656,27 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:writing-tunit-tests",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-general:filter-syntax",
+          "deniz-dotnet-general:run-tests",
+          "deniz-dotnet-general:test-anti-patterns",
+          "deniz-dotnet-general:test-gap-analysis",
+          "deniz-process:test-driven-development"
+        ],
+        "pointer": [
+          "/deniz-dotnet-general:generate-testability-wrappers"
+        ]
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/asd-ste100": {
@@ -5275,6 +6729,21 @@
         "version"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:asd-ste100",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "version"
+      ],
+      "transformations": []
     }
   },
   "deniz-process/skill/ask-deniz": {
@@ -5385,7 +6854,8 @@
       "references/coordination.md": {
         "claude": "references/coordination-claude.md",
         "codex": "references/coordination-codex.md",
-        "opencode": "references/coordination-opencode.md"
+        "opencode": "references/coordination-opencode.md",
+        "antigravity": "references/coordination-antigravity.md"
       }
     },
     "description": "Use when unsure which skill or ceremony fits, or when asked which to use, across installed deniz Modules: process workflows, .NET, Aspire, and Akka. Manual ceremonies stay user-started.",
@@ -5818,6 +7288,150 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:ask-deniz",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-coordination:coordinator",
+          "deniz-coordination:delegating-to-worker-models",
+          "deniz-coordination:harness",
+          "deniz-coordination:model-profiles",
+          "deniz-coordination:t3-delegation",
+          "deniz-dotnet-akka:akka-hosting-actor-patterns",
+          "deniz-dotnet-akka:akka-net-aspire-configuration",
+          "deniz-dotnet-akka:akka-net-best-practices",
+          "deniz-dotnet-akka:akka-net-management",
+          "deniz-dotnet-akka:akka-net-testing-patterns",
+          "deniz-dotnet-aspire:aspire",
+          "deniz-dotnet-aspire:aspire-integration-testing",
+          "deniz-dotnet-aspire:aspire-service-defaults",
+          "deniz-dotnet-general:analyzing-dotnet-performance",
+          "deniz-dotnet-general:aot-trimming",
+          "deniz-dotnet-general:api-design",
+          "deniz-dotnet-general:blazing-fast-dotnet",
+          "deniz-dotnet-general:build-parallelism",
+          "deniz-dotnet-general:check-bin-obj-clash",
+          "deniz-dotnet-general:coverage-analysis",
+          "deniz-dotnet-general:cscheck",
+          "deniz-dotnet-general:csharp-15",
+          "deniz-dotnet-general:csharp-concurrency-patterns",
+          "deniz-dotnet-general:csharp-nullable-reference-types",
+          "deniz-dotnet-general:csharp-refactoring",
+          "deniz-dotnet-general:csharp-scripts",
+          "deniz-dotnet-general:database-performance",
+          "deniz-dotnet-general:dependency-injection-patterns",
+          "deniz-dotnet-general:detect-static-dependencies",
+          "deniz-dotnet-general:directory-build-organization",
+          "deniz-dotnet-general:dotnet-breaking-changes",
+          "deniz-dotnet-general:dotnet-devcert-trust",
+          "deniz-dotnet-general:dotnet-local-tools",
+          "deniz-dotnet-general:dotnet-pinvoke",
+          "deniz-dotnet-general:dotnet-project-structure",
+          "deniz-dotnet-general:dotnet-slopwatch",
+          "deniz-dotnet-general:dotnet-walls",
+          "deniz-dotnet-general:dotnet-webapi",
+          "deniz-dotnet-general:efcore-patterns",
+          "deniz-dotnet-general:eliminate-redundant-restores",
+          "deniz-dotnet-general:filter-syntax",
+          "deniz-dotnet-general:find-repeated-work-within-one-build",
+          "deniz-dotnet-general:ilspy-decompile",
+          "deniz-dotnet-general:including-generated-files",
+          "deniz-dotnet-general:item-management",
+          "deniz-dotnet-general:microbenchmarking",
+          "deniz-dotnet-general:microsoft-extensions-configuration",
+          "deniz-dotnet-general:modern-csharp-coding-standards",
+          "deniz-dotnet-general:msbuild",
+          "deniz-dotnet-general:msbuild-modernization",
+          "deniz-dotnet-general:mtp-hot-reload",
+          "deniz-dotnet-general:opentelemetry-net-instrumentation",
+          "deniz-dotnet-general:package-management",
+          "deniz-dotnet-general:platform-detection",
+          "deniz-dotnet-general:playwright-blazor-testing",
+          "deniz-dotnet-general:process-api-net11",
+          "deniz-dotnet-general:property-patterns",
+          "deniz-dotnet-general:r3-reactive-extensions",
+          "deniz-dotnet-general:run-tests",
+          "deniz-dotnet-general:sdk-container-publishing",
+          "deniz-dotnet-general:serialization",
+          "deniz-dotnet-general:snapshot-testing",
+          "deniz-dotnet-general:system-text-json-net11",
+          "deniz-dotnet-general:target-authoring",
+          "deniz-dotnet-general:test-analysis-extensions",
+          "deniz-dotnet-general:test-anti-patterns",
+          "deniz-dotnet-general:test-gap-analysis",
+          "deniz-dotnet-general:test-value-evidence",
+          "deniz-dotnet-general:testcontainers-integration-tests",
+          "deniz-dotnet-general:vectorization",
+          "deniz-dotnet-general:writing-tunit-tests",
+          "deniz-process:asd-ste100",
+          "deniz-process:brainstorming",
+          "deniz-process:codebase-design",
+          "deniz-process:dispatching-parallel-agents",
+          "deniz-process:domain-modeling",
+          "deniz-process:grilling",
+          "deniz-process:ponytail",
+          "deniz-process:receiving-code-review",
+          "deniz-process:systematic-debugging",
+          "deniz-process:test-driven-development",
+          "deniz-process:using-git-worktrees",
+          "deniz-process:verification-before-completion"
+        ],
+        "pointer": [
+          "/deniz-coordination:verified-waves",
+          "/deniz-dotnet-aspire:aspire-project-v2-migration",
+          "/deniz-dotnet-general:code-testing",
+          "/deniz-dotnet-general:convert-to-cpm",
+          "/deniz-dotnet-general:dotnet-aot-compat",
+          "/deniz-dotnet-general:dotnet-trace-collect",
+          "/deniz-dotnet-general:dump-collect",
+          "/deniz-dotnet-general:generate-testability-wrappers",
+          "/deniz-dotnet-general:migrate-dotnet10-to-dotnet11",
+          "/deniz-dotnet-general:migrate-nullable-references",
+          "/deniz-dotnet-general:migrate-static-to-wrapper",
+          "/deniz-dotnet-general:thread-abort-migration",
+          "/deniz-dotnet-general:troubleshoot-binlog-mcp",
+          "/deniz-process:brainstorming",
+          "/deniz-process:diagnosing-superpowers",
+          "/deniz-process:executing-plans",
+          "/deniz-process:finishing-a-development-branch",
+          "/deniz-process:grill-me",
+          "/deniz-process:grill-with-docs",
+          "/deniz-process:handoff",
+          "/deniz-process:implement",
+          "/deniz-process:implement-spec",
+          "/deniz-process:improve-codebase-architecture",
+          "/deniz-process:ponytail-audit",
+          "/deniz-process:ponytail-debt",
+          "/deniz-process:ponytail-review",
+          "/deniz-process:pr",
+          "/deniz-process:prototype",
+          "/deniz-process:requesting-code-review",
+          "/deniz-process:research",
+          "/deniz-process:retro",
+          "/deniz-process:setup-matt-pocock-skills",
+          "/deniz-process:software-factory",
+          "/deniz-process:subagent-driven-development",
+          "/deniz-process:teach",
+          "/deniz-process:to-questionnaire",
+          "/deniz-process:to-spec",
+          "/deniz-process:to-tickets",
+          "/deniz-process:triage",
+          "/deniz-process:using-superpowers",
+          "/deniz-process:wait-what",
+          "/deniz-process:wayfinder",
+          "/deniz-process:wizard",
+          "/deniz-process:writing-for-agents",
+          "/deniz-process:writing-plans",
+          "/deniz-process:writing-skills"
+        ]
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/brainstorming": {
@@ -5871,6 +7485,21 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:brainstorming",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-process:writing-plans"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/codebase-design": {
@@ -5918,6 +7547,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:codebase-design",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/diagnosing-superpowers": {
@@ -5962,6 +7604,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:diagnosing-superpowers",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/dispatching-parallel-agents": {
@@ -6009,6 +7664,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:dispatching-parallel-agents",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/domain-modeling": {
@@ -6056,6 +7724,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:domain-modeling",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/executing-plans": {
@@ -6138,6 +7819,28 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:executing-plans",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-process:finishing-a-development-branch",
+          "deniz-process:requesting-code-review",
+          "deniz-process:subagent-driven-development",
+          "deniz-process:systematic-debugging",
+          "deniz-process:test-driven-development",
+          "deniz-process:using-git-worktrees",
+          "deniz-process:verification-before-completion",
+          "deniz-process:writing-plans"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/finishing-a-development-branch": {
@@ -6183,6 +7886,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:finishing-a-development-branch",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/grill-me": {
@@ -6246,6 +7962,21 @@
         "disable-model-invocation"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:grill-me",
+      "advertised": false,
+      "edges": {
+        "model": [
+          "deniz-process:grilling"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/grill-with-docs": {
@@ -6313,6 +8044,22 @@
         "disable-model-invocation"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:grill-with-docs",
+      "advertised": false,
+      "edges": {
+        "model": [
+          "deniz-process:domain-modeling",
+          "deniz-process:grilling"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/grilling": {
@@ -6360,6 +8107,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:grilling",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/handoff": {
@@ -6415,6 +8175,21 @@
         "disable-model-invocation"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:handoff",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "argument-hint"
+      ],
+      "transformations": []
     }
   },
   "deniz-process/skill/implement": {
@@ -6482,6 +8257,22 @@
         "disable-model-invocation"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:implement",
+      "advertised": false,
+      "edges": {
+        "model": [
+          "deniz-process:requesting-code-review",
+          "deniz-process:test-driven-development"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/implement-spec": {
@@ -6555,6 +8346,24 @@
         "disable-model-invocation"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:implement-spec",
+      "advertised": false,
+      "edges": {
+        "model": [
+          "deniz-process:requesting-code-review",
+          "deniz-process:test-driven-development"
+        ],
+        "pointer": [
+          "/deniz-process:setup-matt-pocock-skills"
+        ]
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/improve-codebase-architecture": {
@@ -6626,6 +8435,23 @@
         "disable-model-invocation"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:improve-codebase-architecture",
+      "advertised": false,
+      "edges": {
+        "model": [
+          "deniz-process:codebase-design",
+          "deniz-process:domain-modeling",
+          "deniz-process:grilling"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/ponytail": {
@@ -6673,6 +8499,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:ponytail",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/ponytail-audit": {
@@ -6722,6 +8561,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:ponytail-audit",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/ponytail-debt": {
@@ -6772,6 +8624,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:ponytail-debt",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/ponytail-review": {
@@ -6821,6 +8686,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:ponytail-review",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/pr": {
@@ -6874,6 +8752,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:pr",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/prototype": {
@@ -6918,6 +8809,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:prototype",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/receiving-code-review": {
@@ -6966,6 +8870,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:receiving-code-review",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/requesting-code-review": {
@@ -7029,6 +8946,23 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:requesting-code-review",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-process:receiving-code-review"
+        ],
+        "pointer": [
+          "/deniz-process:setup-matt-pocock-skills"
+        ]
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/research": {
@@ -7083,6 +9017,21 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:research",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-process:dispatching-parallel-agents"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/retro": {
@@ -7146,6 +9095,21 @@
         "disable-model-invocation"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:retro",
+      "advertised": false,
+      "edges": {
+        "model": [
+          "deniz-process:writing-for-agents"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/setup-matt-pocock-skills": {
@@ -7200,6 +9164,19 @@
         "disable-model-invocation"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:setup-matt-pocock-skills",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/software-factory": {
@@ -7253,6 +9230,19 @@
         "disable-model-invocation"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:software-factory",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/subagent-driven-development": {
@@ -7331,6 +9321,27 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:subagent-driven-development",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-process:dispatching-parallel-agents",
+          "deniz-process:executing-plans",
+          "deniz-process:finishing-a-development-branch",
+          "deniz-process:requesting-code-review",
+          "deniz-process:systematic-debugging",
+          "deniz-process:test-driven-development",
+          "deniz-process:using-git-worktrees"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/systematic-debugging": {
@@ -7395,6 +9406,22 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:systematic-debugging",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-process:test-driven-development",
+          "deniz-process:verification-before-completion"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/teach": {
@@ -7451,6 +9478,21 @@
         "disable-model-invocation"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:teach",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [
+        "argument-hint"
+      ],
+      "transformations": []
     }
   },
   "deniz-process/skill/test-driven-development": {
@@ -7515,6 +9557,22 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:test-driven-development",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-process:requesting-code-review",
+          "deniz-process:systematic-debugging"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/to-questionnaire": {
@@ -7568,6 +9626,19 @@
         "disable-model-invocation"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:to-questionnaire",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/to-spec": {
@@ -7628,6 +9699,21 @@
         "disable-model-invocation"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:to-spec",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": [
+          "/deniz-process:setup-matt-pocock-skills"
+        ]
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/to-tickets": {
@@ -7688,6 +9774,21 @@
         "disable-model-invocation"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:to-tickets",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": [
+          "/deniz-process:setup-matt-pocock-skills"
+        ]
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/triage": {
@@ -7761,6 +9862,24 @@
         "disable-model-invocation"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:triage",
+      "advertised": false,
+      "edges": {
+        "model": [
+          "deniz-process:domain-modeling",
+          "deniz-process:grilling"
+        ],
+        "pointer": [
+          "/deniz-process:setup-matt-pocock-skills"
+        ]
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/using-git-worktrees": {
@@ -7809,6 +9928,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:using-git-worktrees",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/using-superpowers": {
@@ -7824,7 +9956,8 @@
       "references/harness-tools.md": {
         "claude": "references/claude-code-tools.md",
         "codex": "references/codex-tools.md",
-        "opencode": "references/opencode-tools.md"
+        "opencode": "references/opencode-tools.md",
+        "antigravity": "references/agy-tools.md"
       }
     },
     "description": "Switch this session to skill-driven working: check for a relevant skill before each task, process skills first.",
@@ -7881,6 +10014,22 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:using-superpowers",
+      "advertised": false,
+      "edges": {
+        "model": [
+          "deniz-process:brainstorming",
+          "deniz-process:systematic-debugging"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/verification-before-completion": {
@@ -7928,6 +10077,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:verification-before-completion",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/wait-what": {
@@ -7991,6 +10153,21 @@
         "disable-model-invocation"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:wait-what",
+      "advertised": false,
+      "edges": {
+        "model": [
+          "deniz-process:asd-ste100"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/wayfinder": {
@@ -8072,6 +10249,26 @@
         "disable-model-invocation"
       ],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:wayfinder",
+      "advertised": false,
+      "edges": {
+        "model": [
+          "deniz-process:domain-modeling",
+          "deniz-process:grilling",
+          "deniz-process:prototype",
+          "deniz-process:research"
+        ],
+        "pointer": [
+          "/deniz-process:setup-matt-pocock-skills"
+        ]
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/wizard": {
@@ -8121,6 +10318,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:wizard",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/writing-for-agents": {
@@ -8166,6 +10376,19 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:writing-for-agents",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/writing-plans": {
@@ -8228,6 +10451,23 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:writing-plans",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-process:executing-plans",
+          "deniz-process:subagent-driven-development",
+          "deniz-process:using-git-worktrees"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   },
   "deniz-process/skill/writing-skills": {
@@ -8286,6 +10526,22 @@
       },
       "dropped": [],
       "bodyTransformations": []
+    },
+    "antigravity": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:writing-skills",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-process:systematic-debugging",
+          "deniz-process:test-driven-development"
+        ],
+        "pointer": []
+      },
+      "droppedKeys": [],
+      "transformations": []
     }
   }
 }

@@ -46,6 +46,10 @@ export function codexPluginPath(root: string, plugin: string, ...parts: string[]
   return join(root, "codex", plugin, ...parts);
 }
 
+export function antigravityPluginPath(root: string, plugin: string, ...parts: string[]): string {
+  return join(root, "antigravity", plugin, ...parts);
+}
+
 export function makeRepo(): string {
   const root = tempDir("build");
   // upstream submodule 'sp' with namespace 'superpowers'
@@ -278,6 +282,7 @@ export function addOriginalHarnessNotes(root: string): void {
       "references/claude.md": "# Claude\n\n`Agent` calls.\n",
       "references/codex.md": "# Codex\n\nUse spawn_agent.\n",
       "references/opencode.md": "# OpenCode\n\nUse the `subagent` tool.\n",
+      "references/antigravity.md": "# Antigravity\n\nUse invoke_subagent.\n",
     },
     declaration: {
       invocation: "manual",
@@ -286,6 +291,7 @@ export function addOriginalHarnessNotes(root: string): void {
           claude: "references/claude.md",
           codex: "references/codex.md",
           opencode: "references/opencode.md",
+          antigravity: "references/antigravity.md",
         },
       },
     },
@@ -299,6 +305,7 @@ export function makeHarnessFilesRepo(opencode = "references/opencode.md"): strin
   writeFileSync(join(refs, "claude.md"), "# Claude notes\n\n`Agent` calls; see superpowers:gamma.\n");
   writeFileSync(join(refs, "codex.md"), "# Codex notes\n\nUse spawn_agent.\n");
   writeFileSync(join(refs, "opencode.md"), "# OpenCode notes\n\nUse the `subagent` tool.\n");
+  writeFileSync(join(refs, "antigravity.md"), "# Antigravity notes\n\nUse invoke_subagent.\n");
   const p = join(root, "curation", "deniz-process.yaml");
   writeFileSync(
     p,
@@ -311,6 +318,7 @@ export function makeHarnessFilesRepo(opencode = "references/opencode.md"): strin
         "        claude: references/claude.md",
         "        codex: references/codex.md",
         `        opencode: ${opencode}`,
+        "        antigravity: references/antigravity.md",
         "",
       ].join("\n"),
     ),

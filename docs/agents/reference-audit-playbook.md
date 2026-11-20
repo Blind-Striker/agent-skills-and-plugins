@@ -1,6 +1,6 @@
 # Reference-audit playbook
 
-Date: 2026-10-12
+Date: 2026-11-20
 
 A repeatable sweep over **emitted output** for reference problems the deterministic gates cannot
 decide. [References and linking](../architecture/references-and-linking.md) owns the current
@@ -62,10 +62,20 @@ for (const [key, entry] of Object.entries(ledger)) {
   if (entryPlugin !== plugin) continue;
   const name = nameParts.join("/");
   taken.add(name);
-  for (const artifact of entry.opencode.artifacts) {
+  for (const artifact of entry.opencode?.artifacts ?? []) {
     const path = artifact === "skill"
       ? `${opencodeRoot}/skills/${plugin}.${name}`
       : `${opencodeRoot}/${artifact}s/${plugin}.${name}.md`;
+    if (existsSync(path)) paths.add(path);
+  }
+  if (entry.codex) {
+    const path = `codex/${plugin}/skills/${name}`;
+    if (existsSync(path)) paths.add(path);
+  }
+  if (entry.antigravity) {
+    const path = entry.antigravity.artifacts.includes("agent")
+      ? `antigravity/${plugin}/agents/${name}.md`
+      : `antigravity/${plugin}/skills/${name}`;
     if (existsSync(path)) paths.add(path);
   }
 }
@@ -95,6 +105,7 @@ console.log(JSON.stringify({
 '@ | node --input-type=module - $plugin | ConvertFrom-Json
 ```
 
+The scan includes all four emitted trees and tolerates items absent from a narrowed harness.
 Inspect `$sets` before scanning. The sets must be disjoint, every path must exist, an explicitly
 renamed item must appear under its output name, and an original skill must appear under its
 directory name. Treat a failure here as a derivation defect, not permission to type a list by hand.

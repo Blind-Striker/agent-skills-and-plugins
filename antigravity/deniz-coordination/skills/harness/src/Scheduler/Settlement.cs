@@ -1,0 +1,200 @@
+static class Settlement
+{
+    public static async Task<TaskResult> SettleAsync(IWorkerBackend backend, Ledger ledger, TaskRun run, string? outcomeOverride, CancellationToken ct, Git? git = null)
+    {
+        var record = run.Record;
+        TaskResult? previous = null;
+        // An unreadable earlier result only means there is no report to keep.
+        try { previous = ledger.LoadResult(run.Id); }
+        catch (JsonException) { }
+        var report = run.Zombie && !run.ReportReady && backend.Name != "codex" ? new WorkerReport("lost", null, new(), null, false, [], null, false)
+            : await backend.CollectAsync(run.SavedWorker(), ct);
+        // Live zombie settlement is fixed at admission; only a later recovery/collect may clear it.
+        if (run.State != TaskState.Settling || !run.Zombie || report.StopResult is not { Stopped: true })
+            RecordStop(ledger, run, report.StopResult, outcomeOverride ?? report.Outcome);
+        if (backend.Name == "codex") run.SaveWorker(run.SavedWorker(), ledger);
+        string? releaseFailure = null;
+        var homeRetained = report.StopResult?.HomeRetained is not null;
+        // Codex release owns process/home cleanup; confirm it before touching worker-owned bytes.
+        if (backend.Name == "codex" && !run.Zombie)
+        {
+            InterruptResult? stop = null;
+            try { stop = await backend.ReleaseAsync(run.SavedWorker(), ct); }
+            catch (Exception error) when (error is not OperationCanceledException and not LedgerWriteException)
+            { releaseFailure = error.Message; }
+            if (!ReferenceEquals(stop, report.StopResult)) RecordStop(ledger, run, stop, outcomeOverride ?? report.Outcome);
+            homeRetained |= stop?.HomeRetained is not null;
+            run.SaveWorker(run.SavedWorker(), ledger);
+        }
+        const string noFinalText = "_No final assistant text without an error._";
+        var finalPath = Path.Combine(ledger.TaskDir(run.Id), "final.md");
+        var keepReport = string.IsNullOrWhiteSpace(report.FinalText) && previous is not null
+            && File.Exists(finalPath) && !File.ReadAllText(finalPath).Contains(noFinalText, StringComparison.Ordinal);
+        var executionError = keepReport && backend.Name == "codex" && report.StopResult is { Stopped: true } recovery
+            && report.ExecutionError == recovery.Detail ? null : report.ExecutionError;
+        var outcome = keepReport ? previous!.Outcome : outcomeOverride ?? (run.CancelRequested ? "cancelled" : run.TimedOut ? "timeout" : null) ?? report.Outcome;
+        var timeout = run.TimedOut ? $"\nTimeout limit (timeoutMinutes: {record.Spec.TimeoutMinutes ?? Constants.DefaultTimeoutMinutes}).\n" : "";
+        if (!keepReport) await ledger.WriteArtifactAsync(run.Id, "final.md", $"""
+            # {ledger.RunId}/{run.Id}
+
+            Outcome: {outcome}
+            {timeout}
+
+            {report.FinalText ?? noFinalText}
+            """, ct);
+        var result = new TaskResult
+        {
+            Task = run.Id, Run = ledger.RunId, Kind = record.Spec.Kind, Backend = backend.Name, Outcome = outcome,
+            Prepare = record.Prepare,
+            Session = record.Session, RouteRequested = record.Settings.Route?.Value, RouteResolved = keepReport ? previous!.RouteResolved : record.RouteResolved,
+            RoutesUsed = keepReport ? previous!.RoutesUsed.ToList() : report.RoutesUsed.ToList(),
+            Cost = report.Cost, Tokens = report.Usage is { Input: null, Output: null, Reasoning: null, CacheRead: null, CacheWrite: null } ? null : report.Usage,
+            TokensComplete = report.UsageComplete,
+            ContextWindow = report.ContextWindow,
+            Asks = run.Asks, AsksEscalated = run.Escalated, FormsCancelled = run.Forms, Retries = run.Retries,
+            TimedOut = run.TimedOut, CancelRequested = run.CancelRequested, WorkerStopped = run.WorkerStopped,
+            ExecutionError = keepReport ? JoinErrors(previous!.ExecutionError, executionError) : executionError,
+            BaseSha = record.Spec.Kind == "structured" ? null : record.Workspace.BaseSha,
+            CommitMode = record.Spec.Kind == "structured" ? null : Worktree.CommitMode(record), Error = JoinErrors(run.StartFailure, releaseFailure),
+            CapabilityNotes = ConfigResolver.CapabilityNotes(record.Settings) is { Count: > 0 } notes ? notes : null,
+        };
+        if (releaseFailure is not null) result.Failures.Add("release-failed");
+        if (homeRetained) (result.Warnings ??= []).Add("codex-home-retained");
+        (result.RouteVerified, var drift) = CheckRoutes(result.RouteResolved ?? record.Settings.Route?.Value, result.RoutesUsed);
+        result.RouteDrift = drift.Count > 0 ? drift : null;
+        if (record.Spec.Kind != "structured") result.WorkerStatus = keepReport ? previous!.WorkerStatus : ReadStatus(report.FinalText);
+        // A worker whose stop is unconfirmed may still be writing: no commit and no verify then.
+        var mayStillWrite = run.Zombie || releaseFailure is not null && run.WorkerStopped != true;
+        if (record.Spec.Kind == "structured")
+        {
+            ledger.Write(run.Id, "collected", new JsonObject { ["outcome"] = outcome, ["routesUsed"] = Json.Array(result.RoutesUsed) });
+            await StructuredOutput.ValidateAsync(ledger, run, result, report.FinalText, ct);
+            if (!mayStillWrite)
+            {
+                try { Scratch.Delete(record, ledger); }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException or HarnessException)
+                { result.Error = JoinErrors(result.Error, "scratch cleanup failed: " + error.Message); }
+            }
+        }
+        else if (!mayStillWrite)
+        {
+            try { await Commit.CollectAsync(ledger, run, result, ct, git); }
+            catch (GitConfigChangedException) { result.Failures.Add("git-config-changed"); }
+            await Verifier.VerifyAsync(ledger, run, result, ct);
+        }
+        if (run.Zombie) result.Failures.Add("zombie");
+        if (outcome == "cancelled")
+        {
+            result.Failures = result.Failures.Where(x => x is "zombie" or "release-failed").Distinct().ToList();
+            result.State = run.Zombie && backend.Name == "codex" || releaseFailure is not null ? "failed" : "cancelled";
+        }
+        else
+        {
+            if (outcome != "succeeded") result.Failures.Add($"outcome:{outcome ?? "unknown"}");
+            if (result.Error is not null)
+                result.Failures.Add(result.Error.Split('\n').Any(message => message.StartsWith("harness commit failed:", StringComparison.Ordinal)) ? "commit-failed" : "settle-error");
+            if (result.ExecutionError is not null) result.Failures.Add("settle-error");
+            if (report.RecoveredErrors is { Count: > 0 } recovered)
+            {
+                result.RecoveredErrors = [.. recovered];
+                (result.Warnings ??= []).Add("recovered-model-error");
+            }
+            if (!keepReport && string.IsNullOrWhiteSpace(report.FinalText))
+            {
+                result.Failures.Add("no-final-text");
+                if (outcome == "succeeded")
+                    result.Error ??= "the session succeeded but left no final assistant text; run `dispatch collect` later";
+            }
+            if (result.Verify.Any(x => x.Advisory != true && Verifier.Failed(x))) result.Failures.Add("verify-failed");
+            if (result.Verify.Any(x => x.Advisory == true && Verifier.Failed(x))) (result.Warnings ??= []).Add("advisory-verify-failed");
+            if (result.OutOfScope.Count > 0) result.Failures.Add("out-of-scope");
+            if (result.RouteDrift is not null) result.Failures.Add("route-drift");
+            // A worker that reports it stopped or was blocked did not do the task, whatever the session outcome says.
+            if (result.WorkerStatus is "stopped" or "blocked") result.Failures.Add("worker-stopped");
+            if (record.Spec.Kind != "structured" && record.Spec.RawPrompt != true && result.WorkerStatus is null
+                && !string.IsNullOrWhiteSpace(report.FinalText))
+                (result.Warnings ??= []).Add("worker-status-missing");
+            if (record.Spec.Kind == "structured" && result.Validation?.Ok != true) result.Failures.Add("invalid-output");
+            result.Failures = result.Failures.Distinct().ToList();
+            result.State = result.Failures.Count == 0 ? "done" : "failed";
+        }
+        ledger.SaveResult(result);
+        var writtenCalls = ledger.Read().Count(line => line.Task == run.Id && line.Type == "usage");
+        foreach (var call in (report.Calls ?? []).Skip(writtenCalls))
+        {
+            var data = new JsonObject();
+            if (call.Input is { } input) data["input"] = input;
+            if (call.CacheRead is { } cacheRead) data["cacheRead"] = cacheRead;
+            if (call.Output is { } output) data["output"] = output;
+            if (call.Reasoning is { } reasoning) data["reasoning"] = reasoning;
+            ledger.Write(run.Id, "usage", data);
+        }
+        var outcomeData = new JsonObject
+        {
+            ["outcome"] = outcome, ["cost"] = result.Cost, ["tokensIn"] = result.Tokens?.Input,
+            ["tokensOut"] = result.Tokens?.Output, ["tokensComplete"] = result.TokensComplete, ["error"] = result.ExecutionError ?? result.Error,
+        };
+        if (backend.Name == "codex") outcomeData["workerStopped"] = run.WorkerStopped;
+        ledger.Write(run.Id, "outcome", outcomeData);
+        return result;
+    }
+
+    public static void RecordStop(Ledger ledger, TaskRun run, InterruptResult? stop, string? outcome = null)
+    {
+        if (stop is null) return;
+        if (stop.HomeRetained is { } message)
+            ledger.Write(run.Id, "error", new JsonObject { ["while"] = "release", ["message"] = message });
+        var wasZombie = run.Zombie;
+        var wasStopped = run.WorkerStopped;
+        run.WorkerStopped = stop.Stopped;
+        run.Zombie = !stop.Stopped;
+        if (stop.Stopped)
+        {
+            run.WorkerEnded = true;
+            if (wasZombie || wasStopped != true && ledger.LoadResult(run.Id)?.Failures.Contains("release-failed") == true)
+                ledger.Write(run.Id, "hard-stop", new JsonObject { ["stopped"] = true, ["detail"] = stop.Detail });
+        }
+        else if (!wasZombie)
+            ledger.Write(run.Id, "stop-unconfirmed", new JsonObject { ["outcome"] = outcome, ["detail"] = stop.Detail });
+    }
+
+    public const string StatusPrefix = "Status:";
+
+    public static string? JoinErrors(string? earlier, string? later) => earlier is null ? later
+        : later is null ? earlier : earlier + "\n" + later;
+
+    // The last status line of the final text wins; the worker may quote the instruction earlier.
+    public static string? ReadStatus(string? text) => text is null ? null : Regex
+        .Matches(text, @"^[ \t>*_`]*Status:[ \t*_`]*(done|stopped|blocked)\b", RegexOptions.Multiline | RegexOptions.IgnoreCase)
+        .LastOrDefault()?.Groups[1].Value.ToLowerInvariant();
+
+    // Verified only when the backend reported at least one route and every route it reported is the
+    // requested one. A requested route without a variant accepts any variant of that model. Drift is a
+    // reported route of another model or variant; an unreadable route is unverified, not drift.
+    public static (bool Verified, List<string> Drift) CheckRoutes(string? requested, IReadOnlyList<string> used)
+    {
+        // A requested "#default" names no variant: an agent pin without one is recorded that way.
+        var want = requested is null ? null : ParseRoute(requested);
+        if (want is { Variant: "default" }) want = want with { Variant = null };
+        var parsed = used.Select(text => (Text: text, Route: ParseRoute(text))).ToList();
+        var drift = want is null ? [] : parsed.Where(x => x.Route is { } route && !Satisfies(route, want)).Select(x => x.Text).ToList();
+        var verified = want is not null && parsed.Count > 0 && parsed.All(x => x.Route is { } route && Satisfies(route, want));
+        return (verified, drift);
+    }
+
+    static bool Satisfies(RouteRef used, RouteRef requested) =>
+        used.Provider == requested.Provider && used.Model == requested.Model
+        && (requested.Variant is null || used.VariantOrDefault == requested.VariantOrDefault);
+
+    // Qualified or bare route text; null for an agent route or text that names no model.
+    static RouteRef? ParseRoute(string text)
+    {
+        if (text.StartsWith("codex:", StringComparison.Ordinal))
+        {
+            try { return CodexBackend.ParseRoute(text); }
+            catch (HarnessException) { return null; }
+        }
+        if (text.StartsWith("opencode:", StringComparison.Ordinal)) text = text["opencode:".Length..];
+        return RouteRef.TryParse(text, out var route, out _) ? route : null;
+    }
+}

@@ -1,0 +1,538 @@
+Read when you inspect the run folder, event types or the fields in result files.
+
+# Ledger
+
+The ledger records evidence and effective configuration. Never edit it or rerun a recorded id.
+Use `status`, `collect`, `resume`, `reply`, `cancel` and `clean` through the [CLI](cli.md).
+Read `diff.patch` and `verify.log` alongside the final text; the worker's own account is not proof
+that the result passed scope or verification.
+
+## Layout
+
+Run files live under `<ledger root>/<run id>/`. The default root and its overrides are described
+in [configuration](config.md). Run ids contain a UTC calendar-day prefix and the chosen run name.
+
+| File | Type | Default or presence | Contents and reader behaviour |
+|---|---|---|---|
+| `run.json` | Versioned JSON object | Created by the exclusive run claim | Run identity, repository, backend versions and `controlId`. |
+| `config.json` | Versioned JSON object | Frozen during setup | Effective per-task settings, restrictions, source provenance and structured input hashes. |
+| `tasks.jsonc` | Original task-file bytes | Copied during setup | Evidence of the supplied task file, and the frozen task specification that structured validation and recovery read. |
+| `.sources/user.jsonc` | Original config bytes | If user config exists | User source snapshot. |
+| `.sources/repo.jsonc` | Committed config bytes | If repository config exists at HEAD | Working-copy edits do not replace this snapshot. |
+| `.sources/policy.jsonc` | Original config bytes | If `--policy` was supplied | CLI restriction source snapshot. |
+| `events.jsonl` | Compact JSON object per line | Appended as the run progresses | Run and task events; first `run` event carries version 2. |
+| `events.torn-<timestamp>.jsonl` | Raw bytes | After a writer repairs a trailing fragment | Preserves discarded final bytes; repair adds a `ledger-repaired` event. |
+| `<task>/task.json` | Versioned JSON object | Queued, then updated during dispatch | Resolved spec, prompt text, settings, workspace, session and backend recovery state. |
+| `<task>/final.md` | Markdown text | Settlement | Run/task heading, outcome and final assistant text, or a missing-text marker. |
+| `<task>/diff.patch` | Binary-capable Git patch | Non-structured collection | Full-index patch; includes both sides of renamed paths through non-rename evidence collection. |
+| `<task>/wip.patch` | Binary-capable Git patch | Nonempty snapshot diff for parsed `stopped` or `blocked` status, with worker termination confirmed | Full-index work-in-progress evidence; never a harness commit. |
+| `<task>/verify.log` | Text | Non-structured verification step | Command, stdout, stderr, exit and elapsed seconds; records each command as not run for parsed `stopped`/`blocked`, or a skip for other non-succeeded outcomes. |
+| `<task>/prepare.log` | Text | Nonempty preparation attempted, before baseline capture | Appended after each command in `verify.log` format; exists even if baseline capture fails. |
+| `<task>/result.json` | Versioned JSON object | Successful settlement write, or some start failures | Final result fields below. Not every final event guarantees this file exists. |
+| `<task>/input.json` | JSON array | Structured freeze | Resolved items, normalized and hashed. |
+| `<task>/result.schema.json` | JSON object | Structured freeze | Normalized schema, hashed; common validation uses this copy. |
+| `<task>/deliverable.json` | JSON document | Valid structured result only | Parsed and validated output; result points to it. Invalid recollection removes an older copy. |
+
+The control folder is separate: `<state root>/control/<controlId>/`, outside worktrees and ledger
+roots. Its `supervisor.lock` is held by mutating run commands. `setup.done` is an empty setup marker;
+resume/collect refuse without it. Structured input files and their hashes are written and
+`config.json` is rewritten before this marker, so a run with `setup.done` always has them.
+
+| Control entry | Type | Default or presence | Purpose |
+|---|---|---|---|
+| `run.ref` | Versioned JSON object | Run setup | `schemaVersion` integer 2, `run` string and `ledgerRoot` string. The last two are required on read. Display-only for no-run `asks`. |
+| `supervisor.lock` | Lock file | Run setup | OS file-lock ownership; do not infer supervision from file existence alone. |
+| `setup.done` | Empty file | Last ordinary setup write | Required by resume/collect. |
+| `asks/<askId>.json` | Versioned JSON object | While escalated ask is pending | Operator-visible ask. |
+| `decisions/<askId>.json` | Versioned JSON object | Until supervisor reads a reply | Written by `reply`, never by callers directly. |
+| `cancel/<task>.json` | Versioned JSON object | Until supervisor reads a cancel | Written by `cancel`, never by callers directly. |
+| `profiles/` | Directory | Backend use | Temporary backend profiles, clean homes and associated process state. |
+| `index-<task>` | Temporary Git index | In-place or stopped-workspace snapshot work | Leaves the operator's real index untouched. |
+| `git-baseline.json` | JSON object | Workspace Git use | Configuration and hook fingerprints for the Git guard. |
+
+`clean` retains the ledger and, after successful cleanup, retains `supervisor.lock` and `run.ref`.
+It removes the other control contents. Do not delete a recorded ledger to reuse its id.
+
+## Encoding, versions and stability
+
+Typed JSON uses camelCase. Null-valued typed members are omitted; object-valued event `data` may
+contain explicit nulls. Harness JSON writers use UTF-8, LF and a final newline; frozen source copies
+retain their original bytes. Human-readable JSON files are indented and event lines are compact.
+Timestamps use UTC ISO 8601 strings; durations use numeric seconds unless a field says otherwise.
+
+All versioned files require `schemaVersion: 2`. A higher version fails with
+`written by a newer dispatch; update the plugin`; old versions fail too. Ledger readers skip
+unknown fields, while task/config and control readers reject them. A rewrite by `collect` can drop
+unknown fields because it writes this harness's own shape. Do not treat backend-specific recovery
+state or incidental console formatting as a stable integration API.
+
+Readers consume newline-terminated event lines. They ignore and report a final fragment without a
+newline, even if its bytes could parse as JSON. A malformed complete line is corruption and fails
+the read. On its next write a ledger writer preserves trailing bytes in a sidecar, truncates them,
+adds `ledger-repaired`, then appends the new event. Whole typed-file writes publish through a
+temporary file and replacement; text artifacts can be incomplete if settlement stops mid-write.
+
+## `run.json`
+
+| Field | Type | Default or absence | Meaning |
+|---|---|---|---|
+| `schemaVersion` | integer | `2` | Version validation above. |
+| `run` | string | Recorded id | Run identity. |
+| `controlId` | string | Absent before assignment | Opaque 26-character lowercase base32 control-folder name; invalid ids are refused. |
+| `harness` | object | Present | Harness metadata. |
+| `harness.version` | string | `1.0.0` | Harness implementation version. |
+| `created` | string timestamp | Run creation time | UTC claim metadata. |
+| `repo` | string path | Absent if unset | Resolved repository or planning base directory. |
+| `tasksFile` | string path | Input path | Original task-file location, not a recovery input to re-read. |
+| `maxParallel` | integer | `3` before resolution | Effective concurrency, 1 through 8. |
+| `backends` | map of objects | `{}` before setup | Each used backend has a version record. |
+| `backends.<backend>.version` | string | Probe result | Version reported during preflight. |
+| `host` | object | Present | Host platform metadata. |
+| `host.os` | string | Detected | `windows`, `macos` or `linux`. |
+
+## `config.json` and setting records
+
+| Field | Type | Default or absence | Meaning |
+|---|---|---|---|
+| `schemaVersion` | integer | `2` | Version. |
+| `sources` | object array | `[]` | Sources and CLI provenance. |
+| `sources[].layer` | string | Source layer | `user`, `repo`, `task-file` or `cli`. |
+| `sources[].path` | string path | Absent for CLI args | Original source location. |
+| `sources[].copy` | string relative path | Absent when no copy | Frozen source copy or `tasks.jsonc`. |
+| `sources[].head` | string commit id | Repository source only | HEAD used to read committed config. |
+| `sources[].dirty` | boolean | Repository source only | Whether working config bytes differ from committed bytes. |
+| `sources[].args` | string array | CLI source only | Original argument tokens. |
+| `maxParallel` | setting of integer | Resolved `3` | Value and source layer. |
+| `locations` | object | Resolved roots | `ledgerRoot` and `worktreeRoot`; field semantics in [configuration](config.md). |
+| `restrictions` | object | Accumulated restrictions | Effective shape below. |
+| `instructions` | object array | `[]` | Deduplicated standing instructions. |
+| `instructions[].text` | string | Authored text | Instruction body. |
+| `instructions[].from` | string | Source layer | Layer supplying the first occurrence. |
+| `warnings` | string array | `[]` | Config-resolution warnings; separate planner/live warnings are not all copied here. |
+| `tasks` | map keyed by task id | `{}` | Frozen task settings. |
+| `tasks.<id>.settings` | object | Resolved settings | Same setting shape used in `task.json`. |
+| `tasks.<id>.contracts` | contract-record array | Absent without contracts | Same path, source, file-byte hash and first-line version metadata as `task.json`. |
+| `tasks.<id>.inputSha256` | string | Structured only after freeze | Hash of normalized `input.json` bytes. |
+| `tasks.<id>.resultSchemaSha256` | string | Structured only after freeze | Hash of normalized schema bytes. |
+
+Every scalar setting uses this wrapper. Not all wrappers have all optional metadata.
+
+| Field | Type | Default or absence | Meaning |
+|---|---|---|---|
+| `value` | Setting's scalar type | Resolved value | Actual requested preference or effective restriction. |
+| `from` | string | Source layer | Includes tool defaults, task-file defaults, task, CLI, worktree, or a clamp explanation. |
+| `actual` | string | Absent unless recorded | Profile result, such as `clean`, `clean-partial` or `full`. |
+| `reason` | string | Absent without explanation | Profile fallback reason. |
+| `enforcement` | string | Absent unless backend applied it | Access/network enforcement, `sandbox`, `policy` or `none` when populated. The base records these on Codex settings; opencode scalar wrappers may omit them. |
+
+| Settings field | Type | Tool default | Meaning |
+|---|---|---|---|
+| `backend` | string setting | Required | Chosen backend. |
+| `route` | string setting | Required effective route or agent | Qualified requested route. |
+| `effort` | string setting | Absent | Explicit effort or route variant. |
+| `timeoutMinutes` | integer setting | `60` | Task timeout. |
+| `profile` | string setting | `clean` for every task kind | Requested and, when checked, actual profile; explicit preferences can opt in to `full`. |
+| `project` | string setting | Kind default | Repository-context mode. |
+| `access` | string setting | Kind default | Requested or clamped access. |
+| `network` | string setting | `on` | Requested or clamped network. |
+| `workspace` | string setting | `worktree` | Workspace preference. |
+| `dir` | string setting | `.` | Task or defaults directory preference. |
+| `commit` | string setting | `none`, forced `harness` in worktree | Commit preference. |
+| `rawPrompt` | boolean setting | `false` | Raw prompt preference. |
+| `scope` | object | Empty task scope and ceilings | `value` string array plus `ceilings`, each with `globs` string array and `from` layer string. |
+| `rules` | object array | `[]` | Each has `name` string and `enforcement` string: `policy` or `approval-gate`. |
+
+| Effective restriction field | Type | Default | Meaning |
+|---|---|---|---|
+| `routes` | object | Absent means unrestricted | `value` qualified string array and `from` layer-name array. Empty value allows nothing. |
+| `deny` | rule array | `[]` | Appended effective denies. |
+| `escalate` | rule array | `[]` | Appended effective escalations. |
+| `scope` | ceiling array | `[]` | Each has `globs` and `from`. |
+| `maxAccess` | string setting | `full` | Lowest access ceiling. |
+| `networkAllowed` | boolean setting | `true` | Any restrictive layer can set false. |
+| `scrub` | string array | Absent | Accumulated extra variable-name regexes. |
+| Rule `name` | string | Layer-qualified name | Identifies the rule. |
+| Rule `action` | string | Authored pattern | Tool-action wildcard. |
+| Rule `resources` | string array | Authored patterns | Resource wildcards. |
+| Rule `enforcement` | backend-to-string map | Recorded per backend | opencode `policy`, Codex `approval-gate`. |
+
+## `task.json`
+
+| Field | Type | Default or absence | Meaning |
+|---|---|---|---|
+| `schemaVersion` | integer | `2` | Version. |
+| `spec` | task object | Resolved task | [Task fields](task-file.md); several preferences have been replaced with effective values. |
+| `spec.continueOf` | string | Absent for fresh tasks | Source `<run>/<task>` as supplied; [continuation rules](task-file.md#continuations). |
+| `promptText` | string | Loaded task text | Does not include assembled standing instructions or contract bodies. For a continuation, initially the amendment; workspace preparation saves composed source final text and amendment before replay and the ready event. |
+| `settings` | object | Effective settings | Wrapper tables above. |
+| `workspace` | object | Initially empty | Core workspace record. |
+| `workspace.path` | string path | Absent before preparation | Worker directory. |
+| `workspace.branch` | string | Worktree tasks only | Task branch. |
+| `workspace.baseRef` | string | Worktree tasks only | Original base or reviewed task's branch; a continuation inherits its source's value, even if that ref is later cleaned. |
+| `workspace.baseSha` | string | Git tasks with HEAD | Cumulative settlement baseline. A continuation inherits the source's original baseline, which may precede its own start commit. |
+| `workspace.startSha` | string | Absent when unset | Worker's checkout/start commit: full commit id at worktree creation. Continuations use the original baseline for stopped/blocked sources, otherwise the failed source's result commit. Recorded by new workspace preparation, including during `resume --continue`; unset for in-place and scratch tasks. An already-prepared workspace is not backfilled. [Standing instructions](guide.md#verify-advisory-verify-and-review) use it when available. |
+| `workspace.reviewedBaseSha` | string | New `reviewOf` worktrees only | Reviewed author's recorded `workspace.baseSha`, the start of the author's work. Together with the reviewer's `workspace.startSha` (the author's branch tip), identifies the diff to review. |
+| `contracts` | object array | Absent without contracts | Records below, not copies of text. |
+| `contracts[].path` | string path | Resolved path | Original contract path. |
+| `contracts[].from` | string | First occurrence's layer | `task-file`, `task` or `cli`. |
+| `contracts[].sha256` | string | File-byte hash | Lowercase SHA-256 of the original file bytes, including any BOM. See [Contracts](task-file.md#contracts). |
+| `contracts[].version` | string | File's first line after BOM removal | Trailing whitespace trimmed and limited to 120 characters. |
+| `agent` | string | Absent until backend details | Actual persona or agent detail. |
+| `lineage` | string | Absent until backend details | Catalog lineage. |
+| `routeResolved` | string | opencode `agent` tasks only, after backend details | Qualified route of the model the roster agent pinned at start; settlement compares reported routes with it. |
+| `session` | object | Initially empty | Worker session identity. |
+| `session.id` | string | Absent before creation | Backend session or thread id. |
+| `session.turn` | string | Absent before prompting | Last recorded prompt or turn id. |
+| `backendState` | object | Initially empty | Backend-owned recovery fields below. |
+| `prepare` | object array | Absent until attempted | Durable ordered command evidence; see [prepare outcomes](#prepare-evidence-and-outcomes). |
+| `prepareRunning` | boolean | Absent initially | Set and saved before baseline capture; cleared only on complete success. |
+| `prepareDone` | boolean | Absent initially | Set with clearing `prepareRunning`, in one save, after commands and unchanged-workspace check succeed. |
+
+| Backend-state field | Type | Default or absence | Meaning |
+|---|---|---|---|
+| `promptId` | string | opencode after prompting | Prompt identity. |
+| `promptCreated` | number | opencode after prompting | Backend creation time. |
+| `projectId` | string | opencode when known | Backend project identity. |
+| `host` | string | opencode when known | Profile/project mode key, not a network host address. |
+| `pid` | integer | Codex when known | Process id. |
+| `processGroup` | boolean | Codex when known | Whether a private process group was created. |
+| `processStartTime` | string timestamp | Codex when known | Guards against recycled process ids. |
+| `linuxBootId`, `linuxStartTicks` | string, integer | Codex on Linux | Kernel process identity; a recorded stop checks it before it signals. |
+| `descendants` | object array | Codex when known | Each has `pid` integer and nullable `startTime` timestamp, and on Linux the same kernel identity. Windows uses snapshot creation time when handle queries are denied. |
+| `codexHome` | string path | Codex when known | Selected home. |
+| `codexHomeTemporary` | boolean | Codex when known | Whether that home is temporary. |
+| `codexHomeMarkerName`, `codexHomeMarkerText` | strings | Codex temporary home | The random marker that proves a later process owns the home it deletes. |
+| `profile`, `profileReason` | strings | Codex when known | The home's actual profile and, for a partial clean profile, why. |
+
+These fields support this version's recovery. They are not instructions for a caller to start,
+stop or attach processes independently.
+An absent `startTime` can come from an older record, unavailable snapshot metadata or a Unix
+observation failure. A timestamp-less identity whose PID is present stays unconfirmed: a later
+occupant cannot supply its missing original identity, authorize termination or prove ancestry. See
+[Codex stop and recovery](backends.md#codex-process-and-sandbox) for platform identity checks.
+
+## `result.json`
+
+Ordinary settlement is done only when outcome is succeeded, final text is non-blank, no execution
+or settlement error exists, every verify command passed without timeout, scope is valid, no
+reported route drifts from the requested one, the worker did not report itself stopped or blocked,
+and a structured deliverable validates. Cancelled outcome produces cancelled state, except an
+unconfirmed Codex stop always produces failed state with `zombie`, even for a cancelled outcome.
+OpenCode cancellation retains its existing cancelled state and may retain a `zombie` failure.
+Some pre-dispatch errors produce only a final event; inspect events as well.
+
+A confirmed Codex stop with a home that could not be deleted keeps its execution outcome and can
+still settle done. `warnings` includes `codex-home-retained`; an `error` event with `while: release`
+holds the deletion message, once per release result. Missing ownership markers retain the home too.
+Changed markers refuse recorded release/collection, but during live settlement retain the home with
+the same warning rather than losing the report. Unrecognized owners or paths remain safety refusals
+on recorded cleanup. Retry `clean` after a lock is released, or inspect and manually delete the path
+when clean reports no valid ownership marker (including missing recorded fields or unrecognized
+ownership), but only after checking the worker has ended if stop is unconfirmed. This does not fail
+deletion-only clean or clean after confirmed stop; unconfirmed stop still protects the worktree and
+fails clean. Only final, collected tasks with neither zombie nor
+unconfirmed stop evidence skip the process check. Other final tasks stop first, even if failed-start
+paths recorded retention only as an event.
+
+A throwing release instead adds `release-failed`, accompanied by `settle-error` outside cancellation,
+while preserving `final.md` and `result.json`. Without stop evidence, workspace collection, verify and
+scratch deletion are skipped, and ordinary clean treats it like a zombie: retry the stop and retain
+worktree and home until confirmation. Force removes the worktree and branch but still retains an
+unconfirmed home. Confirmation writes `hard-stop` even when only `release-failed`, not a previous
+zombie, required the stop check; later clean restores it and applies normal workspace checks.
+Uncommitted edits refuse as dirty and `collect` preserves them. Recollection without final text
+preserves the previous `final.md`, `outcome`, `workerStatus` (even when absent), `routesUsed`,
+`routeResolved` and `executionError` when `result.json` exists and `final.md` holds worker text rather
+than the `_No final assistant text without an error._` placeholder. Prior route drift and execution
+errors still fail the task; workspace collection, verification, scope and stop checks still repeat,
+without `no-final-text` or a lost-outcome failure, and genuine recollection errors still fail. Failed starts
+without worker text do not keep the placeholder. Earlier stop confirmation still permits commit and
+verify when release throws.
+Multiple harness error messages are newline-joined in `error`, not replaced by later failures.
+
+For parsed `stopped`/`blocked` statuses, collection snapshots tracked edits, deletions and untracked
+files without staging in the real index or committing. WIP compares against `workspace.baseSha` in a
+worktree and the recorded `startTree` in-place, excluding pre-existing dirt and supporting unborn
+branches. Scope and protected-path checks still apply to the snapshot. `diff.patch` remains committed
+base-to-HEAD evidence in `harness` mode and start-to-end snapshot evidence in `none` mode; in the latter
+it has the same bytes as WIP. `wip.patch` and its metadata are absent for an empty snapshot diff or
+other statuses, and stale WIP is removed on recollection. An unconfirmed stop collects neither patch.
+For continuations this remains the cumulative diff from the inherited original baseline, not
+`startSha`. WIP preserves the collected Git tree (tracked content, deletions, non-ignored untracked
+files and worker commits), not ignored files or prior staging. LFS carries pointers and submodules
+gitlink IDs only; [continuations](task-file.md#continuations) owns replay and availability limits.
+Neither `verify` nor `advisoryVerify` executes after a parsed stop: every command records
+`notRun: "worker stopped"`; this adds no verify failure or advisory warning. A `done` task still
+verifies even when its diff is empty. Missing status remains `worker-status-missing`, not a stop.
+
+| Field | Type | Default or absence | Meaning |
+|---|---|---|---|
+| `schemaVersion` | integer | `2` | Version. |
+| `task` | string | Task id | Result identity. |
+| `run` | string | Run id | Result identity. |
+| `kind` | string | Recorded when known | Task kind. |
+| `backend` | string | Recorded when known | Backend name. |
+| `state` | string | Set at settlement | `done`, `failed` or `cancelled`. |
+| `failures` | string array | `[]` | Machine-readable causes below. |
+| `warnings` | string array | Absent without findings | Non-failing findings: non-blocking `git-config-changed`, `advisory-verify-failed` when an `advisoryVerify` command failed or timed out, `worker-status-missing` when a non-structured, non-raw task's final text has no status line, so its success rests on the session outcome alone, `codex-home-retained` when a confirmed Codex stop leaves its temporary home undeleted (including a missing or changed marker during live settlement), and `recovered-model-error` when an opencode session succeeded after an earlier model call ended with an error, and `prepare-interrupted: a prepare command may still run on this host` when an unsupervised `cancel` settled a task whose `prepare` was interrupted. |
+| `workerStatus` | string | Absent for structured tasks or without a status line | `done`, `stopped` or `blocked`, from the last `Status:` line of the final text. `stopped` and `blocked` add the `worker-stopped` failure. |
+| `outcome` | string | Absent if unavailable | Execution outcome, distinct from settled state. |
+| `session` | object | Recorded when available | `id` and `turn` strings, as in task record. |
+| `routeRequested` | string | Absent if unavailable | Qualified requested route; for an `agent` task, the agent route. |
+| `routeResolved` | string | opencode `agent` tasks only | Route the agent pinned at start, copied from the task record. |
+| `routesUsed` | string array | `[]` | Routes actually reported by backend. |
+| `routeVerified` | boolean | `false` | True only when the backend reported at least one route and every reported route is the requested one (`routeResolved` for an `agent` task). A request without a variant accepts any variant of its model. False when nothing was reported or a route cannot be read; only a true value supports a claim about which model did the work. |
+| `routeDrift` | string array | Absent without drift | Reported routes of another model, or of another variant when the request named one. Adds the `route-drift` failure. |
+| `cost` | number | Absent if not reported | Backend-reported cost, no synthesized estimate. It is an estimate at the model's list price, not money spent: a subscription or negotiated rate bills differently. Codex reports no cost, so a Codex task is measured by `tokens` alone. |
+| `tokens` | object | Absent if no counts reported | Nullable numeric counts below. |
+| `tokens.input` | number | Absent if unavailable | Every prompt token, including cache reads and writes, summed over every model call of the task: each call re-sends the conversation so far, so 300k over ten calls is not a 300k context. opencode's uncached input, cache reads and cache writes are added to match Codex's inclusive input count. |
+| `tokens.output` | number | Absent if unavailable | Output count. |
+| `tokens.reasoning` | number | Absent if unavailable | Reasoning count. |
+| `tokens.cacheRead` | number | Absent if unavailable | The cached part of `tokens.input`; `input` minus `cacheRead` is what the task sent uncached. |
+| `tokens.cacheWrite` | number | Absent if unavailable | Cache-write count, retained separately for opencode as well as included in `tokens.input`. |
+| `tokensComplete` | boolean | Absent if not populated | Whether backend usage was complete. |
+| `contextWindow` | number | Absent when the backend reported none | The context window, in tokens, of the model that ran: Codex reports it with token usage; opencode looks up the latest reported assistant route in its model catalog at settlement, including under route drift, and omits the window when that model is not listed or the catalog cannot be read. |
+| `asks` | integer | `0` | Observed permission asks. |
+| `asksEscalated` | integer | `0` | Asks sent to the operator. |
+| `formsCancelled` | integer | `0` | Cancelled form questions. |
+| `retries` | integer | `0` | Observed retry count. |
+| `timedOut` | boolean | `false` | Harness timeout occurred. |
+| `cancelRequested` | boolean | `false` | Cancellation requested. |
+| `workerStopped` | boolean | Absent without stop evidence | Whether stop was confirmed, including Codex release, recovery and cleanup checks. |
+| `baseSha` | string | Absent for structured/no starting HEAD | Cumulative Git settlement baseline, copied from `workspace.baseSha`. |
+| `commitMode` | string | Absent for structured | `harness` or `none`. |
+| `commit` | string | Absent for none or unchanged HEAD | Resulting commit id. |
+| `diffStat` | string | Absent before collection | Git shortstat of collected changes (the snapshot for a parsed stop). |
+| `wipPatch` | string relative filename | Absent without a written, nonempty WIP patch | `wip.patch`, relative to the task folder. |
+| `wipFileCount` | integer | Absent without `wipPatch` | Changed-path count against the WIP baseline, with renames counted as deletion plus addition (both paths). |
+| `filesChanged` | string array | `[]` | All collected changed paths. |
+| `outOfScope` | string array | `[]` | Paths failing scope, including protected `.dispatch/` changes. |
+| `verify` | object array | `[]` | Per-command verification records. |
+| `prepare` | object array | Absent without an attempt | Copy of `task.json`'s record-owned evidence, including on every recollection; same command fields as `verify`, with `advisory` and `notRun` omitted. |
+| `verify[].command` | string | Authored command | Shell text executed or recorded as not run. |
+| `verify[].notRun` | string | Absent when executed | `worker stopped` means the command was not run; `exitCode: 0`, `seconds: 0` and `timedOut: false` are placeholders, not process evidence. |
+| `verify[].exitCode` | integer | Process exit, or `0` when not run | Nonzero fails executed verification. |
+| `verify[].seconds` | number | Measured duration, or `0` when not run | Rounded to one decimal. |
+| `verify[].timedOut` | boolean | `false` | Timeout fails verification even if exit is zero. |
+| `verify[].advisory` | boolean | Absent for `verify` commands | `true` for an `advisoryVerify` command: its failure is the `advisory-verify-failed` warning, not `verify-failed`. |
+| `verifyShell` | string path | Absent if no verify ran | Absolute resolved shell executable. |
+| `deliverable` | string relative filename | Valid structured only | `deliverable.json`. |
+| `validation` | object | Structured only | Common schema and identity validation. |
+| `validation.ok` | boolean | `false` until validated | Whether all checks passed. |
+| `validation.errors` | object array | `[]` | All collected validation errors. |
+| `validation.errors[].at` | string | Empty for root | JSON Pointer location. |
+| `validation.errors[].message` | string | Diagnostic | Cause and relevant keyword. |
+| `executionError` | string | Absent without backend error | Backend execution failure detail. |
+| `recoveredErrors` | string array | Absent without recovered errors | opencode: the errors of earlier model calls in a session that then succeeded (for example a dropped provider stream), oldest first. The turn's error is only the idle marker's error or the last call's error. |
+| `error` | string | Absent without harness error | Collection, commit, validation or cleanup failure detail. |
+
+| Outcome | Type | Meaning |
+|---|---|---|
+| `succeeded` | string | Backend execution succeeded; settlement can still fail. |
+| `failed` | string | Backend execution failed. |
+| `interrupted` | string | Unrequested interruption; opencode can later continue. |
+| `cancelled` | string | Harness cancellation. |
+| `timeout` | string | Harness timeout. |
+| `lost` | string | Session/process could not supply a continuing worker, including recovered Codex tasks. |
+| `unknown` | string | No reliable execution outcome. |
+
+| Failure | Type | Meaning |
+|---|---|---|
+| `outcome:<value>` | string | Outcome was not succeeded. |
+| `no-final-text` | string | Final assistant text is missing or blank. |
+| `commit-failed` | string | Harness commit command failed. |
+| `verify-failed` | string | Verify command failed or timed out. |
+| `prepare-failed` | string | Prepare command failed, timed out or could not start, a baseline/check Git operation failed, or preparation setup/logging failed. |
+| `prepare-changed-workspace` | string | Successful prepare commands changed non-ignored workspace content or HEAD. |
+| `out-of-scope` | string | Collected changes exceed scope. |
+| `route-drift` | string | The backend reported a route other than the requested one; see `routeDrift`. |
+| `worker-stopped` | string | The worker's status line says `stopped` or `blocked`: it did not do the task, whatever the session outcome. |
+| `invalid-output` | string | Structured deliverable did not validate. |
+| `settle-error` | string | Execution or harness settlement error. |
+| `release-failed` | string | Codex release threw a non-cancellation, non-ledger exception; the report is preserved. Accompanied by `settle-error` outside cancellation. Without confirmed stop evidence, collection, verify and scratch deletion are skipped and clean retries stop with zombie-like retention; force still retains an unconfirmed home. |
+| `git-config-changed` | string | Blocking Git configuration change prevented safe collection/commit. |
+| `zombie` | string | A stop was not confirmed (a hard stop after cancel or timeout, or Codex settlement, release, recovery or cleanup): a process may still write, so workspace collection, commit, verify and scratch deletion were skipped. Codex settles failed even for cancelled outcome; siblings continue. The worktree keeps the work. |
+| `workspace-dirty` | string | In-place harness-commit task became dirty before dispatch; no worker started. |
+
+The `workspace-dirty` start failure writes a minimal result before its error and final events.
+Continuation apply failure is a workspace-start failure, not shell `prepare-failed`: ownership and
+composed text have been saved, but no successful `worktree` event exists. Error/final events retain
+Git's diagnostic; no worker, collection or verify runs, and no result file is guaranteed.
+
+## Prepare evidence and outcomes
+
+Before the baseline, nonempty preparation initializes `task.json.prepare` to `[]`, saves the running
+flag and creates `prepare.log`. Each executed command's formatted log block and record entry are
+saved before advancing. Entries reuse `VerifyResult`: `command`, `exitCode`, `seconds`, `timedOut`;
+`advisory` and `notRun` remain absent. Optional prepare members stay absent for empty/unset lists.
+These additions retain schema version 2, strict input and permissive ledger readers.
+
+Every completed attempt saves its record, maintains the log and emits exactly one `prepared` summary:
+
+| Case | `prepared` payload | Terminal state / `failures` | Evidence and `error` |
+|---|---|---|---|
+| Success | `{"commands": n, "failed": 0, "changed": false}` | Worker continues | All entries; done flags saved; ordinary settlement writes result/final later. |
+| Non-zero | `{"commands": k, "failed": 1}` | `failed` / `["prepare-failed"]` | Include failing entry; `prepare command <n> exited <code>`. |
+| Timeout | `{"commands": k, "failed": 1}` | `failed` / `["prepare-failed"]` | Include `timedOut: true`; `prepare command <n> timed out after 30 minutes`. |
+| Start failure | `{"commands": k, "failed": 1}` | `failed` / `["prepare-failed"]` | Include exit `-1` and exception message in log; task error contains that message. |
+| Cancel | `{"commands": k, "failed": 0, "cancelled": true}` | `cancelled` / `[]` | Preserve executed entries; killed command exit `-1`, `timedOut: false`; no synthetic pre-start entry. |
+| Baseline Git failure | `{"commands": 0, "failed": 0, "checkFailed": true}` | `failed` / `["prepare-failed"]` | Empty array; Git's message. |
+| Check Git failure | `{"commands": n, "failed": 0, "checkFailed": true}` | `failed` / `["prepare-failed"]` | All entries; Git's message. |
+| Other preparation failure (such as log writing or environment setup) | `{"commands": k, "failed": 0, "checkFailed": false}` | `failed` / `["prepare-failed"]` | Preserve completed entries; exception message. |
+| Workspace change | `{"commands": n, "failed": 0, "changed": true}` | `failed` / `["prepare-changed-workspace"]` | All entries; paths or HEAD diagnostic per [task-file lifecycle](task-file.md#preparation). |
+
+Here `n` is the full list length, `k` the number executed, and command numbers are one-based.
+Every non-success row writes an explicit sessionless `result.json` before `final`; task `timedOut`
+is always false. Failure/cancel retains the running flag and workspace. A terminal final is never
+replayed; interrupted non-terminal recovery is described in [CLI](cli.md#resume-run---continue---ledger-dir).
+Unsupervised interrupted cancel preserves recorded entries and the running flag, maintains log/record,
+emits `prepared {"commands": <recorded>, "failed": 0, "cancelled": true}` and saves a cancelled result with
+`failures: []` before `final`.
+Its exact result warning and final `reason` are
+`prepare-interrupted: a prepare command may still run on this host`.
+
+## Events
+
+| Envelope field | Type | Default or absence | Meaning |
+|---|---|---|---|
+| `schemaVersion` | integer | `2` on `run`, absent otherwise | Version for the event stream. |
+| `ts` | string timestamp | Event time | UTC. |
+| `run` | string | Run id | Event identity. |
+| `task` | string | Absent for run-level events | Task identity. |
+| `type` | string | Required event discriminator | See below. |
+| `data` | object | Absent if no payload | Event-specific data; optional entries can be null. |
+
+Each row describes the emitted payload, not a guarantee that every optional member exists.
+
+| Event type | Payload types and fields | Presence and meaning |
+|---|---|---|
+| `run` | `repo` string, `max` integer, `server` string, `tasks` integer, `policy` string, `deny`/`escalate`/`removed` string arrays; optional `sharedPaths` object, `rawPrompt` boolean | Initial event. Shared paths object has `paths` string array and `mergedBy: coordinator`. |
+| `queued` | `kind` string, `route`/`agent`/`reviewOf` optional strings | One per queued task. |
+| `worktree` | `path` string; worktree `branch`/`base`/`baseSha` strings; in-place `startTree` string; optional `continueOf` string | Workspace ready, after any continuation replay; `continueOf` names the resolved source run/task. Structured scratch has no worktree event. |
+| `scratch` | `path`, `root`, `resolvedRoot` strings | Structured scratch allocated. `root` is the candidate as given (system temp, then state root); `resolvedRoot` is that root with its links resolved, such as macOS `/var` into `/private/var`. The path and every later check use the resolved root. |
+| `route` | `route`/`agent`/`lineage` strings when known | Actual route details recorded. |
+| `session` | `sessionId` string, optional `projectId` string and `rules` string array | Worker created. |
+| `environment` | `variables` integer, `removed` string array | Names/count only; no secret values. |
+| `prompt` | `turn`/`promptId` strings, `chars` integer, `sha256` string; optional `contracts` hash array, `rawPrompt`/`continue`/`resume` booleans | Sent prompt metadata; continuation omits contract bodies. |
+| `tool` | `tool`/`resource`/`outcome` strings, `duration` number | One completion per call, duration in seconds. Resource is a bounded summary: the path, URL, command, pattern or query, with the value of every scrubbed variable of at least 4 characters replaced; for the opencode `skill` tool, the skill id. Codex reports no event when a skill loads; only its shell and edit items are recorded. A resource that carries a credential (an assignment or flag whose name the environment scrub treats as secret, URL credentials, an authorization header) is recorded as `[REDACTED]`; a PowerShell `$env:NAME=value` assignment is judged by `NAME`. Missing start means zero duration. |
+| `permission` | `id` string, optional `session`, `action`, `resources`, `answer`, `by`, `message`, `waitedSeconds`, `status` | Answer evidence; `by` is harness, operator or server. `answer` is once or reject. |
+| `escalated` | `id`/`action`/`rule`/`file` strings, `resources` string array, optional child `session` | Ask waits for operator. |
+| `escalation-dropped` | `id`/`action`/`reason` strings | Ask no longer applies. |
+| `decision-refused` | `askId`/`reason` strings | Unknown ask, reason `unknown-ask`; pending asks are untouched. |
+| `form` | `id`/`title`/`answer` strings, optional `session` string and `status` integer | Question cancelled or rejected after task end. |
+| `retry` | `attempt` integer, `message` string, optional `next` number, `reason`/`provider` strings | `next` uses Unix milliseconds, not duration seconds. |
+| `status` | `execution` string, optional `error` object or `reason` string | Backend progress/outcome signal. |
+| `interrupted` | Optional `reason` string | Task left interrupted without a harness stop request. |
+| `timeout` | Optional `interrupted` boolean and `status` integer | Timeout interrupt attempt. |
+| `cancel` | Request `time`/`state` strings, or interrupt `interrupted` boolean and `status` integer | Request receipt or stop attempt. |
+| `hard-stop` | Optional `kind` string, `stopped` boolean, `detail` string | Hard-stop report; kind is cancel or timeout. A later affirmative Codex stop check clearing recorded uncertainty or confirming a `release-failed` task also writes this evidence, without kind. Stopped value feeds restored `workerStopped`; late interrupt replies after settlement begins are ignored. |
+| `stop-unconfirmed` | Optional `outcome` string, `detail` string | Task-local stop uncertainty at turn end or Codex settlement, release, recovery or scope cleanup, including failed initialization before a thread exists. Records stop evidence; a completed turn retains its final report. |
+| `collected` | `outcome` string, `routesUsed` string array; Git adds `commit`/`diffstat`, `files` integer, `outOfScope` string array and optional `endTree` | Evidence collected. `endTree` is an in-place no-commit snapshot. |
+| `verified` | `commands`/`failed` integers; `advisoryFailed` integer when advisory commands are recorded; `notRun` integer when any entry did not run | Verify summary; `commands` includes not-run records; `notRun` counts those records, not passes. `failed` counts executed `verify` commands only. Zero commands can mean skipped or absent. |
+| `prepared` | `commands`/`failed` integers; optional `changed`, `checkFailed`, `cancelled` booleans | Preparation summary; exact payloads and sessionless settlement above. Does not change the task's state: it stays `dispatching` until the worker starts or `final` is written. |
+| `validated` | `ok` boolean, `errors` array of `{at, message}` strings | Structured validation result. |
+| `usage` | Optional `input`, `cacheRead`, `output`, `reasoning` numbers | One task-scoped event per reported model call, in call order, before `outcome` on every settlement that writes a result, including failed and structured tasks. Unavailable fields are omitted; reported zeros are kept. `input` includes cache reads and writes, as in `tokens.input`; cache-write has no separate event field (it is retained in result totals). Codex uses a current-turn own-thread token notification's `last` breakdown only when that thread's cumulative `total` changed (not child usage); opencode uses token-bearing assistant messages across the task session, including continuations. Settlement counts the task's existing `usage` events and skips that already-written prefix of calls, so continuation and collect append only unwritten calls. Timestamps are settlement write times, not model-call times. No calls means no events, even when task totals exist. |
+| `outcome` | `outcome` string, optional `cost`/`tokensIn`/`tokensOut` numbers, `tokensComplete` boolean, `error` string; Codex `workerStopped` boolean when known | Settlement outcome summary. `tokensIn` and `tokensOut` are `result.json`'s `tokens.input` and `tokens.output`, respectively. |
+| `final` | `state` string, optional `outcome`/`reason`/`via` strings | Final task state; collect uses `via: collect`. |
+| `resume` | `continue` boolean, `tasks` integer | Reconciliation began. |
+| `landed` | `reason` string | Target landing proved cleanup safe: `ancestor of <target>` or `content matches <12 digits> on <target>`. Written just before workspace removal starts; remains even if later cleanup fails. See [clean](cli.md#clean-run---force---ledger-dir). |
+| `cleaned` | Optional `worktree`/`branch` strings, `force` boolean | Success only: the task's session, workspace, branch, temp and index cleanup succeeded. Landing evidence is a separate `landed` event, not a field on this event. |
+| `clean-failed` | `step`/`error` strings, `force` boolean; task identity in envelope | Task cleanup refused or failed at `session`, `workspace`, `branch`, `temp` or `index`; other tasks continue. Retry reconciles remaining artifacts. |
+| `bus` | `state` string, optional `reason` string | Disconnected or reconnected event stream. |
+| `error` | Optional `while`/`message`/`id`/`file`/`backend` strings | Operation error. Owner-chain cuts appear here with `while: owner-chain-cut`; they are not a separate event type. |
+| `aborted` | `message` string, or `reason` string and `running` string array | Run/recovery aborted. |
+| `git-config-changed` | `keys` string array, `blocking` boolean | Git guard finding. Non-blocking changes may populate warnings. |
+| `index-lock-removed` | `path` string | Lock created by a timed-out killed Git call was removed. |
+| `ledger-repaired` | `file` string, `bytes` integer | Torn tail archived before append. |
+
+Codex stop detail records PIDs, recorded/current creation times, observation failures and surviving
+or uncertain identities. Failed termination attempts remain evidence even when the subsequent
+identity check confirms exit; a denial alone does not make that stop unconfirmed. Windows
+snapshot-backed recording still emits the `error` diagnostic with `while: descendant-unobservable`,
+stating when snapshot identity supplied the recorded timestamp. Stop evidence is separate from
+execution errors: a failed kill followed by confirmed exit does not create an execution failure.
+Recovery restores uncertainty from the latest applicable `hard-stop`, `stop-unconfirmed` or Codex
+`outcome.workerStopped` evidence after the latest prompt. A later confirmed check can clear it for
+recollection or clean, including confirmation during scope cleanup; earlier evidence and the settled
+result remain intact. Scope cleanup does not write a second `final` for an already-final task;
+explicit `collect` still repeats settlement. Unconfirmed Codex cleanup retains owned resources
+and fails only its task, not the run; genuine supervisor or ledger errors can still abort it.
+
+The pending `warning` event for Windows user PATH changes is described under the
+[Windows user PATH guard](cli.md#windows-user-path-guard).
+
+The Git configuration check ignores entries with `system` scope; global, local and worktree entries
+are still compared. Among the remaining entries, the Git guard excludes only exact
+`branch.<name>.remote`, `.merge` and `.rebase` keys for branches the harness does not own: every branch
+outside `dispatch/`, the prefix of the `dispatch/<run>/<task>`
+branches the harness creates. The exclusion applies to both baseline and current keys; owned-branch keys, all other config and hook changes retain their existing ordering,
+hashing and blocking behavior. Cleanup never refreshes the baseline.
+
+## Derived states
+
+`status` derives state from event order, not process liveness. Unrecognized events preserve the
+previous state when one exists. A killed supervisor writes nothing, so last progress can remain
+visible until resume reconciles it. A lock probe distinguishes current supervision.
+
+| State | Type | Event mapping |
+|---|---|---|
+| `queued` | Non-final string | `queued`. |
+| `dispatching` | Non-final string | `worktree`, `route`, `session`, `environment`. |
+| `running` | Non-final string | `prompt`, permission/form/retry/status/timeout/cancel or escalation-dropped progress. |
+| `waiting` | Non-final string | `escalated`. |
+| `settling` | Non-final string | `collected`, `verified`, `outcome`. |
+| `interrupted` | Non-final string | `interrupted`; permission/form/retry/status/timeout/cancel/escalation-dropped preserve it until reconciliation. |
+| `done` | Final string | `final.data.state: done`. |
+| `failed` | Final string | `final.data.state: failed`. |
+| `cancelled` | Final string | `final.data.state: cancelled`. |
+
+## Asks, decisions and cancellation
+
+| Ask field | Type | Default or presence | Meaning |
+|---|---|---|---|
+| `schemaVersion` | integer | `2` | Strict control-file version. |
+| `run` | string | Run id | Owning run. |
+| `task` | string | Task id | Owning task. |
+| `backend` | string | Backend name | Where the ask came from. |
+| `session` | string | Child or root session id | Asking session. |
+| `rootSession` | string | Root worker id | Owning worker. |
+| `askId` | string | Generated task/counter id | Identifier for `reply`. |
+| `backendRef` | object | Contains `requestId` | Backend correlation data. |
+| `action` | string | Observed action | Tool action. |
+| `resources` | string array | Observed resources | Requested resources. |
+| `rule` | string | Matched rule | Layer-qualified escalation rule. |
+| `time` | string timestamp | Queue time | UTC. |
+| `reply` | string array | CLI argument tokens | Suggested reply invocation, with ledger override when needed. |
+
+| Decision field | Type | Default | Validation |
+|---|---|---|---|
+| `schemaVersion` | integer | Required, `2` | Strict version check. |
+| `askId` | string | Required | Safe lowercase identifier; `askId must be a safe ask identifier`. |
+| `decision` | string enum | Required | `once` or `reject`; otherwise `decision must be once or reject`. |
+| `message` | string | Default rejection feedback when omitted | Only with reject: `message goes with reject only`. |
+| `time` | string timestamp | Required | Written by reply. |
+| `by` | string | `operator` | Decision origin. |
+
+| Cancel field | Type | Default | Validation |
+|---|---|---|---|
+| `schemaVersion` | integer | Required, `2` | Strict version check. |
+| `run` | string | Required | Must name this run. |
+| `task` | string | Required | Must name a non-final task of this run. |
+| `time` | string timestamp | Required | Correlates request and confirmation. |
+
+| Run-reference field | Type | Default | Validation |
+|---|---|---|---|
+| `schemaVersion` | integer | Required, `2` | Strict version check. |
+| `run` | string | Required | Display-only run id. |
+| `ledgerRoot` | string path | Required | Display-only ledger root. |
+
+Unknown members or missing required fields fail strict reading. The supervisor accepts
+only a non-final task of the current run, deletes each processed file and records invalid requests
+as `error`. A decision for an unknown ask records `decision-refused`; pending asks remain pending.
+Malformed decisions are deleted with an error; an I/O-unreadable decision produces an error and may
+remain for a later read. Callers must use commands instead of writing these files.
+
+Codex sandboxed sessions cannot write the control folder but may read it. Full access removes that
+boundary. opencode edit-tool rules deny writes to control and ledger, but shell commands run as the
+same user and can change both. Verify can also change control files on either backend. There is no
+authentication boundary against another process running as that user.

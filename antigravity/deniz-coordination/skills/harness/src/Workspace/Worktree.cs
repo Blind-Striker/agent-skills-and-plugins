@@ -1,0 +1,390 @@
+static class Worktree
+{
+    public static bool InPlace(TaskRecord record) => (record.Settings.Workspace?.Value ?? record.Spec.Workspace) == "in-place";
+    public static string CommitMode(TaskRecord record) => InPlace(record) ? record.Settings.Commit?.Value ?? record.Spec.Commit ?? "none" : "harness";
+
+    public static async Task<(int Length, string Detail)> PathDepthAsync(Git git, string repo, string folder, CancellationToken ct)
+    {
+        var (length, file) = await LongestPathAsync(git, repo, folder, ct);
+        return (length, $"worktree paths reach {length} characters ({file}); builds can fail past 260 on Windows. Set locations.worktreeRoot to a short folder (for example C:\\wt) in the user config");
+    }
+
+    static async Task<(int Length, string File)> LongestPathAsync(Git git, string repo, string folder, CancellationToken ct)
+    {
+        var index = Path.Combine(Path.GetTempPath(), $"path-depth-{Guid.NewGuid():N}.index");
+        var isolated = git.WithIndex(index);
+        try
+        {
+            await isolated.CheckAsync(repo, ct, "read-tree", "HEAD");
+            var paths = await isolated.CheckAsync(repo, ct, "ls-files", "-z");
+            var file = paths.Split('\0', StringSplitOptions.RemoveEmptyEntries).MaxBy(path => path.Length)?.Replace('/', '\\') ?? "";
+            return (Path.TrimEndingDirectorySeparator(folder).Length + 1 + file.Length, file);
+        }
+        finally { File.Delete(index); }
+    }
+
+    public static bool IsInside(string path, string parent)
+    {
+        var relative = Path.GetRelativePath(Path.GetFullPath(parent), Path.GetFullPath(path));
+        return relative != ".." && !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) && !Path.IsPathRooted(relative);
+    }
+
+    // Resolves every existing link component of a path; missing components are kept as written.
+    // Resolves links component by component, as realpath(3) does: a link's raw target replaces it before any
+    // later ".." applies, so "link/.." means the target's parent. Missing components are kept as written.
+    public static string RealPath(string path)
+    {
+        // On Unix a backslash is a filename character, not a separator.
+        var separators = new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar };
+        var full = Path.IsPathRooted(path) ? path : Path.Combine(Environment.CurrentDirectory, path);
+        var current = Path.GetPathRoot(full)!;
+        var pending = new LinkedList<string>(full[current.Length..].Split(separators, StringSplitOptions.RemoveEmptyEntries));
+        var hops = 0;
+        while (pending.First is { } first)
+        {
+            pending.RemoveFirst();
+            if (first.Value == ".") continue;
+            if (first.Value == "..") { current = Path.GetDirectoryName(current) ?? current; continue; }
+            var next = Path.Combine(current, first.Value);
+            if (hops < 40 && Directory.Exists(next) && new DirectoryInfo(next).LinkTarget is { } target)
+            {
+                hops++;
+                var resolved = Path.IsPathRooted(target) ? target : current + Path.DirectorySeparatorChar + target;
+                var root = Path.GetPathRoot(resolved)!;
+                foreach (var part in resolved[root.Length..].Split(separators, StringSplitOptions.RemoveEmptyEntries).Reverse())
+                    pending.AddFirst(part);
+                current = root;
+                continue;
+            }
+            current = next;
+        }
+        return current;
+    }
+
+    public static Git Runner(Ledger ledger, string task)
+    {
+        var info = File.Exists(Path.Combine(ledger.Dir, "run.json")) ? ledger.LoadRunInfo() : null;
+        return Git.ForTask(task, ledger.RunId, Path.Combine(Locations.StateRoot, "control", info?.ControlId ?? ledger.RunId)).ForWorkspace(ledger, task);
+    }
+
+    public static async Task PrepareAsync(TaskRun run, Ledger ledger, string repo, CancellationToken ct, Git? runner = null)
+    {
+        var record = run.Record;
+        if (record.Workspace.Path is not null)
+        {
+            if (record.Spec.ContinueOf is not null && !ledger.Read().Any(x => x.Task == run.Id && x.Type == "worktree"
+                && x.Data?["path"]?.GetValue<string>() == record.Workspace.Path
+                && x.Data?["branch"]?.GetValue<string>() == record.Workspace.Branch
+                && x.Data?["baseSha"]?.GetValue<string>() == record.Workspace.BaseSha
+                && x.Data?["continueOf"]?.GetValue<string>() is { Length: > 0 }))
+                throw new HarnessException("continueOf workspace preparation is incomplete; refusing recovery");
+            return;
+        }
+        var git = (runner ?? Runner(ledger, run.Id)).ForWorkspace(ledger, run.Id);
+        var continuation = record.Spec.ContinueOf is null ? default : await Planner.CheckContinuationAsync(record.Spec, record.Settings, ledger.RunId, repo, git, ct);
+        await git.InitializeBaselineAsync(repo, ct);
+        try { await new GitConfigGate(git).CheckAsync(repo, ct); }
+        catch (GitConfigChangedException)
+        {
+            ledger.SaveResult(new TaskResult { Run = ledger.RunId, Task = run.Id, Kind = record.Spec.Kind,
+                State = "failed", CommitMode = CommitMode(record), Failures = ["git-config-changed"] });
+            throw;
+        }
+        repo = Path.GetFullPath((await git.CheckAsync(repo, ct, "rev-parse", "--show-toplevel")).Trim());
+        Directory.CreateDirectory(Locations.TaskTemp(run.Id, ledger.RunId, record.Settings.TempRoot?.Value));
+        if (record.Spec.ContinueOf is not null)
+        {
+            await PrepareContinuationAsync(run, ledger, repo, git, continuation, ct);
+            return;
+        }
+        if (InPlace(record))
+        {
+            var folder = await FolderAsync(git, repo, record.Settings.Dir?.Value ?? record.Spec.Dir, ct);
+            var commits = CommitMode(record) == "harness";
+            if (commits && await DirtyAsync(git, repo, ct)) throw new WorkspaceDirtyException();
+            var hasHead = (await git.RunAsync(repo, ct, "rev-parse", "--verify", "HEAD^{commit}")).ExitCode == 0;
+            if (commits && !hasHead) throw new HarnessException("in-place commit: harness requires a HEAD commit");
+            var start = await Snapshot.CaptureAsync(git, repo, run.Id, start: true, ct);
+            record.Workspace.Path = folder;
+            record.Workspace.BaseSha = hasHead ? await git.IdAsync(repo, ct, "rev-parse", "HEAD") : null;
+            ledger.SaveRecord(record);
+            ledger.Write(run.Id, "worktree", new JsonObject { ["path"] = folder, ["startTree"] = start });
+            return;
+        }
+        var reviewed = record.Spec.ReviewOf is { } author ? ledger.LoadRecord(author) : null;
+        var baseRef = reviewed is not null ? reviewed.Workspace.Branch! : record.Spec.Base!;
+        var baseSha = await git.IdAsync(repo, ct, "rev-parse", "--verify", $"{baseRef}^{{commit}}");
+        var path = Locations.Worktree(run.Id, ledger.RunId);
+        var branch = $"dispatch/{ledger.RunId}/{run.Id}";
+        await git.CheckAsync(repo, ct, "worktree", "add", "-b", branch, path, baseSha);
+        record.Workspace.Path = path;
+        record.Workspace.Branch = branch;
+        record.Workspace.BaseRef = baseRef;
+        record.Workspace.BaseSha = baseSha;
+        record.Workspace.StartSha = baseSha;
+        record.Workspace.ReviewedBaseSha = reviewed?.Workspace.BaseSha;
+        ledger.SaveRecord(record);
+        ledger.Write(run.Id, "worktree", new JsonObject { ["path"] = path, ["branch"] = branch, ["base"] = baseRef, ["baseSha"] = baseSha });
+    }
+
+    static async Task PrepareContinuationAsync(TaskRun run, Ledger ledger, string repo, Git git,
+        (Ledger Source, string Task, TaskRecord Record, string CreationSha, string Final, string? Patch, bool HasChanges) source, CancellationToken ct)
+    {
+        var record = run.Record;
+        var path = Locations.Worktree(run.Id, ledger.RunId);
+        var branch = $"dispatch/{ledger.RunId}/{run.Id}";
+        var reference = $"{source.Source.RunId}/{source.Task}";
+        await git.CheckAsync(repo, ct, "worktree", "add", "-b", branch, path, source.CreationSha);
+        record.Workspace.Path = path;
+        record.Workspace.Branch = branch;
+        record.Workspace.BaseRef = source.Record.Workspace.BaseRef;
+        record.Workspace.BaseSha = source.Record.Workspace.BaseSha;
+        record.Workspace.StartSha = source.CreationSha;
+        record.PromptText = Prompt.ContinuationText(reference, source.Final, record.PromptText, source.HasChanges);
+        ledger.SaveRecord(record);
+        if (source.Patch is { } patch)
+            await git.CheckAsync(path, ct, "apply", "--index", "--whitespace=nowarn", "--", patch);
+        ledger.Write(run.Id, "worktree", new JsonObject { ["path"] = path, ["branch"] = branch,
+            ["base"] = record.Workspace.BaseRef, ["baseSha"] = record.Workspace.BaseSha, ["continueOf"] = reference });
+    }
+
+    public static async Task<bool> DirtyAsync(Git git, string repo, CancellationToken ct) =>
+        (await git.CheckBytesAsync(repo, ct, "status", "--porcelain=v1", "-z", "--untracked-files=all")).Length > 0;
+
+    public static async Task<string> FolderAsync(Git git, string repo, string? dir, CancellationToken ct)
+    {
+        var folder = Path.GetFullPath(dir ?? ".", repo);
+        if (dir is not null && Path.IsPathRooted(dir) || !IsInside(folder, repo))
+            throw new HarnessException("in-place dir must be relative to and inside the repository");
+        if (!Directory.Exists(folder)) throw new HarnessException("in-place dir does not exist");
+        var top = await git.CheckAsync(folder, ct, "rev-parse", "--show-toplevel");
+        if (!Locations.Same(top.Trim(), repo)) throw new HarnessException("in-place dir belongs to another working tree");
+        return folder;
+    }
+
+    public static async Task<bool> CleanAsync(Ledger ledger, TaskRecord record, string repo, bool force, CancellationToken ct, Git? runner = null, Action<string>? landed = null)
+    {
+        var task = record.Spec.Id!;
+        var step = "workspace";
+        string? landingReason = null;
+        try
+        {
+            var restored = TaskRun.FromLedger(record, ledger);
+            if (!force && (restored.Zombie || (record.Settings.Backend?.Value != "codex" || restored.WorkerStopped != true)
+                && ledger.LoadResult(task)?.Failures.Any(failure => failure is "zombie" or "release-failed") == true))
+            {
+                Console.WriteLine($"{task}: retained zombie worktree and scratch; collect keeps uncommitted work; --force removes them anyway");
+                return false;
+            }
+            Scratch.Delete(record, ledger);
+            var git = runner ?? Runner(ledger, task);
+            if (!InPlace(record) && record.Workspace is { Path: { } path, Branch: { } branch })
+            {
+                async Task<string?> Registration()
+                {
+                    // Listing is read-only; a repeat clean can have already removed the baseline.
+                    var reader = Git.ForTask(task, ledger.RunId, git.ControlFolder);
+                    // shortcut: no -z (Git 2.36+), so a worktree path holding a newline is not supported.
+                    var entries = (await reader.CheckAsync(repo, ct, "worktree", "list", "--porcelain")).ReplaceLineEndings("\n")
+                        .Split("\n\n", StringSplitOptions.RemoveEmptyEntries).Select(x => x.Split('\n', StringSplitOptions.RemoveEmptyEntries)).ToList();
+                    // Git records real paths, so a root reached through a link matches by branch instead;
+                    // a detached or rebasing worktree has no branch line and matches by path.
+                    var real = RealPath(path);
+                    var entry = entries.FirstOrDefault(x => x.Any(v => v.StartsWith("worktree ", StringComparison.Ordinal)
+                            && (Locations.Same(v[9..], path) || Locations.Same(RealPath(v[9..]), real))))
+                        ?? entries.FirstOrDefault(x => x.Contains("branch refs/heads/" + branch));
+                    // Someone else's worktree in the task's folder is on another branch: never remove it.
+                    if (entry is not null && entry.Any(v => v.StartsWith("branch ", StringComparison.Ordinal)) && !entry.Contains("branch refs/heads/" + branch))
+                        throw new HarnessException($"refused a worktree on another branch: {path}");
+                    return entry is null ? null : string.Join('\0', entry);
+                }
+                var registration = await Registration();
+                var exists = Directory.Exists(path);
+                var link = Path.Combine(path, ".git");
+                var intact = exists && File.Exists(link) && File.ReadAllText(link) is { } text && text.StartsWith("gitdir: ", StringComparison.Ordinal)
+                    && Directory.Exists(Path.GetFullPath(text[8..].Trim(), path));
+                if (Directory.Exists(link)) throw new HarnessException($"refused an unrecognized worktree: {path}");
+                if (exists && !force && !intact)
+                {
+                    Console.WriteLine($"{task}: worktree partially removed ({path}); clean --force finishes the removal");
+                    return false;
+                }
+                if (exists && (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0 || intact && registration is null)
+                    throw new HarnessException($"refused an unrecognized worktree: {path}");
+                var branchExists = (await git.RunAsync(repo, ct, "show-ref", "--verify", "--quiet", "refs/heads/" + branch)).ExitCode == 0;
+                if ((exists || registration is not null || branchExists) && Directory.Exists(Locations.ControlDir(ledger.RunId)))
+                    await new GitConfigGate(git).CheckAsync(repo, ct);
+                var dirty = !force && intact && (await git.CheckAsync(path, ct, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=none")).Length > 0;
+                var merged = force || !branchExists || (record.Workspace.BaseRef is { } baseRef &&
+                    (await git.RunAsync(repo, ct, "merge-base", "--is-ancestor", branch, baseRef)).ExitCode == 0);
+                // A detached HEAD can hold commits the dispatch branch does not; git records it in the registration.
+                if (!force && merged && registration?.Split('\0').FirstOrDefault(x => x.StartsWith("HEAD ", StringComparison.Ordinal)) is { } headLine)
+                    merged = record.Workspace.BaseRef is { } headBase
+                        && (await git.RunAsync(repo, ct, "merge-base", "--is-ancestor", headLine[5..], headBase)).ExitCode == 0;
+                string? target = null;
+                if (!force && !dirty && !merged)
+                {
+                    try
+                    {
+                        (target, landingReason) = await LandingAsync(git, repo, record.Workspace.BaseSha!, branch,
+                            registration?.Split('\0').FirstOrDefault(x => x.StartsWith("HEAD ", StringComparison.Ordinal))?[5..], ct);
+                        merged = landingReason is not null;
+                    }
+                    catch (HarnessException ex)
+                    {
+                        Console.WriteLine($"{task}: refused ({ex.Message}); --force removes it anyway");
+                        return false;
+                    }
+                }
+                if (!force && (dirty || !merged))
+                {
+                    var reason = dirty
+                        ? (await git.CheckAsync(path, ct, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=all")).Length == 0
+                            ? "submodule has changes" : "dirty worktree"
+                        : $"unmerged: not on {record.Workspace.BaseRef}" + (target is null ? "" : $" or {target}; fetch if it landed recently");
+                    Console.WriteLine($"{task}: refused ({reason}); {(dirty && ledger.LoadResult(task)?.Failures.Contains("release-failed") == true ? "collect keeps uncommitted work; " : "")}--force removes it anyway");
+                    return false;
+                }
+                var removeSubmodules = false;
+                List<string> admins = [];
+                if (!force && registration is not null)
+                {
+                    var common = Path.GetFullPath((await git.CheckAsync(repo, ct, "rev-parse", "--git-common-dir")).Trim(), repo);
+                    var root = Path.Combine(common, "worktrees");
+                    var registeredLink = Path.Combine(registration.Split('\0').First(x => x.StartsWith("worktree ", StringComparison.Ordinal))[9..], ".git");
+                    if (Directory.Exists(root))
+                        admins = Directory.EnumerateDirectories(root).Where(dir =>
+                        {
+                            var file = Path.Combine(dir, "gitdir");
+                            if (!File.Exists(file)) return false;
+                            var target = Path.GetFullPath(File.ReadAllText(file).Trim(), dir);
+                            return Locations.Same(target, registeredLink)
+                                || Locations.Same(RealPath(target), RealPath(link));
+                        }).ToList();
+                    if (admins.Count == 0)
+                    {
+                        Console.WriteLine($"{task}: refused (worktree admin folder not found); --force removes it anyway");
+                        return false;
+                    }
+                }
+                foreach (var modules in admins.Select(admin => Path.Combine(admin, "modules")).Where(Directory.Exists))
+                {
+                    var reason = intact && (await git.CheckAsync(path, ct, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=none")).Length > 0
+                        ? "has changes" : null;
+                    if (reason is null)
+                        foreach (var dir in Directory.EnumerateDirectories(modules, "*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint })
+                            .Where(dir => File.Exists(Path.Combine(dir, "HEAD")) && Directory.Exists(Path.Combine(dir, "objects"))))
+                        {
+                            // rev-list needs no working files; the configured submodule worktree may be gone.
+                            if ((await git.CheckAsync(repo, ct, $"--git-dir={dir}", $"--work-tree={repo}", "rev-list", "--count", "--all", "--not", "--remotes")).Trim() == "0") continue;
+                            reason = "holds commits no remote has";
+                            break;
+                        }
+                    if (reason is not null)
+                    {
+                        Console.WriteLine($"{task}: refused (submodule {reason}); --force removes it anyway");
+                        return false;
+                    }
+                    removeSubmodules = true;
+                }
+                if (registration?.Split('\0').Any(x => x == "locked" || x.StartsWith("locked ", StringComparison.Ordinal)) == true)
+                    throw new HarnessException($"worktree is locked: {path}");
+                if (landingReason is not null)
+                {
+                    Console.WriteLine($"{task}: landed ({landingReason})");
+                    landed?.Invoke(landingReason);
+                }
+                if (force && !intact) DeleteTemp(path);
+                if ((registration is not null || intact)
+                    && await git.RunAsync(repo, ct, force || !exists || removeSubmodules ? ["worktree", "remove", "--force", path] : ["worktree", "remove", path]) is { ExitCode: not 0 } removal)
+                {
+                    // Without --force a git refusal stands, even after the submodule safety checks.
+                    if (!force) throw new HarnessException($"git worktree remove failed: {removal.Stderr.Trim()}");
+                    // Git cannot delete some deep trees with paths past its own limit: the folder
+                    // was already judged safe to remove, so delete it here, without following links, then drop its registration.
+                    try { DeleteTemp(path); }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    { throw new HarnessException($"git worktree remove failed ({removal.Stderr.Trim()}), and deleting {path} failed too: {ex.Message}"); }
+                    // A failed remove can already have dropped the registration.
+                    if (await Registration() is not null) await git.CheckAsync(repo, ct, "worktree", "remove", "--force", path);
+                }
+                if (Path.Exists(path) || await Registration() is not null) throw new HarnessException($"worktree removal did not remove {path}");
+                step = "branch";
+                if (branchExists) await git.CheckAsync(repo, ct, "branch", force || merged ? "-D" : "-d", branch);
+                if ((await git.RunAsync(repo, ct, "show-ref", "--verify", "--quiet", "refs/heads/" + branch)).ExitCode == 0)
+                    throw new HarnessException($"branch removal did not remove {branch}");
+            }
+            step = "temp";
+            foreach (var temp in Locations.CleanupTemps(ledger, record)) DeleteTemp(temp);
+            step = "index";
+            Snapshot.Delete(git, task);
+            if (Path.Exists(Snapshot.Index(git, task))) throw new HarnessException("temporary index remains");
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or HarnessException)
+        {
+            ex.Data["step"] = step;
+            throw;
+        }
+    }
+
+    static async Task<(string? Target, string? Reason)> LandingAsync(Git git, string repo, string baseSha, string branch, string? head, CancellationToken ct)
+    {
+        async Task<ProcessResult> ProbeAsync(bool noIsOne, params string[] args)
+        {
+            try
+            {
+                var result = await git.RunAsync(repo, ct, args);
+                if (result.ExitCode != 0 && !(noIsOne && result.ExitCode == 1))
+                {
+                    var message = result.Stderr.ReplaceLineEndings("\n").Split('\n')[0];
+                    throw new HarnessException(string.IsNullOrWhiteSpace(message) ? $"git {args[0]} exited {result.ExitCode}" : message);
+                }
+                return result;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                throw new HarnessException("landing check failed: " + (string.IsNullOrWhiteSpace(ex.Message) ? ex.GetType().Name : ex.Message));
+            }
+        }
+        static string Text(ProcessResult result) => Encoding.UTF8.GetString(result.Stdout).Trim();
+        var symbolic = await ProbeAsync(true, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD");
+        if (symbolic.ExitCode == 1) return (null, null);
+        var target = Text(symbolic);
+        if (!target.StartsWith("refs/remotes/origin/", StringComparison.Ordinal)) return (null, null);
+        var resolved = await ProbeAsync(true, "rev-parse", "--verify", "--quiet", $"{target}^{{commit}}");
+        if (resolved.ExitCode == 1) return (null, null);
+        var targetTip = Text(resolved);
+        var tip = Text(await ProbeAsync(false, "rev-parse", "--verify", $"refs/heads/{branch}^{{commit}}"));
+        var ancestor = await ProbeAsync(true, "merge-base", "--is-ancestor", tip, targetTip);
+        var headAncestor = head is null || head == tip || (await ProbeAsync(true, "merge-base", "--is-ancestor", head, targetTip)).ExitCode == 0;
+        if (ancestor.ExitCode == 0 && headAncestor) return (target, $"ancestor of {target}");
+        if (head is not null && head != tip) return (target, null);
+        var changed = await ProbeAsync(false, "diff", "--no-relative", "--name-only", "-z", "--no-renames", "--ignore-submodules=none", baseSha, tip);
+        var paths = Encoding.UTF8.GetString(changed.Stdout).Split('\0', StringSplitOptions.RemoveEmptyEntries);
+        if (paths.Length is 0 or > 500 || paths.Any(path => path.Contains('\uFFFD')) || string.Join(' ', paths).Length > 16_000) return (target, null);
+        if ((await ProbeAsync(true, "merge-base", "--is-ancestor", baseSha, targetTip)).ExitCode != 0) return (target, null);
+        async Task<bool> MatchesAsync(string candidate)
+        {
+            var difference = await ProbeAsync(false, "diff-tree", "--no-relative", "-r", "-z", "--no-renames", "--ignore-submodules=none",
+                "--no-ext-diff", "--no-textconv", tip, candidate);
+            return !Encoding.UTF8.GetString(difference.Stdout).Split('\0').Intersect(paths, StringComparer.Ordinal).Any();
+        }
+        if (await MatchesAsync(targetTip)) return (target, $"content matches {targetTip[..12]} on {target}");
+        var history = Text(await ProbeAsync(false, ["--literal-pathspecs", "rev-list", "--full-history", "--max-count=500", $"{baseSha}..{targetTip}", "--", .. paths]));
+        foreach (var candidate in history.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            if (await MatchesAsync(candidate)) return (target, $"content matches {candidate[..12]} on {target}");
+        return (target, null);
+    }
+
+    static void DeleteTemp(string path)
+    {
+        if (!Directory.Exists(path)) return;
+        foreach (var file in Directory.EnumerateFiles(path, "*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint }))
+            File.SetAttributes(file, File.GetAttributes(file) & ~FileAttributes.ReadOnly);
+        Directory.Delete(path, recursive: true);
+        if (Path.Exists(path)) throw new HarnessException($"removal did not remove {path}");
+    }
+}
+
+sealed class WorkspaceDirtyException() : HarnessException("workspace-dirty: in-place commit: harness requires a clean working tree");

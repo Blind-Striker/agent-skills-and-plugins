@@ -1,6 +1,6 @@
 # Curation sanity panel playbook
 
-Date: 2026-10-11
+Date: 2026-11-20
 
 A read-only review of **emitted output** for the questions deterministic validation cannot decide:
 whether two items compete for the same request, whether a transformed body still serves the intent
@@ -32,7 +32,7 @@ A **case** is one pair or cluster of items whose triggers compete. The standing 
 - `directory-build-organization` against `convert-to-cpm`.
 
 `code-testing` against `systematic-debugging` is not a case: `code-testing` is `manual` in all
-three harnesses, so no model chooses between them.
+four harnesses, so no model chooses between them.
 
 A **sweep** reviews trigger competition across the model-reachable items of one or more Modules and
 leaves out every pair a case covers. The first run, at `c7e9f90`, reviewed the four standing cases
@@ -47,7 +47,7 @@ A reviewer receives one bounded packet and reads nothing it needs beyond it:
 - the pinned upstream body of each item and its bundled dependency closure;
 - each item's manifest entry with its nearby reasons, and the Module header rules that apply;
 - the item's overlay or patch and its lock entry, when it owns a body;
-- all three emitted forms: `plugins/`, `opencode/`, and `codex/`;
+- all emitted forms the item ships: `plugins/`, `opencode/`, `codex/`, and `antigravity/`;
 - the canon sections that define what the reviewer judges, such as the invocation mapping in
   [transformation and emission](../architecture/transformation-and-emission.md) and the reference
   tiers in [references and linking](../architecture/references-and-linking.md).

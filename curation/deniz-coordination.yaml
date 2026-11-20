@@ -8,7 +8,7 @@
 plugin:
   name: deniz-coordination
   description: "Deniz's coordination skills (the coordinator mode, the delegation craft, model profiles, the dispatch harness and T3 Code as delegation mechanisms, verified waves)"
-  version: 0.3.1
+  version: 0.3.2
 original_skills:
   coordinator:
     invocation: both # it makes the agent own the goal, plan, hand work to other agents, and review it.
@@ -40,7 +40,7 @@ original_skills:
     # unmeasured (the Codex panel record was served V2), so the slot-leak reading is inferred, and
     # Codex's catalog serves Sol V2, so it covers Sol only under a V1 override. On both OpenCode and
     # Codex a child's completion is not a check-in: the next PENDING item launches without asking
-    harnesses: [opencode, codex] # it brings a verified fan-out to harnesses without a native workflow
+    harnesses: [opencode, codex, antigravity] # it brings a verified fan-out to harnesses without a native workflow
     # tool the user opts into; Claude Code starts the same run through its own workflow tool, so it
     # never carries the skill, curator's call (ADR-0009)
     harness_files: # each harness reads only its own tool notes; no tree carries another's tool words
@@ -48,6 +48,7 @@ original_skills:
         claude: null
         codex: references/codex-tools.md
         opencode: references/opencode-tools.md
+        antigravity: references/antigravity-tools.md
     # no depends_on: the body names no other skill
   model-profiles:
     invocation: both # one curator's profiles of the models they delegate to: roles, cost, how to brief
@@ -69,7 +70,7 @@ original_skills:
     # Process. The self entry is the load line the addendum template hands each dispatching repository,
     # rendered in every harness's own spelling. The body names model-profiles as an option the user
     # names, never a default, so the craft names no model. The body names t3-delegation, which ships everywhere;
-    # only the Claude Code and Codex host notes name the harness, so its reachability is checked in
+    # only the Claude Code, Codex, and Antigravity host notes name the harness, so its reachability is checked in
     # those trees (ADR-0010). Language test rules stay generic: this
     # Module names no General skill, so a repository addendum quotes them
     # Intake for pilot lessons, curator's call: a lesson enters the body only when it holds beyond one
@@ -86,6 +87,7 @@ original_skills:
         claude: references/claude-code-tools.md
         codex: references/codex-tools.md
         opencode: references/opencode-tools.md
+        antigravity: references/antigravity-tools.md
   t3-delegation:
     invocation: both # the craft loads it by name when T3's delegate_task is in the tool list, and the
     # user reaches it with "delegate through T3"; it maps the craft onto T3 and repeats none of T3's
@@ -95,7 +97,7 @@ original_skills:
     # while T3's executedModel stays null for OpenCode children. The restart check and the interrupt
     # through the service's owner are the measured method from an orphaned child that ran for hours
     # after T3 showed it cancelled. It names no provider or model, because orchestrator_capabilities lists
-    # them. Ships to every harness: a T3 session can run on any of the three
+    # them. Ships to every harness: a T3 session can run on any of them
     depends_on: [delegating-to-worker-models] # the body maps that craft's steps
   harness:
     invocation: both # model-invocable so callers (a coordinator, a task-file tool, a colleague's skill)
@@ -103,6 +105,6 @@ original_skills:
     # the user asks for workers (ADR-0009). Its section for the delegation craft holds the mapping that
     # the coordinator's Claude Code and Codex notes carried, so a caller that does not follow the craft
     # still uses it alone
-    harnesses: [claude, codex] # OpenCode reaches many model families natively, so a coordinator there
+    harnesses: [claude, codex, antigravity] # OpenCode reaches many model families natively, so a coordinator there
     # starts workers without this tool, curator's call (ADR-0009)
     # no depends_on: the body names no other skill

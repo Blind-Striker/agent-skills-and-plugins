@@ -1,6 +1,6 @@
 # Research
 
-Date: 2026-10-12
+Date: 2026-11-20
 
 Directory index for dated research, source-backed prior art, advisory synthesis, corrections, and
 decision history. [`docs/engineering/documentation.md`](../engineering/documentation.md#authority-and-document-roles)
@@ -22,6 +22,9 @@ relay to current canon rather than treating a research snapshot as current local
 
 ## Notes
 
+- [Antigravity native plugin and skill surfaces](antigravity-native-plugin-and-skill-surfaces.md):
+  the Google Antigravity capabilities and `agy 1.5.13` vs. T3 `agy_acp_server 1.4.5` findings that
+  constrained the Antigravity emitter.
 - [Claude ultracode and orchestration ports](claude-ultracode-and-orchestration-ports.md): Claude
   Code's ultracode mechanism, OpenCode and Codex orchestration capabilities, prior-art ports, and
   the orchestration-skill decisions.

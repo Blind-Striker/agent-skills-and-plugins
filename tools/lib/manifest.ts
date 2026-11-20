@@ -30,7 +30,7 @@ export interface SkillIntent {
   harness_files?: HarnessFiles;
   /**
    * The trees this item ships to (curation/SCHEMA.md `harnesses`, ADR-0010). Absent means all
-   * three; an unlisted harness gets nothing from the item.
+   * harnesses; an unlisted harness gets nothing from the item.
    */
   harnesses?: Harness[];
 }
@@ -86,8 +86,8 @@ export interface CurationItem extends SkillIntent {
   merged_from?: MergeSource[];
 }
 
-/** The three emitted harness trees, in the order the manifest names them. */
-export const HARNESSES = ["claude", "codex", "opencode"] as const;
+/** The emitted harness trees, in the order the manifest names them. */
+export const HARNESSES = ["claude", "codex", "opencode", "antigravity"] as const;
 export type Harness = (typeof HARNESSES)[number];
 export type HarnessFiles = Record<string, Record<Harness, string | null>>;
 
@@ -208,7 +208,7 @@ function checkHarnessFiles(path: string, source: string, raw: unknown): HarnessF
   const sources = new Set<string>();
   for (const [output, mapping] of Object.entries(files)) {
     if (typeof mapping !== "object" || mapping === null || Array.isArray(mapping)) {
-      throw new Error(`${where} ${output} must map claude, codex, and opencode to a source or null`);
+      throw new Error(`${where} ${output} must map ${HARNESSES.join(", ")} to a source or null`);
     }
     if (!itemRelativePath(output)) {
       throw new Error(`${where} ${output} is not an item-relative path inside the item folder`);

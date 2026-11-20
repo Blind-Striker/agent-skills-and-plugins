@@ -1,8 +1,8 @@
 # Skills cheatsheet: which skill, when
 
-Date: 2026-11-16
+Date: 2026-11-20
 
-Convenience routing map for the four curated Modules. This is not an authorship claim or a new
+Convenience routing map for the five curated Modules. This is not an authorship claim or a new
 methodology: it describes how upstream work is selected, combined, renamed, and invoked in this
 personal collection. Item posture and transformation reasons remain canonical in
 [`curation/*.yaml`](../curation/) and the generated [ledger](ledger.json).
@@ -10,7 +10,7 @@ personal collection. Item posture and transformation reasons remain canonical in
 The tables use bare output names. Each harness addresses a name inside its Module: Claude Code as
 `/deniz-process:brainstorming`, Codex as `$deniz-process:brainstorming`, and OpenCode as
 `@deniz-process.brainstorming` for a skill or agent, with `/<plugin>.<name>` only for an item
-emitted as a command. Each target's identity rules live in
+emitted as a command. Antigravity uses `/<plugin>:<name>` for explicit skill invocation. Each target's identity rules live in
 [Harness emission](architecture/transformation-and-emission.md#harness-emission).
 
 ## Where the material comes from
@@ -21,10 +21,10 @@ emitted as a command. Each target's identity rules live in
 | [`deniz-dotnet-general`](../curation/deniz-dotnet-general.yaml) | [dotnet-skills](https://github.com/Aaronontheweb/dotnet-skills) by Aaron Stannard; [dotnet/skills](https://github.com/dotnet/skills) by .NET Foundation contributors; [Blazing Fast .NET](https://github.com/EgorBo/BlazingFastDotnet) by Egor Bogatov | Selects the .NET areas used here, merges a few overlapping skills, adapts manual ceremonies, and adds the original `writing-tunit-tests` and `dotnet-walls` skills and the verbatim third-party `csharp-15` skill by Nick Chapsas / Dometrain (outside the MIT license; see [notices](../THIRD_PARTY_NOTICES.md#unlicensed-third-party-files)); requires the Aspire and Process Modules, Process for two reasons: `code-testing` hands a repair or flaky-test request to `systematic-debugging`, and `writing-tunit-tests` hands what to test, and in what order, to `test-driven-development` |
 | [`deniz-dotnet-akka`](../curation/deniz-dotnet-akka.yaml) | [dotnet-skills](https://github.com/Aaronontheweb/dotnet-skills) | Keeps the Akka specialist and reference set together, repairs/localizes handoffs, and links the cross-Module Aspire and General dependencies |
 | [`deniz-dotnet-aspire`](../curation/deniz-dotnet-aspire.yaml) | [Microsoft Aspire skills](https://github.com/microsoft/aspire-skills); selected Aspire material from [dotnet-skills](https://github.com/Aaronontheweb/dotnet-skills) | Packages the official Aspire workflow closure, localizes its internal routes, and adds the selected testing and ServiceDefaults specialists |
-| [`deniz-coordination`](../curation/deniz-coordination.yaml) | none; original work | Holds coordination ([ADR-0009](adr/0009-coordination-ships-in-its-own-module.md)): the original `coordinator` mode, the original `delegating-to-worker-models` craft, the original `model-profiles` list a user may name for it, the `harness` dispatcher shipped as .NET source for Claude Code and Codex, the original `t3-delegation` notes for delegating inside T3 Code, and the original `verified-waves` orchestration skill for OpenCode and Codex ([ADR-0010](adr/0010-per-harness-item-emission.md)); requires Process, whose `requesting-code-review` is the coordinator's review read |
+| [`deniz-coordination`](../curation/deniz-coordination.yaml) | none; original work | Holds coordination ([ADR-0009](adr/0009-coordination-ships-in-its-own-module.md)): the original `coordinator` mode, the original `delegating-to-worker-models` craft, the original `model-profiles` list a user may name for it, the `harness` dispatcher shipped as .NET source for Claude Code, Codex, and Antigravity, the original `t3-delegation` notes for delegating inside T3 Code, and the original `verified-waves` orchestration skill for OpenCode, Codex, and Antigravity ([ADR-0010](adr/0010-per-harness-item-emission.md)); requires Process, whose `requesting-code-review` is the coordinator's review read |
 
 Install a Module's required Modules beside it. OpenCode's installer refuses a Selection that has
-General without Aspire and Process, Akka without Aspire and General, or Coordination without Process; Claude Code and Codex
+General without Aspire and Process, Akka without Aspire and General, or Coordination without Process; Claude Code, Codex, and Antigravity
 install each Plugin on its own, so add the required ones yourself. The README's
 [requirement table](../README.md#opencode-from-this-checkout) lists every Module's requirements.
 
@@ -74,7 +74,7 @@ Cross-cutting routes:
 - `systematic-debugging`: a bug, test failure, regression, or unexpected behavior needs isolation.
 - `diagnosing-superpowers`: a session went wrong (repeated work, an ignored plan, a skill that did not fire, too slow or too costly) and you want the evidence; it drafts an upstream issue only when you approve the text. It gives no advice; `retro` is the one that proposes environment changes.
 - `dispatching-parallel-agents` / `using-git-worktrees`: independent tasks or branches can proceed in parallel.
-- `verified-waves` (Coordination; OpenCode and Codex only): run one task as waves of sub-agents with every finding checked by a fresh skeptic; `manual`, so you start it.
+- `verified-waves` (Coordination; OpenCode, Codex, and Antigravity): run one task as waves of sub-agents with every finding checked by a fresh skeptic; `manual`, so you start it.
 - `coordinator` (Coordination): make the agent own a task end to end, plan it, hand the work to other agents, review what comes back, and finish with as few questions as possible; it loads only when you, or a lead's brief, ask for a coordinator or a lane lead.
 - `delegating-to-worker-models`: hand one piece of work to another agent: pick the model first, then any delegation mechanism that reaches it, with what stays with you, the worker contract, a worker's lifetime, evidence from your own run, and review. It names no model.
 - `model-profiles` (Coordination): one curator's profiles of the models they delegate to (roles, cost, briefing, worker blocks, review focus); it takes effect only when you, a brief, or the repository addendum name it.
@@ -121,8 +121,9 @@ Most reference skills activate when their topic appears. These are the useful de
 | HTTPS dev trust | `dotnet-devcert-trust` for the exact Linux/WSL certificate-trust error | generation, trust and system CA bundle guidance, not a general machine-configuration rollout |
 | Guardrail | `dotnet-slopwatch` after code changes | `dotnet-walls` for a worker's verify gates in a repository without its own, static-dependency detection and other passive review knowledge |
 
-The delegated `roslyn-incremental-generator-specialist` is an agent in Claude Code/OpenCode and a
-skill in Codex. Use the harness's actual specialist surface, not a fabricated slash command.
+The delegated `roslyn-incremental-generator-specialist` and `akka-net-specialist` are native agents
+in Claude Code, OpenCode, and Antigravity, and skills in Codex. Use the harness's actual specialist
+surface, not a fabricated slash command.
 
 ## Specialized Modules
 
