@@ -1,6 +1,6 @@
 {
   "name": "deniz-agent-skills",
-  "version": "0.21.0",
+  "version": "0.22.0",
   "description": "Personal, opinionated Claude Code, OpenCode, Codex, and Antigravity skill distributions",
   "private": true,
   "license": "MIT",
