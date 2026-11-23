@@ -1,5 +1,6 @@
 #!/usr/bin/env -S dotnet --
-#:package OpenCodeDotNet.Sdk@1.1.0
+#:package OpenCodeDotNet.Sdk@2.0.1
+#:package Tomlyn@2.10.1
 #:include src/Usings.cs
 #:include src/Contracts/Errors.cs
 #:include src/Contracts/Constants.cs

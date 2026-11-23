@@ -502,7 +502,7 @@ public sealed class CodexBackendTests
             lab.Environment.ToDictionary(x => x.Key, x => (string?)x.Value));
         result.RequireSuccess("repository-selected catalog command");
         await Assert.That(result.Stdout).Contains("backend codex");
-        await Assert.That(result.Stdout).Contains(command == "routes" ? "codex:model-y" : "Codex 0.167.0");
+        await Assert.That(result.Stdout).Contains(command == "routes" ? "codex:model-y" : "Codex 0.171.0");
         // Selfcheck's launch check starts one thread and never a turn; routes starts neither.
         await Assert.That(lab.Input().Where(x => x["method"]?.GetValue<string>() is "thread/start" or "turn/start")
             .Select(x => x["method"]!.GetValue<string>()).ToArray()).IsEquivalentTo(command == "selfcheck" ? new[] { "thread/start" } : []);
@@ -825,7 +825,7 @@ public sealed class CodexBackendTests
         var result = await harness.RunAsync([command, "--backend", "codex", "--repo", repo.Root], cancellationToken,
             lab.Environment.ToDictionary(x => x.Key, x => (string?)x.Value));
         result.RequireSuccess("Codex catalog command");
-        await Assert.That(result.Stdout).Contains(command == "routes" ? "codex:model-y" : "Codex 0.167.0");
+        await Assert.That(result.Stdout).Contains(command == "routes" ? "codex:model-y" : "Codex 0.171.0");
         // Selfcheck's launch check starts one thread and never a turn; routes starts neither.
         await Assert.That(lab.Input().Where(x => x["method"]?.GetValue<string>() is "thread/start" or "turn/start")
             .Select(x => x["method"]!.GetValue<string>()).ToArray()).IsEquivalentTo(command == "selfcheck" ? new[] { "thread/start" } : []);
@@ -1185,14 +1185,14 @@ public sealed class CodexBackendTests
         var result = await harness.RunAsync(["run", lab.Tasks, "--repo", repo.Root], cancellationToken,
             lab.Environment.ToDictionary(x => x.Key, x => (string?)x.Value));
         await Assert.That(result.ExitCode).IsEqualTo(2);
-        await Assert.That(result.Stderr).Contains(failure == "version" ? "0.167.0" : "codex login");
+        await Assert.That(result.Stderr).Contains(failure == "version" ? "0.171.0" : "codex login");
         if (failure == "version") await Assert.That(result.Stderr).Contains("allowVersionDrift");
         await Assert.That(Directory.GetFiles(lab.Tree.DispatchHome, "run.json", SearchOption.AllDirectories)).IsEmpty();
         await Assert.That(lab.Input().Where(x => x["method"]?.GetValue<string>() == "turn/start")).IsEmpty();
     }
 
     [Test]
-    [Arguments("0.167.1", false, "patch release")]
+    [Arguments("0.171.1", false, "patch release")]
     [Arguments("0.168.0", true, "allowed by --allow-version-drift")]
     [Timeout(180_000)]
     public async Task Run_off_the_pin_settles_and_records_the_warning(string version, bool flag, string reason, CancellationToken cancellationToken)

@@ -35,7 +35,8 @@ This craft cuts waste at the same quality. A choice that trades quality, coverag
 
 Before your first hand-off through a mechanism, read its notes: your host's subagents and the other
 mechanisms this host carries in `references/host-tools.md`; T3 Code in
-`deniz-coordination.t3-delegation`, when T3's `delegate_task` is in your tool list. A mechanism's
+`deniz-coordination.t3-delegation`, when T3's `delegate_task` is in your tool list or `T3_ACP_MCP_NODE`
+is set. A mechanism's
 notes say how it starts a worker on a model, delivers the worker contract, records the model that ran
 and what it used, continues a stopped worker, isolates its writes, finds a worker still running after
 a restart, cancels and cleans up, and reaches other sessions. The rules below hold for every

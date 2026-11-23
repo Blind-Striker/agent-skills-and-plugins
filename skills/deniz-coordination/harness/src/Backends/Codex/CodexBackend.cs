@@ -1,6 +1,6 @@
 sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, string>? environment = null) : IWorkerBackend
 {
-    public const string PinnedVersion = "0.167.0";
+    public const string PinnedVersion = "0.171.0";
     string? installedVersion;
     string? drift;
     readonly IReadOnlyDictionary<string, string> environment = environment ?? WorkerEnvironment.Snapshot();

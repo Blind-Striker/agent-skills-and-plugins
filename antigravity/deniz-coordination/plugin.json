@@ -2,7 +2,7 @@
   "$schema": "https://antigravity.google/schemas/v1/plugin.json",
   "name": "deniz-coordination",
   "displayName": "Deniz Coordination",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Deniz's coordination skills (the coordinator mode, the delegation craft, model profiles, the dispatch harness and T3 Code as delegation mechanisms, verified waves)",
   "author": {
     "name": "Deniz İrgin",

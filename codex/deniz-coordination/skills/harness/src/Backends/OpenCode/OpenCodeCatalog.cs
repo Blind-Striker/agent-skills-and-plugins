@@ -15,11 +15,12 @@ sealed class Catalog
     {
         var where = new LocationSelector { Directory = directory };
 
-        // List models first: at 2.3.0 it waits up to five seconds for plugin activation and
-        // answers 503 if activation has not finished, while the agent listing returns only the
-        // agents loaded so far; so a returned model listing means the agent listing after it is
-        // complete. Listings can still be empty at a fresh location. Built-in agents always
-        // exist, so poll until both lists are non-empty, under a deadline.
+        // List models first: at 2.3.2 (SDK 2.0.1) it waits a bounded time for plugin activation
+        // and answers 503 if activation is still unavailable, while the agent listing returns
+        // only the agents loaded so far. A returned model listing does not guarantee that
+        // activation finished or that the agent listing is complete, and listings can be empty
+        // at a fresh location. Built-in agents always exist, so poll until both lists are
+        // non-empty, under a deadline.
         IReadOnlyList<AgentInfo>? agents = null;
         IReadOnlyList<ModelInfo>? models = null;
         OpenCodeApiException? unavailable = null;

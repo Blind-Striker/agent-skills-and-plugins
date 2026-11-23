@@ -305,7 +305,7 @@ retrying.
 ### OpenCode from a Release Package
 
 Package 0.22.0 is being prepared with Process 0.15.6, General 0.19.1, Akka 0.5.0, Aspire 0.7.2, and
-Coordination 0.3.2, matching the native Antigravity Plugin target release on `master`. The verified
+Coordination 0.3.3, matching the native Antigravity Plugin target release on `master`. The verified
 recipe below remains on the last published Release until the new asset passes publication checks.
 For the current recipe after publication, use the
 [repository README](https://github.com/Blind-Striker/agent-skills-and-plugins#opencode-from-a-release-package).

@@ -21,6 +21,9 @@ and this file differ, T3's win. This file maps the steps of
   `target.environmentId` with that machine's `projectId` runs it on another machine.
 - An implementation child runs with `isolation: "worktree"`; a read-only scan or review runs in the
   shared checkout.
+- When `delegate_task` is missing from the eager MCP tool list (for example, cut by an ACP tool
+  budget) and `T3_ACP_MCP_NODE` is set, call it through T3's documented `acp-mcp-call` CLI fallback;
+  do not switch to another mechanism.
 
 ## The brief
 

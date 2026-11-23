@@ -1,4 +1,4 @@
-worker-model grok v2
+worker-model concurrency-review v1
 
 This block is for review tasks.
 

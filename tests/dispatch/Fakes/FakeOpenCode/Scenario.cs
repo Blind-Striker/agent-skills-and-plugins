@@ -5,7 +5,8 @@ using System.Threading.Channels;
 
 // JSONL rules are consumed once (or repeated with repeat:true), independently per method/path.
 // body/query are subset expectations. reply/status define HTTP output; stream opens SSE, with
-// initial events. events on an ordinary response are broadcast after its body is flushed.
+// initial events. events on an ordinary response are broadcast after its body is flushed;
+// dropStreams then ends every open stream, as a dropped connection does.
 // This keeps concurrency request-driven, with no sleeps or assumed model execution times.
 internal sealed class Scenario : IDisposable
 {
@@ -121,6 +122,8 @@ internal sealed class Scenario : IDisposable
         await context.Response.Body.FlushAsync(ct);
         foreach (var frame in selected["events"]?.AsArray() ?? [])
             foreach (var channel in streams.Values) await channel.Writer.WriteAsync(frame!, ct);
+        if (selected["dropStreams"]?.GetValue<bool>() == true)
+            foreach (var channel in streams.Values) channel.Writer.TryComplete();
     }
 
     public void Dispose()
@@ -153,8 +156,10 @@ internal sealed class Scenario : IDisposable
     static async Task KeepAliveAsync(ChannelWriter<JsonNode?> stream, CancellationToken ct)
     {
         // Match the real server's quiet-stream cadence. The reader serializes these with events.
+        // A stream that dropStreams completed takes no more frames: the keepalive ends with it.
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
-        while (await timer.WaitForNextTickAsync(ct)) await stream.WriteAsync(null, ct);
+        while (await timer.WaitForNextTickAsync(ct))
+            if (!stream.TryWrite(null)) return;
     }
 
     static async Task WriteFrameAsync(HttpContext context, JsonNode? frame)

@@ -13,7 +13,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 - The five current curation manifests pass through one common assembly and emit matching Claude
   Code Plugins, OpenCode Module Bundles, native Codex Plugins, and native Antigravity Plugins, plus
   both repository marketplaces. Checkout Module versions are Process 0.15.6, General 0.19.1, Akka
-  0.5.0, Aspire 0.7.2, and Coordination 0.3.2. Coordination holds the `coordinator` mode, `delegating-to-worker-models` and
+  0.5.0, Aspire 0.7.2, and Coordination 0.3.3. Coordination holds the `coordinator` mode, `delegating-to-worker-models` and
   `verified-waves`, both moved out of Process, `model-profiles`, the `harness` skill with its bundled
   .NET source, and `t3-delegation` ([ADR-0009](adr/0009-coordination-ships-in-its-own-module.md)); `harnesses` narrows
   `harness` to Claude Code, Codex, and Antigravity and `verified-waves` to OpenCode, Codex, and
@@ -360,12 +360,12 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   comparing failing tests' first failure lines with the base must name what may differ besides
   approved literals (process ids, temporary paths). One worker stopped on a changed process id in
   `Prepare_interruption_is_not_replayed`.
-- **A sandbox-denied Codex command leaves no ledger tool event on macOS and Linux:** the dispatch
-  harness's pinned Codex 0.167.0 sends no command item for a code-mode exec whose sandboxed session
-  fails to open. So a sandbox-denied attempt is missing from the ledger, although the sandbox refused
-  it. A request to rerun the command outside the sandbox still arrives as an approval request and is
-  recorded. Windows records the denied attempt. The fault is upstream
-  ([openai/codex#56396](https://github.com/openai/codex/issues/56396)), and the harness states it as a
+- **A sandbox-denied Codex command leaves no ledger tool event on macOS and Linux:** earlier testing
+  found that Codex sent no command item when a code-mode exec's sandboxed session failed to open.
+  The sandbox refused the attempt, but the ledger had no tool event for it. A request to rerun the
+  command outside the sandbox still arrived as an approval request and was recorded. Windows
+  recorded the denied attempt. The upstream issue remains open at the harness's Codex 0.171.0 pin
+  ([openai/codex#56396](https://github.com/openai/codex/issues/56396)). The harness states this as a
   [known limit](../skills/deniz-coordination/harness/references/backends.md). Trigger: every move
   of the harness's Codex pin rechecks the issue. `CodexPinTests.S6` in `tests/dispatch/` fails as soon as
   `CodexBackend.PinnedVersion` changes. When a Codex release fixes the issue, do three things: restore the

@@ -8,7 +8,7 @@
 plugin:
   name: deniz-coordination
   description: "Deniz's coordination skills (the coordinator mode, the delegation craft, model profiles, the dispatch harness and T3 Code as delegation mechanisms, verified waves)"
-  version: 0.3.2
+  version: 0.3.3
 original_skills:
   coordinator:
     invocation: both # it makes the agent own the goal, plan, hand work to other agents, and review it.
@@ -89,7 +89,8 @@ original_skills:
         opencode: references/opencode-tools.md
         antigravity: references/antigravity-tools.md
   t3-delegation:
-    invocation: both # the craft loads it by name when T3's delegate_task is in the tool list, and the
+    invocation: both # the craft loads it by name when T3's delegate_task is in the tool list or
+    # T3_ACP_MCP_NODE is set, and the
     # user reaches it with "delegate through T3"; it maps the craft onto T3 and repeats none of T3's
     # own orchestration instructions, which win where they differ, curator's call. Its content is the
     # method a T3 coordinator built by hand: pasted contract, base-SHA stop, settling

@@ -87,7 +87,7 @@ not as a substitute for session delivery. It disables file watchers.
 On Windows it resolves the native
 executable behind a recognized package-manager shim; user config can provide an absolute executable
 path. Planning (`plan`, `run` and selfcheck's clean-profile check) compares the server's reported
-version with pin `2.3.0` under the [version pin](#version-pins) rule.
+version with pin `2.3.2` under the [version pin](#version-pins) rule.
 Selfcheck also reports the pin as its own check and checks stored session rules without sending a
 prompt. Normal planning validates the catalog at each task's location.
 An SDK `UnknownEvent` whose preserved type starts with `permission.`, `form.` or
@@ -158,8 +158,8 @@ user D-Bus and systemd sockets. This remains only an [accident guard](#opencode-
 
 ## Version pins
 
-Each backend decodes only the wire contract of its pinned version: opencode server `2.3.0`, which
-the SDK package is generated from, and Codex CLI `0.167.0`. Another version can lose events: an
+Each backend decodes only the wire contract of its pinned version: opencode server `2.3.2`, which
+the SDK package is generated from, and Codex CLI `0.171.0`. Another version can lose events: an
 unknown event outside the faulted `permission.`, `form.` and `session.execution.` prefixes is
 ignored, so a renamed event can leave a run waiting until its timeout. Plan, run, selfcheck and
 Codex `routes` classify the installed version:
@@ -181,7 +181,7 @@ not `codex-cli <version>` is refused without override.
 
 ## Codex process and sandbox
 
-The backend runs `codex app-server` over stdio and checks the CLI against pin `0.167.0` under the
+The backend runs `codex app-server` over stdio and checks the CLI against pin `0.171.0` under the
 [version pin](#version-pins) rule. Its protocol contract
 tests cover expected request shapes; sign-in is also checked before use.
 The probe checks account state and paginates the model catalog. It reads Windows readiness, but

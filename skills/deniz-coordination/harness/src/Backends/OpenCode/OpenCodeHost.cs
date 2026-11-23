@@ -315,6 +315,7 @@ sealed class HarnessServer : IAsyncDisposable
         _pump = Task.Run(async () =>
         {
             var attempt = 0;
+            var connectedOnce = false;
             while (!token.IsCancellationRequested)
             {
                 string reason;
@@ -325,7 +326,10 @@ sealed class HarnessServer : IAsyncDisposable
                         if (e is EventServerConnected)
                         {
                             connected.TrySetResult();
-                            await _bus.Writer.WriteAsync(new BusConnected(attempt), token);
+                            // The SDK retries failed attempts inside one subscription; every later
+                            // marker announces a possible gap, so the supervisor must poll.
+                            await _bus.Writer.WriteAsync(new BusConnected(connectedOnce ? Math.Max(attempt, 1) : attempt), token);
+                            connectedOnce = true;
                             attempt = 0;
                             continue;
                         }

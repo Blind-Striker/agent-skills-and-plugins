@@ -11,6 +11,164 @@
       ],
       "type": "string"
     },
+    "AgentMessageDisplay": {
+      "description": "How Chat should present a recovered answer.",
+      "oneOf": [
+        {
+          "properties": {
+            "annotation": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/AnswerAnnotation"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "mode": {
+              "enum": [
+                "show"
+              ],
+              "type": "string"
+            },
+            "trustedContacts": {
+              "$ref": "#/definitions/TrustedContacts"
+            },
+            "version": {
+              "enum": [
+                1
+              ],
+              "format": "uint8",
+              "minimum": 0.0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "mode",
+            "trustedContacts",
+            "version"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "mode": {
+              "enum": [
+                "hide"
+              ],
+              "type": "string"
+            },
+            "replacement": {
+              "$ref": "#/definitions/AnswerReplacement"
+            },
+            "version": {
+              "enum": [
+                1
+              ],
+              "format": "uint8",
+              "minimum": 0.0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "mode",
+            "replacement",
+            "version"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "mode": {
+              "enum": [
+                "block"
+              ],
+              "type": "string"
+            },
+            "reason": {
+              "$ref": "#/definitions/BlockReason"
+            },
+            "version": {
+              "enum": [
+                1
+              ],
+              "format": "uint8",
+              "minimum": 0.0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "mode",
+            "reason",
+            "version"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "AgentMessageModeration": {
+      "properties": {
+        "display": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AgentMessageDisplay"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "moderated": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "moderated"
+      ],
+      "type": "object"
+    },
+    "AnswerAnnotation": {
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "wellbeingHelpline"
+              ],
+              "type": "string"
+            },
+            "subject": {
+              "$ref": "#/definitions/HelplineSubject"
+            }
+          },
+          "required": [
+            "kind",
+            "subject"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "AnswerReplacement": {
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "wellbeingPromptHelpline"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "title": "WellbeingPromptHelplineAnswerReplacement",
+          "type": "object"
+        }
+      ]
+    },
     "AsyncUserInputQuestion": {
       "additionalProperties": false,
       "properties": {
@@ -32,6 +190,50 @@
       ],
       "type": "object"
     },
+    "BlockReason": {
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "protection"
+              ],
+              "type": "string"
+            },
+            "protectionType": {
+              "description": "Identifies the same moderation row that Chat writes on the live path.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "protectionType"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "cyber"
+              ],
+              "type": "string"
+            },
+            "trustedAccess": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "title": "KindBlockReason",
+          "type": "object"
+        }
+      ]
+    },
     "ByteRange": {
       "properties": {
         "end": {
@@ -50,156 +252,6 @@
         "start"
       ],
       "type": "object"
-    },
-    "CodexErrorInfo": {
-      "anyOf": [
-        {
-          "enum": [
-            "contextWindowExceeded",
-            "sessionBudgetExceeded",
-            "usageLimitExceeded",
-            "rateLimitExceeded",
-            "flexUnavailable",
-            "serverOverloaded",
-            "modelNotFound",
-            "policyCapacityUnavailable",
-            "cyberPolicy",
-            "misalignmentPolicyViolation",
-            "tooManyDenials",
-            "internalServerError",
-            "unauthorized",
-            "badRequest",
-            "threadRollbackFailed",
-            "sandboxError",
-            "other"
-          ],
-          "type": "string"
-        },
-        {
-          "additionalProperties": false,
-          "properties": {
-            "httpConnectionFailed": {
-              "properties": {
-                "httpStatusCode": {
-                  "format": "uint16",
-                  "minimum": 0.0,
-                  "type": [
-                    "integer",
-                    "null"
-                  ]
-                }
-              },
-              "type": "object"
-            }
-          },
-          "required": [
-            "httpConnectionFailed"
-          ],
-          "title": "HttpConnectionFailedCodexErrorInfo",
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "Failed to connect to the response SSE stream.",
-          "properties": {
-            "responseStreamConnectionFailed": {
-              "properties": {
-                "httpStatusCode": {
-                  "format": "uint16",
-                  "minimum": 0.0,
-                  "type": [
-                    "integer",
-                    "null"
-                  ]
-                }
-              },
-              "type": "object"
-            }
-          },
-          "required": [
-            "responseStreamConnectionFailed"
-          ],
-          "title": "ResponseStreamConnectionFailedCodexErrorInfo",
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "The response SSE stream disconnected in the middle of a turn before completion.",
-          "properties": {
-            "responseStreamDisconnected": {
-              "properties": {
-                "httpStatusCode": {
-                  "format": "uint16",
-                  "minimum": 0.0,
-                  "type": [
-                    "integer",
-                    "null"
-                  ]
-                }
-              },
-              "type": "object"
-            }
-          },
-          "required": [
-            "responseStreamDisconnected"
-          ],
-          "title": "ResponseStreamDisconnectedCodexErrorInfo",
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "Reached the retry limit for responses.",
-          "properties": {
-            "responseTooManyFailedAttempts": {
-              "properties": {
-                "httpStatusCode": {
-                  "format": "uint16",
-                  "minimum": 0.0,
-                  "type": [
-                    "integer",
-                    "null"
-                  ]
-                }
-              },
-              "type": "object"
-            }
-          },
-          "required": [
-            "responseTooManyFailedAttempts"
-          ],
-          "title": "ResponseTooManyFailedAttemptsCodexErrorInfo",
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "Returned when `turn/start` or `turn/steer` is submitted while the current active turn cannot accept same-turn steering, for example `/review` or manual `/compact`.",
-          "properties": {
-            "activeTurnNotSteerable": {
-              "properties": {
-                "turnKind": {
-                  "$ref": "#/definitions/NonSteerableTurnKind"
-                }
-              },
-              "required": [
-                "turnKind"
-              ],
-              "type": "object"
-            }
-          },
-          "required": [
-            "activeTurnNotSteerable"
-          ],
-          "title": "ActiveTurnNotSteerableCodexErrorInfo",
-          "type": "object"
-        },
-        {
-          "type": [
-            "string",
-            "object"
-          ]
-        }
-      ],
-      "description": "This translation layer make sure that we expose codex error code in camel case.\n\nWhen an upstream HTTP status is available (for example, from the Responses API or a provider), it is forwarded in `httpStatusCode` on the relevant `codexErrorInfo` variant."
     },
     "CollabAgentState": {
       "properties": {
@@ -561,10 +613,34 @@
           "type": "object"
         },
         {
-          "properties": {
-            "audio_url": {
-              "type": "string"
+          "anyOf": [
+            {
+              "properties": {
+                "audio_url": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "audio_url"
+              ],
+              "title": "AudioUrlFunctionCallOutputContentItem",
+              "type": "object"
             },
+            {
+              "properties": {
+                "file_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "file_id"
+              ],
+              "title": "FileIdFunctionCallOutputContentItem",
+              "type": "object"
+            }
+          ],
+          "description": "Inline audio data or an uploaded file loaded by the Responses API.",
+          "properties": {
             "type": {
               "enum": [
                 "input_audio"
@@ -574,7 +650,6 @@
             }
           },
           "required": [
-            "audio_url",
             "type"
           ],
           "title": "InputAudioFunctionCallOutputContentItem",
@@ -601,6 +676,13 @@
           "type": "object"
         }
       ]
+    },
+    "HelplineSubject": {
+      "enum": [
+        "answer",
+        "prompt"
+      ],
+      "type": "string"
     },
     "HookPromptFragment": {
       "properties": {
@@ -842,61 +924,6 @@
         }
       ]
     },
-    "MisalignmentErrorDetails": {
-      "properties": {
-        "detailedExplanation": {
-          "description": "A substantive localized explanation is required before offering continuation.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "errorType": {
-          "description": "Open-ended classification; clients must accept categories added by Responses.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "reviewTarget": {
-          "description": "Opaque server-issued block target. Presence alone does not enable target-based continuation.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "steer": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/MisalignmentSteer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Instruction to submit as the next turn's user input if continuation is confirmed."
-        }
-      },
-      "type": "object"
-    },
-    "MisalignmentSteer": {
-      "properties": {
-        "message": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "message"
-      ],
-      "type": "object"
-    },
-    "NonSteerableTurnKind": {
-      "enum": [
-        "review",
-        "compact"
-      ],
-      "type": "string"
-    },
     "PatchApplyStatus": {
       "enum": [
         "inProgress",
@@ -1084,6 +1111,17 @@
               "anyOf": [
                 {
                   "$ref": "#/definitions/MemoryCitation"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "moderation": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/AgentMessageModeration"
                 },
                 {
                   "type": "null"
@@ -1373,6 +1411,13 @@
               "format": "int64",
               "type": [
                 "integer",
+                "null"
+              ]
+            },
+            "environmentId": {
+              "description": "Registration scope, not necessarily the server's execution environment.",
+              "type": [
+                "string",
                 "null"
               ]
             },
@@ -1936,152 +1981,10 @@
       },
       "type": "object"
     },
-    "Turn": {
-      "properties": {
-        "completedAt": {
-          "description": "Unix timestamp (in seconds) when the turn completed.",
-          "format": "int64",
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "durationMs": {
-          "description": "Duration between turn start and completion in milliseconds, if known.",
-          "format": "int64",
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "error": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/TurnError"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Error associated with a failed or interrupted turn."
-        },
-        "id": {
-          "description": "Identifier for this turn. Codex-generated turn IDs are UUIDv7.",
-          "type": "string"
-        },
-        "items": {
-          "description": "Thread items currently included in this turn payload.",
-          "items": {
-            "$ref": "#/definitions/ThreadItem"
-          },
-          "type": "array"
-        },
-        "itemsView": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/TurnItemsView"
-            }
-          ],
-          "default": "full",
-          "description": "Describes how much of `items` has been loaded for this turn."
-        },
-        "rootTurnId": {
-          "description": "ID of the first turn in the chain of work that led to this turn. Pass this as `rootTurnId` when starting work on behalf of this turn. May be null in older history or a `review/start` response.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "startedAt": {
-          "description": "Unix timestamp (in seconds) when the turn started.",
-          "format": "int64",
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "status": {
-          "$ref": "#/definitions/TurnStatus"
-        }
-      },
-      "required": [
-        "id",
-        "items",
-        "status"
-      ],
-      "type": "object"
-    },
-    "TurnError": {
-      "properties": {
-        "additionalDetails": {
-          "default": null,
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "codexErrorInfo": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/CodexErrorInfo"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "message": {
-          "type": "string"
-        },
-        "misalignment": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/MisalignmentErrorDetails"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Optional public explanation and continuation instruction for a misalignment block."
-        }
-      },
-      "required": [
-        "message"
-      ],
-      "type": "object"
-    },
-    "TurnItemsView": {
-      "oneOf": [
-        {
-          "description": "`items` was not loaded for this turn. The field is intentionally empty.",
-          "enum": [
-            "notLoaded"
-          ],
-          "type": "string"
-        },
-        {
-          "description": "`items` contains only a display summary for this turn.",
-          "enum": [
-            "summary"
-          ],
-          "type": "string"
-        },
-        {
-          "description": "`items` contains every ThreadItem available from persisted app-server history for this turn.",
-          "enum": [
-            "full"
-          ],
-          "type": "string"
-        }
-      ]
-    },
-    "TurnStatus": {
+    "TrustedContacts": {
       "enum": [
-        "completed",
-        "interrupted",
-        "failed",
-        "inProgress"
+        "check",
+        "skip"
       ],
       "type": "string"
     },
@@ -2414,13 +2317,27 @@
     }
   },
   "properties": {
-    "turn": {
-      "$ref": "#/definitions/Turn"
+    "item": {
+      "$ref": "#/definitions/ThreadItem"
+    },
+    "startedAtMs": {
+      "description": "Unix timestamp (in milliseconds) when this item lifecycle started.",
+      "format": "int64",
+      "type": "integer"
+    },
+    "threadId": {
+      "type": "string"
+    },
+    "turnId": {
+      "type": "string"
     }
   },
   "required": [
-    "turn"
+    "item",
+    "startedAtMs",
+    "threadId",
+    "turnId"
   ],
-  "title": "TurnStartResponse",
+  "title": "ItemStartedNotification",
   "type": "object"
 }

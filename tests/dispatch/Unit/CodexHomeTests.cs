@@ -97,6 +97,7 @@ public sealed class CodexHomeTests
     [Test]
     [Arguments("[windows]\nsandbox = 'mxc'\n")]
     [Arguments("windows = { sandbox = 'mxc' }\n")]
+    [Arguments("windows.sandbox = 'mxc'\n")]
     public async Task ReadWindowsSandbox_reads_mxc(string config)
     {
         if (!OperatingSystem.IsWindows()) Skip.Test("Windows sandbox selection is Windows-only.");
@@ -105,6 +106,53 @@ public sealed class CodexHomeTests
         File.WriteAllText(Path.Combine(userHome, "config.toml"), config);
 
         await Assert.That(CodexHome.ReadWindowsSandbox(userHome)).IsEqualTo("mxc");
+    }
+
+    [Test]
+    [Arguments("windows.sandbox = \"elevated\"", "elevated")]
+    [Arguments("windows.sandbox = \"elevated\"\n[other]\nsandbox = \"mxc\"\n", "elevated")]
+    [Arguments("'windows'.\"sandbox\" = 'unelevated' # trailing comment", "unelevated")]
+    [Arguments("[windows]\nsandbox = \"elevated\"\n", "elevated")]
+    [Arguments("[\"windows\"]\nsandbox = \"unelevated\"\n", "unelevated")]
+    [Arguments("windows = { sandbox = \"mxc\" }", "mxc")]
+    public async Task ParseWindowsSandbox_reads_top_level_TOML_forms(string config, string expected)
+    {
+        await Assert.That(CodexHome.ParseWindowsSandbox(config)).IsEqualTo(expected);
+    }
+
+    [Test]
+    [Arguments("[other]\nwindows = { sandbox = \"mxc\" }\n")]
+    [Arguments("[windows.nested]\nsandbox = \"mxc\"\n")]
+    [Arguments("# windows.sandbox = \"mxc\"\n")]
+    [Arguments("notes = \"\"\"\n[windows]\nsandbox = \"mxc\"\n\"\"\"\n")]
+    [Arguments("[windows]\nsandbox = \"unknown\"\n")]
+    [Arguments("[windows]\nsandbox = 1\n")]
+    [Arguments("[windows]\nsandbox = \"mxc\"\ninvalid = {\n")]
+    [Arguments("")]
+    [Arguments("windows.sandbox = \"unelevated\"\nwindows.sandbox = \"elevated\"\n")]
+    [Arguments("[windows]\nsandbox = \"unelevated\"\nsandbox = \"elevated\"\n")]
+    public async Task ParseWindowsSandbox_ignores_invalid_or_unrecognized_modes(string config)
+    {
+        await Assert.That(CodexHome.ParseWindowsSandbox(config)).IsNull();
+    }
+
+    [Test]
+    public async Task Probe_retains_the_sandbox_mode_from_a_UTF8_BOM_CRLF_config()
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows sandbox selection is Windows-only.");
+        using var tree = new TempTree();
+        var userHome = Directory.CreateDirectory(Path.Combine(tree.Root, "user-codex")).FullName;
+        File.WriteAllText(Path.Combine(userHome, "auth.json"), "synthetic-auth");
+        File.WriteAllText(Path.Combine(userHome, "config.toml"), "windows.sandbox = \"elevated\"\r\n", new UTF8Encoding(true));
+
+        var mode = CodexHome.ReadWindowsSandbox(userHome);
+        var context = new BackendContext(Path.Combine(tree.Root, "profiles"), null, new Dictionary<string, string>());
+        using var probe = CodexHome.CreateProbe(context, userHome, tree.Repository, windowsSandbox: mode);
+        var config = TomlSerializer.Deserialize<TomlTable>(File.ReadAllText(Path.Combine(probe.Home, "config.toml")))!;
+
+        await Assert.That(mode).IsEqualTo("elevated");
+        await Assert.That(probe.Temporary).IsTrue();
+        await Assert.That((string)((TomlTable)config["windows"]!)["sandbox"]!).IsEqualTo("elevated");
     }
 
     [Test]

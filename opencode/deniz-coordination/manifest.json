@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-coordination",
-  "version": "0.3.2",
-  "digest": "sha256:2af6291922f0b7c6086c5630717f4ff38bdb6b01977508c0dee51c38086b21eb",
+  "version": "0.3.3",
+  "digest": "sha256:598d32f2f1255bbd1191c3718968cb1ca793c35c96550b8a4517e4fe5c9ca6ea",
   "requiredModules": [
     "deniz-process"
   ],
@@ -24,7 +24,7 @@
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/SKILL.md": {
-      "sha256": "sha256:498dd82501804738de1b4a2c825cd6d3bd0d43e2b345ed9ef6f064eb1820ab41",
+      "sha256": "sha256:ccc587eea44f86d59255141ae7ceeb33a9a1c2a9c44d56a87f724052fb6606fd",
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/failure-modes.md": {
@@ -64,15 +64,15 @@
       "mode": "100644"
     },
     "skills/deniz-coordination.model-profiles/SKILL.md": {
-      "sha256": "sha256:c4f9626e194178e4f682ba818f1bc28d2ec70d1348dffaa24b067f552fbdc72c",
+      "sha256": "sha256:abe18b56aeb0fb1eb10969eaeef0c5d1bdb2f7d824298530403051d2301db4bf",
       "mode": "100644"
     },
     "skills/deniz-coordination.model-profiles/references/astra.md": {
       "sha256": "sha256:bc6eb33a801eb83968aced1d9db7ad80c3a793b2d54d43c1b3e62597c6f0b9b3",
       "mode": "100644"
     },
-    "skills/deniz-coordination.model-profiles/references/grok-worker.md": {
-      "sha256": "sha256:94f022d2975c27acf469edcb00d0e6e3d35383b1c12ac71071b422d0c0b9f7f7",
+    "skills/deniz-coordination.model-profiles/references/concurrency-review-worker.md": {
+      "sha256": "sha256:d8663e200ccdefb5c87712a4b44732b3f3d5892de418db5b13431ea65086fb26",
       "mode": "100644"
     },
     "skills/deniz-coordination.model-profiles/references/sol-worker.md": {
@@ -80,11 +80,11 @@
       "mode": "100644"
     },
     "skills/deniz-coordination.model-profiles/references/sol.md": {
-      "sha256": "sha256:eecfde331282eba45fe31d52e944069352e40a090c4b63748e21bc4f900aab41",
+      "sha256": "sha256:04556f4f812f2d02224e967380950ee298afb8135781854b2d6f41610de094da",
       "mode": "100644"
     },
     "skills/deniz-coordination.t3-delegation/SKILL.md": {
-      "sha256": "sha256:8adc618ade34d7af04c2b643fa4d74793bd21abeea2e0b94ac99cd1f6db8fa58",
+      "sha256": "sha256:20d12c472906442f98a99d31af049db377133b7409f9a534b7e050b515adb465",
       "mode": "100644"
     },
     "skills/deniz-coordination.verified-waves/SKILL.md": {

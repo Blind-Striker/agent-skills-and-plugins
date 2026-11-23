@@ -140,7 +140,7 @@ public sealed class CatalogCommandTests
         TestContext.Current!.Output.WriteLine(result.ToString());
         result.RequireSuccess("selfcheck");
         await Assert.That(result.Stdout).Contains("backend codex");
-        await Assert.That(result.Stdout).Contains("pin: installed 0.167.0");
+        await Assert.That(result.Stdout).Contains("pin: installed 0.171.0");
         await Assert.That(result.Stdout).Contains("login:");
         await Assert.That(result.Stdout).Contains("model catalog:");
         await Assert.That(result.Stdout).Contains("clean profile: clean");
@@ -210,7 +210,7 @@ public sealed class CatalogCommandTests
     }
 
     [Test]
-    [Arguments("0.167.1", false, "patch release")]
+    [Arguments("0.171.1", false, "patch release")]
     [Arguments("0.168.0", true, "allowed by backends.codex.allowVersionDrift")]
     [Timeout(180_000)]
     public async Task Selfcheck_warns_for_a_Codex_off_the_pin_on_a_patch_or_an_override(string version, bool allow, string reason, CancellationToken ct)

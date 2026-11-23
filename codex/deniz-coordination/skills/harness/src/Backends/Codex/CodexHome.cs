@@ -1,6 +1,10 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using Tomlyn;
+using Tomlyn.Model;
+using Tomlyn.Parsing;
+using Tomlyn.Serialization;
 
 // Dispose only after the app-server and its descendants have stopped.
 sealed class CodexHome : IDisposable
@@ -38,12 +42,20 @@ sealed class CodexHome : IDisposable
     public static string? ReadWindowsSandbox(string userHome)
     {
         if (!OperatingSystem.IsWindows() || !File.Exists(Path.Combine(userHome, "config.toml"))) return null;
-        var text = File.ReadAllText(Path.Combine(userHome, "config.toml"));
-        var table = Regex.Match(text, @"(?ms)^\s*\[windows\]\s*(?<body>.*?)(?=^\s*\[|\z)");
-        var value = Regex.Match(table.Groups["body"].Value, "(?m)^\\s*sandbox\\s*=\\s*[\"'](?<value>elevated|unelevated|mxc)[\"']");
-        if (!value.Success) value = Regex.Match(text,
-            """(?m)^\s*(?:windows|"windows"|'windows')\s*=\s*\{[^}]*(?:sandbox|"sandbox"|'sandbox')\s*=\s*["'](?<value>elevated|unelevated|mxc)["']""");
-        return value.Success ? value.Groups["value"].Value : null;
+        return ParseWindowsSandbox(File.ReadAllText(Path.Combine(userHome, "config.toml")));
+    }
+
+    internal static string? ParseWindowsSandbox(string text)
+    {
+        // Validate first because deserializing into a table can overwrite duplicate keys.
+        var doc = SyntaxParser.Parse(text, validate: true);
+        if (doc.HasErrors) return null;
+
+        if (TomlSerializer.TryDeserialize<TomlTable>(text, CodexConfigToml.Default, out var root)
+            && root is not null && root.TryGetValue("windows", out var windows) && windows is TomlTable table
+            && table.TryGetValue("sandbox", out var value) && value is string mode && mode is "elevated" or "unelevated" or "mxc")
+            return mode;
+        return null;
     }
 
     public static CodexHome CreateProbe(BackendContext context, string userHome, string directory,
@@ -368,3 +380,6 @@ sealed class CodexHome : IDisposable
             [MarshalAs(UnmanagedType.LPUTF8Str)] string newName);
     }
 }
+
+[TomlSerializable(typeof(TomlTable))]
+partial class CodexConfigToml : TomlSerializerContext;
