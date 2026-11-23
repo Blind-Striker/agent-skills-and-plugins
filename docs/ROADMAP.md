@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-11-20
+Date: 2026-11-23
 
 Operational document: current orientation, next work, open decisions, known gaps, and deferred work.
 It shrinks as work lands and is not a chronology. Current mechanics live in
@@ -239,13 +239,15 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   upstream license copies, a public noreply marketplace contact, least-privilege secret and
   machine-path CI checks, private vulnerability reporting, and an explicit personal/no-SLA boundary.
 - OpenCode supports two installation transports: a recursive clone using the repository installer,
-  and the compiled npm-format Package attached to GitHub Release `installer-v0.21.0`. The Linux-built
-  asset carries the schema-2 OpenCode 2 Bundles of Process 0.15.5, General 0.19.1, Akka 0.5.0,
-  Aspire 0.7.2, and Coordination 0.3.1 with the installer of Package 0.5.0, unchanged, and passed the manual release
+  and the compiled npm-format Package attached to GitHub Release `installer-v0.22.0`. The Linux-built
+  asset carries the schema-2 OpenCode 2 Bundles of Process 0.15.6, General 0.19.1, Akka 0.5.0,
+  Aspire 0.7.2, and Coordination 0.3.3 with the installer of Package 0.5.0, unchanged, and passed the manual release
   workflow's source gate, tar-mode verifier, isolated Plan/Apply/status, publication, and remote
   re-download checks. Its exact identity and proof boundary are in the
-  [release record](../experiments/harness-invocation/records/2026-11-17-opencode-installer-v0.21.0.md).
-  The previous schema-2 Releases `installer-v0.20.0`
+  [release record](../experiments/harness-invocation/records/2026-11-23-opencode-installer-v0.22.0.md).
+  The previous schema-2 Releases `installer-v0.21.0`
+  ([record](../experiments/harness-invocation/records/2026-11-17-opencode-installer-v0.21.0.md)),
+  `installer-v0.20.0`
   ([record](../experiments/harness-invocation/records/2026-11-17-opencode-installer-v0.20.0.md)),
   `installer-v0.19.0`
   ([record](../experiments/harness-invocation/records/2026-11-15-opencode-installer-v0.19.0.md)),
