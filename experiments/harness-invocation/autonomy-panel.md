@@ -7,8 +7,8 @@ ends its turn before the requested work is done, when it stops where it should, 
 builds beyond the request. Its arms compare instruction blocks in a repository's `AGENTS.md`. The
 [protocol](protocol.md) owns isolation, controls, and recording in general; this file adds only what
 is specific to this panel. The scripts live in [`autonomy/`](autonomy/), and the sessions run through
-the dispatch harness of the private `opencode-sdk-dotnet-internal` repository
-(`tools/dispatch/dispatch.cs`).
+this repository's dispatch harness
+([`skills/deniz-coordination/harness/dispatch.cs`](../../skills/deniz-coordination/harness/dispatch.cs)).
 
 ## Purpose and boundary
 
@@ -88,9 +88,10 @@ The measure is the end of the first turn. There is no nudge: dispatch re-prompts
 sessions, and a turn that ends with a question has succeeded.
 
 The gate arms also run on other routes: `openai/gpt-6-luna#high` and Claude Opus 5.5 through the
-operator's stored GitHub Copilot login (`github-copilot/claude-opus-5.5`). Dispatch's maintained
-allow-list does not list the Copilot route, so those legs run a lab copy of `dispatch.cs` whose
-allow-list adds that one line; the maintained file is never edited.
+operator's stored GitHub Copilot login (`github-copilot/claude-opus-5.5`). The Copilot legs run a lab
+copy of `skills/deniz-coordination/harness/` with its `dispatch.cs` entry file, the `src/` tree it
+loads via `#:include`, and `global.json`. Add the Copilot route to `src/Config/AllowList.cs` only in
+the lab copy.
 
 ### Fence panel
 

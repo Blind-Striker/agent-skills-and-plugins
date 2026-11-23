@@ -1,6 +1,6 @@
 # Harness invocation runbook
 
-Date: 2026-10-12
+Date: 2026-11-23
 
 The lab must be outside both the repository and the real user profile. If the drive-root default is
 not the prepared lab, point the runners at it for the current shell:
@@ -102,33 +102,10 @@ built-ins, left no lab server running, and changed nothing in the real OpenCode,
 `~/.agents` trees. Only `oc2-discovery.ps1` with an explicit `-Lab` is portable; `Get-LabRoot` and
 `Use-OpenCodeIsolation` in `common.ps1` assume a drive-letter lab.
 
-A rollout checks discovery against a real profile instead: what its real config root lists. Start a
-short-lived private `opencode serve` on 127.0.0.1 with a random Basic-auth password, with an empty
-throwaway folder as its working directory. Keep `HOME`, `XDG_CONFIG_HOME`, and
-`OPENCODE_CONFIG_DIR` as the real profile sets them: the check reads the real config root and the
-Claude compatibility paths below the home. Point the data, state, cache, and database roots in
-the table below at the throwaway folder (OpenCode 2.0.26 `packages/util/src/global-roots.ts`).
-This is not total write isolation: the method does not move OpenCode's temp-dir root,
-`path.join(os.tmpdir(), "opencode")`. Do not add a temp redirect to this method. Real-profile
-rollout belongs to `harness-and-os-ai-config-centralize`; this section keeps the historical method
-until the curator chooses where it lives.
-
-| Variable | What it holds |
-|---|---|
-| `XDG_DATA_HOME` | The log, `<XDG_DATA_HOME>/opencode/log/opencode.log`, which every OpenCode process on the machine appends to, and shell output, tool output, and snapshots (`packages/util/src/global.ts:12-27`, `packages/util/src/observability/logging.ts:59-62`). A new database also imports `<XDG_DATA_HOME>/opencode/auth.json` if one exists (`packages/core/src/database/migration/20260805200742_import_legacy_credentials.ts:36-40`), so a real data root would put a real credential in the throwaway database |
-| `XDG_STATE_HOME` | Locks and the service registration (`packages/util/src/effect-flock.ts:109`, `packages/cli/src/services/service-config.ts:108`) |
-| `XDG_CACHE_HOME` | Plugin packages and remote skills (`packages/util/src/npm.ts:141`, `packages/core/src/skill/discovery.ts:106`). A plugin install locks below the state root (`npm.ts:255`), so a real cache beside a throwaway state root would be written without the real server's locks. A fresh cache may download a configured plugin or remote skill, which needs the network |
-| `OPENCODE_DB` | The database. It defaults below the data root (`packages/cli/src/database-path.ts`); name it so the check can confirm that the throwaway database was created |
-
-Read `GET /api/skill` until four consecutive reads agree, then `GET /api/agent`. Then kill the
-server's process tree, confirm that it stopped, and delete the throwaway folder. Record the
-modification times of the real log, database, state root, and cache root before and after. Those
-times cover only those roots. They do not cover the temp-dir root, which this method leaves on the
-process temp directory. Where no other OpenCode process runs, none of the recorded roots changes;
-a running service still writes its own entries.
-The rollouts through `installer-v0.7.0` moved only the database and the project folder, so the
-real log grew during their discovery runs
-([v0.7.0 rollout record](records/2026-10-12-v0.7.0-rollout.md#proof-limits)).
+The operator's separate machine-configuration repository owns real-profile installation and
+discovery, along with new per-machine rollout records. The public
+[v0.7.1 rollout record](records/2026-10-12-v0.7.1-rollout.md) remains historical evidence of the
+method used then.
 
 To measure installed output, first run the installer with `OPENCODE_CONFIG_DIR=<lab-root>/config`
 and the lab's other roots (`Get-OpenCodeLabEnvironment -Root <lab-root>` in `common.ps1` names them

@@ -1,5 +1,5 @@
-// Runs the autonomy panel (../autonomy-panel.md) through the dispatch harness of
-// opencode-sdk-dotnet-internal, with a raw-prompt policy and a lab-only OpenCode config root.
+// Runs the autonomy panel (../autonomy-panel.md) through the dispatch harness
+// (skills/deniz-coordination/harness/dispatch.cs), with a raw-prompt policy and a lab-only OpenCode config root.
 //
 //   node panel.mjs prepare --lab <lab> --dispatch <path to dispatch.cs>
 //   node panel.mjs dry     --lab <lab> --dispatch <path>
@@ -38,8 +38,9 @@ import { scoreAll } from "./score.mjs";
 const MODELS = {
   sol: "openai/gpt-6.1-sol-1m#high",
   luna: "openai/gpt-6-luna#high",
-  // Claude through the operator's stored GitHub Copilot login; dispatch's maintained allow-list
-  // does not list it, so legs on this route run a lab copy of dispatch with the line added.
+  // Claude through the operator's stored GitHub Copilot login. These legs run a lab copy of the
+  // harness folder with dispatch.cs, the src/ files it loads via #:include, and global.json.
+  // Add the route to src/Config/AllowList.cs only in the lab copy.
   claude: "github-copilot/claude-opus-5.5",
 };
 const POLICY = join(HERE, "dispatch-policy.jsonc");
@@ -70,7 +71,7 @@ function dispatchEnv() {
 
 function dispatch(dispatchFile, dispatchArgs, options = {}) {
   return run("dotnet", ["run", dispatchFile, "--", ...dispatchArgs], {
-    cwd: dirname(dirname(dirname(dispatchFile))),
+    cwd: dirname(dispatchFile),
     env: dispatchEnv(),
     timeout: 900_000,
     ...options,

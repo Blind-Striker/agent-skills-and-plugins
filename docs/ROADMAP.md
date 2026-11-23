@@ -90,13 +90,11 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   The `installer-v0.7.1` rollout updated all four real OpenCode profiles to Process 0.10.1 with one
   identical finding-free Plan of 2 replaces and moved every Claude Code and Codex installation of
   the marketplace to it, changing only `deniz-skills` configuration entries; its discovery checks
-  used the [runbook](../experiments/harness-invocation/runbook.md)'s throwaway data, state, cache,
-  and database roots and left the real ones unchanged
+  used throwaway data, state, cache, and database roots and left the real ones unchanged
   ([v0.7.1 rollout record](../experiments/harness-invocation/records/2026-10-12-v0.7.1-rollout.md)).
-  From the next release on, `harness-and-os-ai-config-centralize` owns installation on each machine
-  and the per-machine rollout records. This repository keeps Package release records; the existing
-  rollout records remain historical evidence. The location of the runbook's real-profile discovery
-  method remains an open curator decision: move it there, or keep it here as the method it follows.
+  The operator's separate machine-configuration repository owns installation on each machine, the
+  real-profile discovery method, and new per-machine rollout records. This repository keeps Package
+  release records and preserves existing rollout records as historical evidence.
 - `dotnet/skills` is reviewed through `96c3d68` (main, 2026-11-06; it has no release-shaped
   tag); waves W6 and W-D are done, and W6 closed every upstream sync wave of the 2026-10-08
   review. General takes upstream's consolidated `msbuild` skill as the auto entry for build
@@ -405,7 +403,8 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   the [catalog-budget record](../experiments/harness-invocation/records/2026-10-11-skill-catalog-budgets.md).
   The curator cancelled estate-wide description shortening and its proposed 190-character validation
   gate because of their maintenance cost. The per-machine Claude Code and Codex budget raises stay;
-  their configuration belongs to `harness-and-os-ai-config-centralize`. OpenCode has no listing budget.
+  their configuration belongs to the operator's separate machine-configuration repository.
+  OpenCode has no listing budget.
   The existing 1,024-character skill-description limit is unchanged; residual truncation remains a
   known limitation, not an active shortening task.
 - **Codex update re-enables a disabled plugin:** on Codex CLI 0.153.4, upgrading an installed

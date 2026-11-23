@@ -98,24 +98,6 @@ test("verified-waves brief forbids task questions and still allows the escalatio
   assert.doesNotMatch(plan, /broad\s+codemod|over the announced agent total|end your turn/);
 });
 
-test("verified-waves runbook discovery does not claim the OpenCode temp-dir root moved", () => {
-  const runbook = readFileSync(
-    join(import.meta.dirname, "..", "experiments", "harness-invocation", "runbook.md"),
-    "utf8",
-  );
-  const discovery = between(runbook, "A rollout checks discovery", "To measure installed output");
-  assert.match(discovery, /XDG_DATA_HOME/);
-  assert.match(discovery, /XDG_STATE_HOME/);
-  assert.match(discovery, /XDG_CACHE_HOME/);
-  assert.match(discovery, /OPENCODE_DB/);
-  assert.match(discovery, /does not move OpenCode's temp-dir root/);
-  assert.match(discovery, /path\.join\(os\.tmpdir\(\), "opencode"\)/);
-  assert.match(discovery, /not total write isolation/);
-  assert.doesNotMatch(discovery, /Point every root that the server writes/);
-  assert.doesNotMatch(discovery, /\| `TEMP` \|/);
-  assert.doesNotMatch(discovery, /\| `TMPDIR` \|/);
-});
-
 test("verified-waves counts only one item as small; a sequential chain is judged, not solo by default", () => {
   const skill = readFileSync(join(skillDir, "SKILL.md"), "utf8");
   const invoking = between(skill, "## What invoking this means", "## Plan before any dispatch").replace(/\s+/g, " ");
